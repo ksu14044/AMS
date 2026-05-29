@@ -1,0 +1,123 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ams_backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+      - name: Test
+        run: |
+          chmod +x mvnw
+          ./mvnw -B test -Dspring.profiles.active=test
+
+  build-frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ams_frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: ams_frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
+  publish-images:
+    needs: [test-backend, build-frontend]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push API image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./ams_backend
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/api:${{ github.sha }}
+            ghcr.io/${{ github.repository }}/api:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Build and push Web image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./ams_frontend
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/web:${{ github.sha }}
+            ghcr.io/${{ github.repository }}/web:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: publish-images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Copy compose file to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: docker-compose.yml
+          target: /opt/ams/
+      - name: Deploy on server
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          AMS_API_IMAGE: ghcr.io/${{ github.repository }}/api:${{ github.sha }}
+          AMS_WEB_IMAGE: ghcr.io/${{ github.repository }}/web:${{ github.sha }}
+          GHCR_DEPLOY_TOKEN: ${{ secrets.GHCR_DEPLOY_TOKEN }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: AMS_API_IMAGE,AMS_WEB_IMAGE,GHCR_DEPLOY_TOKEN
+          script: |
+            set -euo pipefail
+            mkdir -p /opt/ams
+            cd /opt/ams
+            if [ ! -f .env ]; then
+              echo "ERROR: /opt/ams/.env 가 없습니다. .env.example 을 참고해 서버에 생성하세요."
+              exit 1
+            fi
+            if [ -n "${GHCR_DEPLOY_TOKEN:-}" ]; then
+              echo "$GHCR_DEPLOY_TOKEN" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            fi
+            set -a
+            source .env
+            set +a
+            export AMS_API_IMAGE AMS_WEB_IMAGE
+            docker compose pull
+            docker compose up -d --remove-orphans
+            docker image prune -f

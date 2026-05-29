@@ -1,0 +1,14 @@
+spring:
+  datasource:
+    url: jdbc:mysql://mysql:3306/ams?serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true&useSSL=false
+    username: ${AMS_DB_USER:ams}
+    password: ${AMS_DB_PASSWORD}
+
+ams:
+  jwt:
+    secret: ${AMS_JWT_SECRET}
+  signup:
+    frontend-base-url: ${AMS_FRONTEND_BASE_URL:http://localhost}
+    academy-bootstrap-key: ${AMS_ACADEMY_BOOTSTRAP_KEY:}
+  upload:
+    dir: /data/uploads

@@ -1,0 +1,54 @@
+# 로컬: docker compose up --build
+# 배포: AMS_API_IMAGE / AMS_WEB_IMAGE 환경변수로 GHCR 이미지 지정 (CI/CD)
+
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD required}
+      MYSQL_DATABASE: ams
+      MYSQL_USER: ${AMS_DB_USER:-ams}
+      MYSQL_PASSWORD: ${AMS_DB_PASSWORD:?AMS_DB_PASSWORD required}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  api:
+    image: ${AMS_API_IMAGE:-ams-api:local}
+    build:
+      context: ./ams_backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      AMS_DB_USER: ${AMS_DB_USER:-ams}
+      AMS_DB_PASSWORD: ${AMS_DB_PASSWORD}
+      AMS_JWT_SECRET: ${AMS_JWT_SECRET:?AMS_JWT_SECRET required}
+      AMS_FRONTEND_BASE_URL: ${AMS_FRONTEND_BASE_URL:-http://localhost}
+      AMS_ACADEMY_BOOTSTRAP_KEY: ${AMS_ACADEMY_BOOTSTRAP_KEY:-}
+    volumes:
+      - upload_data:/data/uploads
+
+  web:
+    image: ${AMS_WEB_IMAGE:-ams-web:local}
+    build:
+      context: ./ams_frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${AMS_HTTP_PORT:-80}:80"
+
+volumes:
+  mysql_data:
+  upload_data:

@@ -5,7 +5,7 @@ spring:
   application:
     name: ams_backend
   profiles:
-    active: local
+    active: ${SPRING_PROFILES_ACTIVE:local}
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
   flyway:

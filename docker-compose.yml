@@ -12,6 +12,9 @@ services:
       MYSQL_PASSWORD: ${AMS_DB_PASSWORD:?AMS_DB_PASSWORD required}
     volumes:
       - mysql_data:/var/lib/mysql
+    # 서버 localhost만 노출 — PC는 SSH -L 3307:127.0.0.1:3306 터널로 Workbench 접속 (ACG 3306 개방 금지)
+    ports:
+      - "127.0.0.1:${AMS_MYSQL_HOST_PORT:-3306}:3306"
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 10s

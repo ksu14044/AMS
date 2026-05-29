@@ -32,9 +32,20 @@ Workbench로 MySQL에만 접속해도 Flyway는 **실행되지 않는다**.
 
 ## 새 마이그레이션 추가 절차
 
-1. 다음 번호 파일 추가: `V19__설명.sql`
+1. 다음 번호 파일 추가: `V21__설명.sql` (현재 최신 적용: **V20**)
 2. 로컬에서 백엔드 기동 → 적용·기능 확인
-3. `main` push → CI/CD 배포 → 서버 `api` 재기동 시 운영 DB에만 반영
+3. `main` push → CI/CD 배포 → 서버 `api` 재기동 시 운영 DB에 **자동** 반영
+
+**운영 검증 기록 (2026-05-29, V19/V20 스모크):** [PROD_FLYWAY_2026-05-29.md](./PROD_FLYWAY_2026-05-29.md)
+
+### 배포 후 확인 (로컬·운영 동일하면 OK)
+
+```sql
+SELECT version, description, success
+FROM flyway_schema_history
+ORDER BY installed_rank DESC
+LIMIT 5;
+```
 
 ## 로그 확인
 
@@ -69,7 +80,7 @@ ORDER BY installed_rank;
 
 | 상태 | 조치 |
 |------|------|
-| V18까지 행이 있고 `success=1` | 추가 작업 없음. 이후 V19+ 파일만 추가 후 배포 |
+| V18까지 행이 있고 `success=1` | 추가 작업 없음. 이후 migration 파일만 추가 후 **push → deploy** |
 | 테이블은 있는데 이력 없음 | Workbench로 V1~V18을 이미 실행한 상태. **api를 띄우기 전**에 스키마가 최신 migration과 동일한지 확인 후, Flyway `baseline`(버전 18) 또는 로컬에서 이력이 포함된 덤프로 `flyway_schema_history` 맞추기. 잘못 baseline 하면 이후 마이그레이션이 안 돌거나 중복 실행됨 |
 | 빈 DB (테이블 없음) | 덤프 import 없이 `api`만 기동 → V1~V18 자동 적용 |
 

@@ -37,8 +37,13 @@ DB 스키마는 **Flyway만** 사용 (`docs/db/FLYWAY.md`). 배포 후 `docker c
 
 1. `ams_backend` — `./mvnw test`
 2. `ams_frontend` — `npm ci` + `npm run build`
-3. GHCR에 `ghcr.io/<owner>/ams/api`, `.../web` 이미지 push (소문자 경로)
-4. SSH로 `/opt/ams`에 `docker-compose.yml` 동기화 후 `docker compose pull && up -d`
+3. GHCR에 `ghcr.io/<owner>/ams/api`, `.../web` 이미지 push  
+   - 태그: `:<github.sha>`(40자), `:latest`
+4. SSH로 `/opt/ams`에 `docker-compose.yml` 동기화 후 `docker compose pull && up -d`  
+   - deploy 시 `AMS_API_IMAGE` / `AMS_WEB_IMAGE` 는 **그 push의 `github.sha`로 덮어씀** (`.env`의 옛 SHA와 무관)
+
+**Flyway:** `api` 기동 시 자동 migrate. 별도 `compose run` 불필요.  
+검증·장애 복구 기록: [docs/db/PROD_FLYWAY_2026-05-29.md](../docs/db/PROD_FLYWAY_2026-05-29.md)
 
 ## 4. 로컬 Docker
 
@@ -91,9 +96,13 @@ ssh -i "C:\Users\mhm14\.ssh\ams-prod-key.pem" -L 3307:127.0.0.1:3306 root@<SSH_H
 `/opt/ams/.env`에 배포 이미지를 **상시** 넣어 두는 것을 권장합니다 (GitHub 사용자명은 본인 계정으로):
 
 ```bash
+# 수동 compose / pull 시 사용. CI deploy는 push마다 github.sha 이미지를 export 함.
 AMS_API_IMAGE=ghcr.io/<github-owner>/ams/api:latest
 AMS_WEB_IMAGE=ghcr.io/<github-owner>/ams/web:latest
 ```
+
+특정 SHA로 `docker pull` 시 **manifest unknown** 이면 GHCR Packages에 해당 태그가 없는 것이다.  
+Actions **publish-images** 가 성공한 커밋 SHA 또는 `latest` 를 쓴다.
 
 ```bash
 cd /opt/ams

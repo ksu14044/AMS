@@ -18,6 +18,8 @@ AMS_FRONTEND_BASE_URL=http://<공인IP 또는 도메인>
 
 ACG: **80**(또는 `AMS_HTTP_PORT`), **22**(SSH). MySQL **3306 외부 개방 금지**.
 
+DB 스키마는 **Flyway만** 사용 (`docs/db/FLYWAY.md`). 배포 후 `docker compose logs api | grep -i flyway` 로 마이그레이션 적용 여부 확인.
+
 ## 2. GitHub Secrets
 
 | Secret | 설명 |

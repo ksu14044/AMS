@@ -1,0 +1,374 @@
+/**
+ * 관리자·교직원 UI — Phase 10-5/10-6
+ * 반 카드 등 공통 패턴은 class-list.css 의 `.ams-class-list*` 사용.
+ * 학원 공지 섹션은 class-detail.css 의 `.ams-academy-notices*` 사용.
+ */
+
+.ams-admin {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-5);
+}
+
+.ams-signup-invites {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-5);
+}
+
+.ams-signup-invites__block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-3);
+}
+
+.ams-signup-invites__title {
+  margin: 0;
+  font-size: var(--ams-font-size-md);
+  font-weight: var(--ams-font-weight-semibold);
+}
+
+.ams-signup-invites__form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--ams-space-3);
+}
+
+.ams-signup-invites__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-1);
+  flex: 1;
+  min-width: 12rem;
+  font-size: var(--ams-font-size-sm);
+  font-weight: var(--ams-font-weight-semibold);
+}
+
+.ams-signup-invites__field select {
+  padding: 10px 12px;
+  min-height: var(--ams-touch-target);
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-sm);
+  background: var(--ams-color-white);
+  font-family: inherit;
+  font-size: var(--ams-font-size-md);
+  font-weight: var(--ams-font-weight-regular);
+}
+
+.ams-signup-invites__expiry {
+  margin: 0;
+  font-size: var(--ams-font-size-xs);
+  color: var(--ams-color-text-secondary);
+}
+
+.ams-signup-invites__url {
+  display: flex;
+  gap: var(--ams-space-2);
+  align-items: stretch;
+}
+
+.ams-signup-invites__url input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-sm);
+  font-size: var(--ams-font-size-xs);
+}
+
+.ams-admin__section {
+  background: var(--ams-color-white);
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-lg);
+  padding: var(--ams-space-card);
+}
+
+.ams-admin__section--muted {
+  background: var(--ams-color-surface);
+}
+
+.ams-admin__heading {
+  margin: 0 0 var(--ams-space-2);
+  font-size: var(--ams-font-size-lg);
+  font-weight: var(--ams-font-weight-bold);
+  color: var(--ams-color-text);
+}
+
+.ams-admin__desc {
+  margin: 0 0 var(--ams-space-4);
+  font-size: var(--ams-font-size-sm);
+  color: var(--ams-color-text-secondary);
+  line-height: var(--ams-line-height-normal);
+}
+
+.ams-admin__error {
+  margin: 0 0 var(--ams-space-3);
+  padding: 10px 12px;
+  border-radius: var(--ams-radius-sm);
+  background: var(--ams-color-danger-bg);
+  color: var(--ams-color-danger-fg);
+  font-size: var(--ams-font-size-sm);
+  font-weight: var(--ams-font-weight-semibold);
+}
+
+.ams-admin__error--block {
+  display: block;
+}
+
+.ams-admin__empty {
+  margin: 0;
+  color: var(--ams-color-text-secondary);
+  font-size: var(--ams-font-size-sm);
+}
+
+.ams-admin__hint {
+  margin: 0 0 var(--ams-space-3);
+  font-size: var(--ams-font-size-xs);
+  color: var(--ams-color-text-secondary);
+}
+
+.ams-admin__subheading {
+  margin: var(--ams-space-4) 0 var(--ams-space-2);
+  font-size: var(--ams-font-size-sm);
+  font-weight: var(--ams-font-weight-semibold);
+  color: var(--ams-color-text);
+}
+
+/* ─── 승인 대기 ─────────────────────────────── */
+.ams-pending-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-3);
+}
+
+.ams-pending-item {
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-md);
+  padding: var(--ams-space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-3);
+  background: var(--ams-color-white);
+}
+
+@media (min-width: 640px) {
+  .ams-pending-item {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+}
+
+.ams-pending-item__info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-1);
+}
+
+.ams-pending-item__info strong {
+  font-size: var(--ams-font-size-md);
+  font-weight: var(--ams-font-weight-bold);
+}
+
+.ams-pending-item__email,
+.ams-pending-item__meta {
+  font-size: var(--ams-font-size-xs);
+  color: var(--ams-color-text-secondary);
+}
+
+.ams-pending-item__form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ams-space-2);
+  align-items: flex-end;
+}
+
+.ams-pending-item__form label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-1);
+  font-size: var(--ams-font-size-xs);
+  font-weight: var(--ams-font-weight-semibold);
+  color: var(--ams-color-text-secondary);
+}
+
+.ams-pending-item__form select {
+  min-width: 140px;
+  padding: 10px 12px;
+  min-height: var(--ams-touch-target);
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-sm);
+  background: var(--ams-color-white);
+  font-family: inherit;
+  font-size: var(--ams-font-size-sm);
+  color: var(--ams-color-text);
+}
+
+.ams-pending-item__form select:focus {
+  outline: none;
+  border-color: var(--ams-color-primary);
+  box-shadow: 0 0 0 3px var(--ams-color-focus-ring);
+}
+
+/* ─── 관리자 폼 (반 생성·배정 등) ─────────── */
+.ams-admin-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-3);
+}
+
+.ams-admin-form--inline {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  margin-top: var(--ams-space-3);
+}
+
+.ams-admin-form__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ams-space-3);
+}
+
+.ams-admin-form__full {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-1);
+  font-size: var(--ams-font-size-xs);
+  font-weight: var(--ams-font-weight-semibold);
+  color: var(--ams-color-text-secondary);
+  margin-bottom: var(--ams-space-3);
+}
+
+.ams-admin-form label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-1);
+  font-size: var(--ams-font-size-xs);
+  font-weight: var(--ams-font-weight-semibold);
+  color: var(--ams-color-text-secondary);
+  flex: 1;
+  min-width: 140px;
+}
+
+.ams-admin-form input,
+.ams-admin-form select {
+  padding: 10px 12px;
+  min-height: var(--ams-touch-target);
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-sm);
+  background: var(--ams-color-white);
+  font-family: inherit;
+  font-size: var(--ams-font-size-sm);
+  color: var(--ams-color-text);
+}
+
+.ams-admin-form input:focus,
+.ams-admin-form select:focus {
+  outline: none;
+  border-color: var(--ams-color-primary);
+  box-shadow: 0 0 0 3px var(--ams-color-focus-ring);
+}
+
+/* ─── 수강 배정 리스트 ───────────────────── */
+.ams-enrollment-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-2);
+}
+
+.ams-enrollment-list__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ams-space-3);
+  padding: 10px 14px;
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-sm);
+  background: var(--ams-color-white);
+  font-size: var(--ams-font-size-sm);
+}
+
+/* ─── 학생부 ─────────────────────────────── */
+.ams-student-roster__search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ams-space-2);
+  margin-bottom: var(--ams-space-3);
+}
+
+.ams-student-roster__search-label {
+  flex: 1;
+  min-width: 12rem;
+}
+
+.ams-student-roster__search-input {
+  width: 100%;
+  padding: 10px 12px;
+  min-height: var(--ams-touch-target);
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-sm);
+  font-family: inherit;
+  font-size: var(--ams-font-size-md);
+}
+
+.ams-student-roster__list-wrap {
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-md);
+  background: var(--ams-color-white);
+}
+
+.ams-student-roster__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ams-student-roster__card {
+  padding: var(--ams-space-3) var(--ams-space-4);
+  border-bottom: var(--ams-border-width) solid var(--ams-color-border);
+}
+
+.ams-student-roster__card:last-child {
+  border-bottom: none;
+}
+
+.ams-student-roster__line {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ams-space-3);
+  padding: 6px 0;
+  font-size: var(--ams-font-size-sm);
+  line-height: var(--ams-line-height-normal);
+}
+
+.ams-student-roster__label {
+  flex: 0 0 4.5rem;
+  font-size: var(--ams-font-size-xs);
+  font-weight: var(--ams-font-weight-semibold);
+  color: var(--ams-color-text-secondary);
+}
+
+.ams-student-roster__value {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.ams-student-roster__count {
+  margin: 0;
+  padding: var(--ams-space-2) var(--ams-space-3);
+  font-size: var(--ams-font-size-xs);
+  color: var(--ams-color-text-secondary);
+  border-top: var(--ams-border-width) solid var(--ams-color-border);
+}

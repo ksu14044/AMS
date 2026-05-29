@@ -1,0 +1,154 @@
+/* `.ams-notification-bell` 은 `.ams-icon-btn` 위에 적용 — badge 표시만 보강 */
+.ams-notification-bell {
+  position: relative;
+}
+
+.ams-notification-bell__badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--ams-radius-pill);
+  background: var(--ams-color-primary);
+  color: var(--ams-color-white);
+  font-size: 0.625rem;
+  font-weight: var(--ams-font-weight-bold);
+  line-height: 18px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.ams-notifications {
+  background: var(--ams-color-white);
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-lg);
+  padding: var(--ams-space-card);
+}
+
+.ams-notifications__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ams-space-3);
+  margin-bottom: var(--ams-space-4);
+}
+
+.ams-notifications__filters {
+  display: flex;
+  gap: var(--ams-space-2);
+}
+
+.ams-notifications__filter {
+  padding: 6px 14px;
+  min-height: 32px;
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-pill);
+  background: var(--ams-color-white);
+  color: var(--ams-color-text-secondary);
+  font-size: var(--ams-font-size-sm);
+  font-weight: var(--ams-font-weight-semibold);
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.ams-notifications__filter:hover {
+  border-color: var(--ams-color-primary);
+  color: var(--ams-color-primary);
+}
+
+.ams-notifications__filter--active {
+  border-color: var(--ams-color-primary);
+  background: var(--ams-color-primary-light);
+  color: var(--ams-color-primary);
+}
+
+.ams-notifications__error {
+  margin: 0 0 var(--ams-space-3);
+  padding: 10px 12px;
+  border-radius: var(--ams-radius-sm);
+  background: var(--ams-color-danger-bg);
+  color: var(--ams-color-danger-fg);
+  font-size: var(--ams-font-size-sm);
+  font-weight: var(--ams-font-weight-semibold);
+}
+
+.ams-notifications__status,
+.ams-notifications__empty {
+  margin: 0;
+  color: var(--ams-color-text-secondary);
+  font-size: var(--ams-font-size-sm);
+  text-align: center;
+  padding: var(--ams-space-5) 0;
+}
+
+.ams-notifications__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ams-notifications__item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ams-space-3);
+  width: 100%;
+  padding: var(--ams-space-3) 0;
+  border: none;
+  border-bottom: var(--ams-border-width) solid var(--ams-color-border);
+  background: transparent;
+  text-align: left;
+  cursor: default;
+  font-family: inherit;
+}
+
+.ams-notifications__item:last-child {
+  border-bottom: none;
+}
+
+.ams-notifications__item--unread {
+  cursor: pointer;
+}
+
+.ams-notifications__dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  margin-top: 7px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.ams-notifications__item--unread .ams-notifications__dot {
+  background: var(--ams-color-primary);
+}
+
+.ams-notifications__content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-1);
+  min-width: 0;
+}
+
+.ams-notifications__title {
+  font-size: var(--ams-font-size-sm);
+  color: var(--ams-color-text);
+  font-weight: var(--ams-font-weight-medium);
+}
+
+.ams-notifications__item--unread .ams-notifications__title {
+  font-weight: var(--ams-font-weight-bold);
+}
+
+.ams-notifications__body {
+  font-size: var(--ams-font-size-xs);
+  color: var(--ams-color-text-secondary);
+  line-height: var(--ams-line-height-normal);
+}
+
+.ams-notifications__time {
+  font-size: var(--ams-font-size-xs);
+  color: var(--ams-color-text-muted);
+}

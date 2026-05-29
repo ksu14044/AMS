@@ -1,0 +1,107 @@
+package com.example.ams.service;
+
+import java.time.Instant;
+import java.util.List;
+
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.example.ams.common.BusinessException;
+import com.example.ams.common.ErrorCode;
+import com.example.ams.common.YoutubeUrlValidator;
+import com.example.ams.domain.clazz.Clazz;
+import com.example.ams.domain.clazz.VideoLesson;
+import com.example.ams.event.VideoLessonCreatedEvent;
+import com.example.ams.integration.YoutubeOEmbedClient;
+import com.example.ams.integration.YoutubeOEmbedMetadata;
+import com.example.ams.repository.VideoLessonRepository;
+import com.example.ams.security.CurrentUserService;
+
+@Service
+public class VideoLessonService {
+
+	private final VideoLessonRepository videoRepository;
+	private final ClassAccessService classAccessService;
+	private final CurrentUserService currentUserService;
+	private final YoutubeOEmbedClient youtubeOEmbedClient;
+	private final ApplicationEventPublisher eventPublisher;
+
+	public VideoLessonService(
+			VideoLessonRepository videoRepository,
+			ClassAccessService classAccessService,
+			CurrentUserService currentUserService,
+			YoutubeOEmbedClient youtubeOEmbedClient,
+			ApplicationEventPublisher eventPublisher) {
+		this.videoRepository = videoRepository;
+		this.classAccessService = classAccessService;
+		this.currentUserService = currentUserService;
+		this.youtubeOEmbedClient = youtubeOEmbedClient;
+		this.eventPublisher = eventPublisher;
+	}
+
+	public List<VideoLesson> listVideos(long classId) {
+		classAccessService.requireReadableClass(classId);
+		return videoRepository.findByClassId(classId);
+	}
+
+	@Transactional
+	public VideoLesson createVideo(
+			long classId,
+			String youtubeUrl,
+			String title,
+			String description,
+			Instant publishedAt) {
+		Clazz clazz = classAccessService.requireReadableClass(classId);
+		classAccessService.requireManageClassContent(clazz);
+		String normalizedUrl = youtubeUrl.trim();
+		YoutubeUrlValidator.requireValid(normalizedUrl);
+		String thumbnailUrl = resolveThumbnail(normalizedUrl);
+		Instant when = publishedAt != null ? publishedAt : Instant.now();
+		VideoLesson created = videoRepository.insert(
+				clazz.classId(),
+				normalizedUrl,
+				title,
+				description,
+				thumbnailUrl,
+				when,
+				currentUserService.requireUserId());
+		eventPublisher.publishEvent(new VideoLessonCreatedEvent(clazz.classId(), created.videoId(), title));
+		return created;
+	}
+
+	@Transactional
+	public VideoLesson updateVideo(
+			long classId,
+			long videoId,
+			String youtubeUrl,
+			String title,
+			String description) {
+		Clazz clazz = classAccessService.requireReadableClass(classId);
+		classAccessService.requireManageClassContent(clazz);
+		String normalizedUrl = youtubeUrl.trim();
+		YoutubeUrlValidator.requireValid(normalizedUrl);
+		requireVideoInClass(classId, videoId);
+		String thumbnailUrl = resolveThumbnail(normalizedUrl);
+		return videoRepository.update(videoId, classId, normalizedUrl, title, description, thumbnailUrl);
+	}
+
+	@Transactional
+	public void deleteVideo(long classId, long videoId) {
+		Clazz clazz = classAccessService.requireReadableClass(classId);
+		classAccessService.requireManageClassContent(clazz);
+		requireVideoInClass(classId, videoId);
+		videoRepository.delete(videoId, classId);
+	}
+
+	private String resolveThumbnail(String youtubeUrl) {
+		return youtubeOEmbedClient.fetch(youtubeUrl)
+				.map(YoutubeOEmbedMetadata::thumbnailUrl)
+				.orElse(null);
+	}
+
+	private VideoLesson requireVideoInClass(long classId, long videoId) {
+		return videoRepository.findByIdAndClassId(videoId, classId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.VIDEO_NOT_FOUND));
+	}
+}

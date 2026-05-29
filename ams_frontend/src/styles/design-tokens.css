@@ -1,0 +1,80 @@
+/**
+ * AMS 디자인 토큰 — docs/design/DESIGN_SYSTEM.md 와 동기화
+ * Phase 10-1: 색·폰트·간격·반경·그림자·레이아웃 전 영역 정리
+ */
+:root {
+  /* ─── Color · Brand ─────────────────────────── */
+  --ams-color-primary: #c21831;
+  --ams-color-primary-dark: #9b1428;
+  --ams-color-primary-light: #fce8ec;
+  --ams-color-primary-strong: #a8132a;
+
+  /* ─── Color · Neutral ───────────────────────── */
+  --ams-color-black: #000000;
+  --ams-color-white: #ffffff;
+  --ams-color-surface: #f5f5f5;
+  --ams-color-surface-strong: #ececec;
+  --ams-color-text: #111111;
+  --ams-color-text-secondary: #757575;
+  --ams-color-text-muted: #9e9e9e;
+  --ams-color-border: #e0e0e0;
+  --ams-color-border-strong: #bdbdbd;
+
+  /* ─── Color · State ─────────────────────────── */
+  --ams-color-focus-ring: rgba(194, 24, 49, 0.32);
+  --ams-color-success-bg: #e8f5e9;
+  --ams-color-success-fg: #1b5e20;
+  --ams-color-warning-bg: #fff3e0;
+  --ams-color-warning-fg: #e65100;
+  --ams-color-danger-bg: #ffebee;
+  --ams-color-danger-fg: #b71c1c;
+
+  /* ─── Typography ────────────────────────────── */
+  --ams-font-family:
+    'Pretendard', system-ui, 'Apple SD Gothic Neo', 'Malgun Gothic',
+    sans-serif;
+  --ams-font-size-xs: 0.75rem;
+  --ams-font-size-sm: 0.875rem;
+  --ams-font-size-md: 1rem;
+  --ams-font-size-lg: 1.125rem;
+  --ams-font-size-xl: 1.5rem;
+  --ams-font-size-2xl: 2rem;
+  --ams-line-height-tight: 1.25;
+  --ams-line-height-normal: 1.5;
+  --ams-font-weight-regular: 400;
+  --ams-font-weight-medium: 500;
+  --ams-font-weight-semibold: 600;
+  --ams-font-weight-bold: 700;
+
+  /* ─── Radius ────────────────────────────────── */
+  --ams-radius-sm: 8px;
+  --ams-radius-md: 12px;
+  --ams-radius-lg: 16px;
+  --ams-radius-xl: 20px;
+  --ams-radius-pill: 9999px;
+
+  /* ─── Space ─────────────────────────────────── */
+  --ams-space-1: 4px;
+  --ams-space-2: 8px;
+  --ams-space-3: 12px;
+  --ams-space-4: 16px;
+  --ams-space-5: 20px;
+  --ams-space-6: 24px;
+  --ams-space-7: 32px;
+  --ams-space-page: 20px;
+  --ams-space-card: 20px;
+
+  /* ─── Border ────────────────────────────────── */
+  --ams-border-width: 1px;
+
+  /* ─── Layout ────────────────────────────────── */
+  --ams-app-max-width: 480px;
+  --ams-nav-height: 60px;
+  --ams-header-height: 56px;
+  --ams-touch-target: 44px;
+
+  /* ─── Shadow ────────────────────────────────── */
+  --ams-shadow-none: none;
+  --ams-shadow-card: 0 2px 12px rgba(17, 17, 17, 0.04);
+  --ams-shadow-elevated: 0 8px 24px rgba(17, 17, 17, 0.08);
+}

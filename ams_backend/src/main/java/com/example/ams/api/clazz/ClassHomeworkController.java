@@ -1,0 +1,80 @@
+package com.example.ams.api.clazz;
+
+import java.util.List;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.example.ams.api.dto.CreateHomeworkRequest;
+import com.example.ams.api.dto.HomeworkResponse;
+import com.example.ams.api.dto.HomeworkSubmissionResponse;
+import com.example.ams.api.dto.UpdateHomeworkSubmissionRequest;
+import com.example.ams.common.ApiResponse;
+import com.example.ams.service.HomeworkService;
+
+import jakarta.validation.Valid;
+
+@RestController
+@RequestMapping("/api/v1/classes/{classId}/homeworks")
+public class ClassHomeworkController {
+
+	private final HomeworkService homeworkService;
+
+	public ClassHomeworkController(HomeworkService homeworkService) {
+		this.homeworkService = homeworkService;
+	}
+
+	@GetMapping
+	public ApiResponse<List<HomeworkResponse>> list(@PathVariable long classId) {
+		List<HomeworkResponse> list = homeworkService.listHomeworks(classId).stream()
+				.map(HomeworkResponse::from)
+				.toList();
+		return ApiResponse.ok(list);
+	}
+
+	@PostMapping
+	public ApiResponse<HomeworkResponse> create(
+			@PathVariable long classId,
+			@Valid @RequestBody CreateHomeworkRequest request) {
+		return ApiResponse.ok(HomeworkResponse.from(
+				homeworkService.createHomework(classId, request.title(), request.dueAt())));
+	}
+
+	@GetMapping("/{homeworkId}/submissions")
+	public ApiResponse<List<HomeworkSubmissionResponse>> listSubmissions(@PathVariable long homeworkId) {
+		List<HomeworkSubmissionResponse> rows = homeworkService.listSubmissionRows(homeworkId).stream()
+				.map(HomeworkSubmissionResponse::from)
+				.toList();
+		return ApiResponse.ok(rows);
+	}
+
+	@PatchMapping("/{homeworkId}/submissions/{studentId}")
+	public ApiResponse<HomeworkSubmissionResponse> updateSubmission(
+			@PathVariable long homeworkId,
+			@PathVariable long studentId,
+			@Valid @RequestBody UpdateHomeworkSubmissionRequest request) {
+		homeworkService.updateSubmission(
+				homeworkId,
+				studentId,
+				request.submitted(),
+				request.submittedAt(),
+				request.score(),
+				request.grade(),
+				request.memo());
+		var row = homeworkService.listSubmissionRows(homeworkId).stream()
+				.filter(r -> r.studentId() == studentId)
+				.findFirst()
+				.orElseThrow();
+		return ApiResponse.ok(HomeworkSubmissionResponse.from(row));
+	}
+
+	@PatchMapping("/{homeworkId}/complete")
+	public ApiResponse<HomeworkResponse> complete(@PathVariable long homeworkId) {
+		return ApiResponse.ok(HomeworkResponse.from(homeworkService.markCompleted(homeworkId)));
+	}
+}

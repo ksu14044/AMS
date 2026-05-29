@@ -1,0 +1,102 @@
+.ams-app {
+  flex: 1;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--ams-color-surface);
+  font-family: var(--ams-font-family);
+}
+
+.ams-app__header {
+  width: 100%;
+  max-width: var(--ams-app-max-width);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ams-space-3);
+  padding: var(--ams-space-3) var(--ams-space-page);
+  min-height: var(--ams-header-height);
+  background: var(--ams-color-white);
+  border-bottom: var(--ams-border-width) solid var(--ams-color-border);
+}
+
+.ams-app__header--student {
+  background: var(--ams-color-surface);
+  border-bottom: none;
+  padding-top: var(--ams-space-5);
+  padding-bottom: var(--ams-space-3);
+}
+
+.ams-app__student-title {
+  margin: 0;
+  font-size: var(--ams-font-size-xl);
+  font-weight: var(--ams-font-weight-bold);
+  color: var(--ams-color-text);
+  line-height: var(--ams-line-height-tight);
+}
+
+.ams-app__eyebrow {
+  margin: 0;
+  font-size: var(--ams-font-size-xs);
+  color: var(--ams-color-primary);
+  font-weight: var(--ams-font-weight-semibold);
+  letter-spacing: 0.04em;
+}
+
+.ams-app__title {
+  margin: 4px 0 0;
+  font-size: var(--ams-font-size-lg);
+  font-weight: var(--ams-font-weight-bold);
+  color: var(--ams-color-text);
+}
+
+.ams-app__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--ams-space-2);
+}
+
+.ams-app__link {
+  font-size: var(--ams-font-size-sm);
+  color: var(--ams-color-text-secondary);
+  text-decoration: none;
+}
+
+.ams-app__link:hover {
+  color: var(--ams-color-text);
+}
+
+.ams-app__main {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.ams-app__container {
+  width: 100%;
+  max-width: var(--ams-app-max-width);
+  padding: var(--ams-space-page);
+  overflow-x: hidden;
+}
+
+/* 학생 모드는 헤더에서 큰 인사가 이미 상단을 차지하므로 본문 상단 패딩을 줄임 */
+.ams-app--student .ams-app__container {
+  padding-top: var(--ams-space-3);
+}
+
+.ams-placeholder {
+  background: var(--ams-color-white);
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-lg);
+  padding: var(--ams-space-card);
+  color: var(--ams-color-text);
+}
+
+.ams-placeholder__hint {
+  margin-top: var(--ams-space-2);
+  font-size: var(--ams-font-size-sm);
+  color: var(--ams-color-text-secondary);
+}

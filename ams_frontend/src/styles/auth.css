@@ -1,0 +1,281 @@
+/**
+ * AMS 인증 화면 — Phase 10-2
+ * 카드·버튼은 components.css 의 `.ams-card`·`.ams-btn` 를 기반으로 한다.
+ */
+
+.ams-auth {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--ams-color-surface);
+  font-family: var(--ams-font-family);
+}
+
+.ams-auth__header {
+  width: 100%;
+  max-width: var(--ams-app-max-width);
+  padding: var(--ams-space-page);
+}
+
+.ams-auth__logo {
+  display: inline-block;
+  font-size: var(--ams-font-size-lg);
+  font-weight: var(--ams-font-weight-bold);
+  color: var(--ams-color-primary);
+  letter-spacing: 0.04em;
+}
+
+.ams-auth__main {
+  flex: 1;
+  width: 100%;
+  max-width: var(--ams-app-max-width);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--ams-space-page);
+}
+
+/* 인증 화면의 카드는 폭을 화면에 꽉 채워 모바일에서도 자연스럽게 보이도록 한다. */
+.ams-auth__card {
+  width: 100%;
+}
+
+/* ─── 카드 헤더 (.ams-card 와 결합) ───────────── */
+.ams-card__title {
+  margin: 0 0 var(--ams-space-2);
+  font-size: var(--ams-font-size-xl);
+  font-weight: var(--ams-font-weight-bold);
+  color: var(--ams-color-text);
+}
+
+.ams-card__desc {
+  margin: 0 0 var(--ams-space-5);
+  font-size: var(--ams-font-size-sm);
+  color: var(--ams-color-text-secondary);
+  line-height: var(--ams-line-height-normal);
+}
+
+.ams-card--center {
+  text-align: center;
+}
+
+/* ─── 폼 ───────────────────────────────────── */
+.ams-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-3);
+}
+
+.ams-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-1);
+  font-size: var(--ams-font-size-sm);
+  color: var(--ams-color-text);
+  font-weight: var(--ams-font-weight-semibold);
+}
+
+.ams-field input,
+.ams-field select {
+  padding: 12px 14px;
+  min-height: var(--ams-touch-target);
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-sm);
+  background: var(--ams-color-white);
+  font-family: inherit;
+  font-size: var(--ams-font-size-md);
+  font-weight: var(--ams-font-weight-regular);
+  color: var(--ams-color-text);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ams-field input::placeholder {
+  color: var(--ams-color-text-muted);
+}
+
+.ams-field input:focus,
+.ams-field select:focus {
+  outline: none;
+  border-color: var(--ams-color-primary);
+  box-shadow: 0 0 0 3px var(--ams-color-focus-ring);
+}
+
+.ams-field__hint {
+  margin: 2px 0 0;
+  font-size: var(--ams-font-size-xs);
+  font-weight: var(--ams-font-weight-regular);
+  color: var(--ams-color-text-secondary);
+}
+
+.ams-form__error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--ams-radius-sm);
+  background: var(--ams-color-danger-bg);
+  font-size: var(--ams-font-size-sm);
+  font-weight: var(--ams-font-weight-semibold);
+  color: var(--ams-color-danger-fg);
+}
+
+.ams-consent {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  align-items: start;
+  gap: var(--ams-space-2);
+  padding: var(--ams-space-3);
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-sm);
+  background: var(--ams-color-surface);
+  font-size: var(--ams-font-size-xs);
+  font-weight: var(--ams-font-weight-regular);
+  color: var(--ams-color-text-secondary);
+  line-height: var(--ams-line-height-normal);
+}
+
+.ams-consent input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+}
+
+.ams-consent strong {
+  color: var(--ams-color-text);
+}
+
+.ams-form__submit {
+  margin-top: var(--ams-space-2);
+}
+
+/* ─── 카드 푸터 (가입/로그인 안내) ──────────── */
+.ams-card__footer {
+  margin-top: var(--ams-space-5);
+  padding-top: var(--ams-space-4);
+  border-top: var(--ams-border-width) solid var(--ams-color-border);
+  text-align: center;
+  font-size: var(--ams-font-size-sm);
+  color: var(--ams-color-text-secondary);
+}
+
+.ams-card__footer a {
+  color: var(--ams-color-primary);
+  font-weight: var(--ams-font-weight-semibold);
+}
+
+.ams-card__footer a:hover {
+  color: var(--ams-color-primary-dark);
+}
+
+.ams-auth__invite-hint {
+  margin-top: var(--ams-space-4);
+  margin-bottom: 0;
+  text-align: center;
+}
+
+.ams-auth__signup-links {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-2);
+  margin-top: var(--ams-space-2);
+}
+
+.ams-auth__signup-links a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ams-space-1);
+  min-height: var(--ams-touch-target);
+  padding: 10px var(--ams-space-3);
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-md);
+  background: var(--ams-color-white);
+  color: var(--ams-color-text);
+  font-weight: var(--ams-font-weight-semibold);
+  font-size: var(--ams-font-size-sm);
+}
+
+.ams-auth__signup-links a:hover {
+  border-color: var(--ams-color-primary);
+  color: var(--ams-color-primary);
+}
+
+.ams-auth__academy-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-2);
+}
+
+.ams-auth__academy-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--ams-space-1);
+  min-height: var(--ams-touch-target);
+  padding: var(--ams-space-3);
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-md);
+  background: var(--ams-color-white);
+  color: var(--ams-color-text);
+  text-align: left;
+}
+
+.ams-auth__academy-option-name {
+  font-weight: var(--ams-font-weight-semibold);
+  font-size: var(--ams-font-size-md);
+}
+
+.ams-auth__academy-option-meta {
+  font-size: var(--ams-font-size-sm);
+  color: var(--ams-color-text-secondary);
+}
+
+/* ─── 승인 대기 화면 ───────────────────────── */
+.ams-pending {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ams-space-4);
+  padding: var(--ams-space-7) var(--ams-space-card);
+  text-align: center;
+}
+
+.ams-pending__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--ams-radius-pill);
+  background: var(--ams-color-primary-light);
+  color: var(--ams-color-primary);
+  font-size: 1.75rem;
+}
+
+.ams-pending__title {
+  margin: 0;
+  font-size: var(--ams-font-size-xl);
+  font-weight: var(--ams-font-weight-bold);
+  color: var(--ams-color-text);
+}
+
+.ams-pending__desc {
+  margin: 0;
+  font-size: var(--ams-font-size-sm);
+  color: var(--ams-color-text-secondary);
+  line-height: var(--ams-line-height-normal);
+}
+
+.ams-pending__role {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: var(--ams-radius-pill);
+  background: var(--ams-color-surface);
+  color: var(--ams-color-text-secondary);
+  font-size: var(--ams-font-size-xs);
+  font-weight: var(--ams-font-weight-semibold);
+}

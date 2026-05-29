@@ -1,0 +1,259 @@
+/**
+ * AMS 공통 컴포넌트 — Phase 10-1
+ * - 버튼, 카드, 필 배지, 진행바, 아이콘 버튼, 페이지 셸
+ * - 신규 UI는 이 클래스를 우선 사용하고, 하드코딩 hex는 금지
+ */
+
+/* ============================================================
+ * 버튼 (.ams-btn)
+ * ============================================================ */
+.ams-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ams-space-2);
+  padding: 12px 18px;
+  min-height: var(--ams-touch-target);
+  border: var(--ams-border-width) solid transparent;
+  border-radius: var(--ams-radius-md);
+  font-family: inherit;
+  font-size: var(--ams-font-size-md);
+  font-weight: var(--ams-font-weight-semibold);
+  line-height: 1.2;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.ams-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ams-btn--primary {
+  background: var(--ams-color-primary);
+  color: var(--ams-color-white);
+}
+
+.ams-btn--primary:not(:disabled):hover {
+  background: var(--ams-color-primary-dark);
+}
+
+.ams-btn--black {
+  background: var(--ams-color-black);
+  color: var(--ams-color-white);
+}
+
+.ams-btn--ghost {
+  background: transparent;
+  color: var(--ams-color-text);
+  border-color: var(--ams-color-border);
+}
+
+.ams-btn--ghost:not(:disabled):hover {
+  border-color: var(--ams-color-border-strong);
+  background: var(--ams-color-surface);
+}
+
+.ams-btn--block {
+  width: 100%;
+}
+
+.ams-btn--sm {
+  padding: 8px 14px;
+  min-height: 36px;
+  font-size: var(--ams-font-size-sm);
+}
+
+/* ============================================================
+ * 카드 (.ams-card)
+ * ============================================================ */
+.ams-card {
+  background: var(--ams-color-white);
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-lg);
+  padding: var(--ams-space-card);
+}
+
+.ams-card--dark {
+  background: var(--ams-color-black);
+  border-color: var(--ams-color-black);
+  color: var(--ams-color-white);
+}
+
+.ams-card--tinted {
+  background: var(--ams-color-primary-light);
+  border-color: transparent;
+}
+
+.ams-card--elevated {
+  box-shadow: var(--ams-shadow-card);
+}
+
+.ams-card--flat {
+  background: var(--ams-color-surface);
+  border-color: transparent;
+}
+
+/* ============================================================
+ * 페이지 셸 (.ams-page)
+ * ============================================================ */
+.ams-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-4);
+}
+
+.ams-page__title {
+  margin: 0;
+  font-size: var(--ams-font-size-xl);
+  font-weight: var(--ams-font-weight-bold);
+  color: var(--ams-color-text);
+  line-height: var(--ams-line-height-tight);
+}
+
+.ams-page__lead {
+  margin: 0;
+  font-size: var(--ams-font-size-sm);
+  font-weight: var(--ams-font-weight-semibold);
+  color: var(--ams-color-text-secondary);
+}
+
+.ams-page__desc {
+  margin: 0;
+  font-size: var(--ams-font-size-sm);
+  color: var(--ams-color-text-secondary);
+  line-height: var(--ams-line-height-normal);
+}
+
+/* ============================================================
+ * 필 배지 (.ams-pill)
+ * ============================================================ */
+.ams-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: var(--ams-border-width) solid transparent;
+  border-radius: var(--ams-radius-pill);
+  font-size: var(--ams-font-size-xs);
+  font-weight: var(--ams-font-weight-semibold);
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.ams-pill--primary {
+  background: var(--ams-color-primary);
+  color: var(--ams-color-white);
+}
+
+.ams-pill--primary-soft {
+  background: var(--ams-color-primary-light);
+  color: var(--ams-color-primary);
+}
+
+.ams-pill--primary-outline {
+  background: transparent;
+  border-color: var(--ams-color-primary);
+  color: var(--ams-color-primary);
+}
+
+.ams-pill--black {
+  background: var(--ams-color-black);
+  color: var(--ams-color-white);
+}
+
+.ams-pill--warning {
+  background: #fff4e5;
+  color: #b45309;
+  border: 1px solid #fcd34d;
+}
+
+.ams-pill--muted {
+  background: var(--ams-color-surface-strong);
+  color: var(--ams-color-text-secondary);
+}
+
+/* ============================================================
+ * 진행바 (.ams-progress)
+ * ============================================================ */
+.ams-progress {
+  position: relative;
+  width: 100%;
+  height: 6px;
+  background: var(--ams-color-border);
+  border-radius: var(--ams-radius-pill);
+  overflow: hidden;
+}
+
+.ams-progress__fill {
+  height: 100%;
+  background: var(--ams-color-primary);
+  border-radius: var(--ams-radius-pill);
+  transition: width 0.3s ease;
+}
+
+.ams-progress--on-dark {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.ams-progress--on-dark .ams-progress__fill {
+  background: var(--ams-color-white);
+}
+
+/* ============================================================
+ * 아이콘 버튼 (.ams-icon-btn) — 헤더·툴바
+ * ============================================================ */
+.ams-icon-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--ams-radius-md);
+  color: var(--ams-color-text);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.ams-icon-btn:hover {
+  background: var(--ams-color-surface);
+}
+
+.ams-icon-btn svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* ============================================================
+ * 게이지 (공부 종합 %)
+ * ============================================================ */
+.ams-gauge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: var(--ams-radius-pill);
+  font-size: var(--ams-font-size-xs);
+  font-weight: var(--ams-font-weight-bold);
+}
+
+.ams-gauge--green {
+  background: var(--ams-color-success-bg);
+  color: var(--ams-color-success-fg);
+}
+
+.ams-gauge--orange {
+  background: var(--ams-color-warning-bg);
+  color: var(--ams-color-warning-fg);
+}
+
+.ams-gauge--red {
+  background: var(--ams-color-danger-bg);
+  color: var(--ams-color-danger-fg);
+}

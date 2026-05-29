@@ -1,0 +1,30 @@
+---
+description: 일일 진행·STATUS·ROADMAP 동기화
+globs: docs/progress/**/*
+alwaysApply: false
+---
+
+# 진행 상황 추적
+
+사용자가 진행 정리·일일 체크·상태 업데이트를 요청하면:
+
+1. **`docs/progress/daily/YYYY-MM-DD.md`** — 없으면 `_template.md` 기반 생성
+2. **`docs/progress/STATUS.md`** — `마지막 갱신`, 오늘/다음 할 일, Phase 표, 최근 일지 링크 갱신
+3. **`docs/planning/ROADMAP.md`** — 완료된 항목만 `[x]` (과장 금지)
+
+## 일지 섹션 (고정)
+
+- 완료 (Done) / 진행 중 (In progress) / 내일·다음 (Next) / 메모
+
+## STATUS 규칙
+
+- `오늘 할 일`은 **당일**만; 완료 항목은 다음 갱신 시 `다음 할 일`로 이관 또는 삭제
+- 블로커가 해소되면 표에서 제거
+- Phase 상태: 🔲 미착수 · 🟡 진행 중 · ✅ 완료
+
+## 하지 말 것
+
+- ROADMAP 전체 복사·중복 문서 생성
+- 일지에 장문 API/스키마 명세 (→ planning/database, api)
+
+기본 읽기 순서: STATUS → 어제 daily → ROADMAP 해당 Phase.

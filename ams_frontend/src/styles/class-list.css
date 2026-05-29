@@ -1,0 +1,462 @@
+/**
+ * 반·과목·반 카드 리스트 — Phase 10-3 (학생 홈·클리닉·기록)
+ * 게이지·버튼 등 범용 패턴은 styles/components.css 사용.
+ */
+
+.ams-class-list-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-4);
+}
+
+.ams-class-list-page__greeting {
+  margin: 0;
+  font-size: var(--ams-font-size-lg);
+  font-weight: var(--ams-font-weight-bold);
+  color: var(--ams-color-text);
+}
+
+.ams-class-list-page__lead {
+  margin: 0;
+  font-size: var(--ams-font-size-sm);
+  font-weight: var(--ams-font-weight-semibold);
+  color: var(--ams-color-text-secondary);
+}
+
+.ams-class-list-page__desc {
+  margin: 0;
+  font-size: var(--ams-font-size-sm);
+  color: var(--ams-color-text-secondary);
+  line-height: var(--ams-line-height-normal);
+}
+
+.ams-class-list-page__hint,
+.ams-class-list-page__meta {
+  margin: 0;
+  font-size: var(--ams-font-size-xs);
+  color: var(--ams-color-text-secondary);
+}
+
+.ams-class-list-page__empty {
+  margin: 0;
+  padding: var(--ams-space-card);
+  background: var(--ams-color-white);
+  border: var(--ams-border-width) dashed var(--ams-color-border);
+  border-radius: var(--ams-radius-lg);
+  font-size: var(--ams-font-size-sm);
+  color: var(--ams-color-text-secondary);
+  text-align: center;
+}
+
+.ams-class-list-page__error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--ams-radius-sm);
+  background: var(--ams-color-danger-bg);
+  color: var(--ams-color-danger-fg);
+  font-size: var(--ams-font-size-sm);
+  font-weight: var(--ams-font-weight-semibold);
+}
+
+/* MY 페이지 헤더 카드 */
+.ams-class-list-page__card {
+  background: var(--ams-color-white);
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-lg);
+  padding: var(--ams-space-card);
+}
+
+.ams-class-list-page__card--accent {
+  background: var(--ams-color-black);
+  border-color: var(--ams-color-black);
+  color: var(--ams-color-white);
+}
+
+.ams-class-list-page__title {
+  margin: 0 0 var(--ams-space-2);
+  font-size: var(--ams-font-size-lg);
+  font-weight: var(--ams-font-weight-bold);
+}
+
+/* ============================================================
+ * 과목 큰 카드 칩 (학생 홈) — DESIGN_SYSTEM "선택: 검정/흰"
+ * ============================================================ */
+.ams-subject-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-2);
+}
+
+.ams-subject-cards__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ams-space-3);
+  width: 100%;
+  min-height: 56px;
+  padding: 14px var(--ams-space-card);
+  background: var(--ams-color-white);
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-md);
+  font-family: inherit;
+  font-size: var(--ams-font-size-md);
+  font-weight: var(--ams-font-weight-semibold);
+  color: var(--ams-color-text);
+  text-align: left;
+}
+
+/* 수강중: 검정 배경 + 흰 텍스트 */
+.ams-subject-cards__item--enrolled {
+  background: var(--ams-color-black);
+  border-color: var(--ams-color-black);
+  color: var(--ams-color-white);
+}
+
+/* 미수강: 회색 surface + 옅은 텍스트 */
+.ams-subject-cards__item--muted {
+  background: var(--ams-color-surface);
+  border-color: transparent;
+  color: var(--ams-color-text-muted);
+}
+
+/* 옛 호환: button 토글 — 사용 안 함, 남겨둠 */
+.ams-subject-cards__item--active {
+  background: var(--ams-color-black);
+  border-color: var(--ams-color-black);
+  color: var(--ams-color-white);
+}
+
+.ams-subject-cards__item:disabled {
+  background: var(--ams-color-surface);
+  border-color: transparent;
+  color: var(--ams-color-text-muted);
+  cursor: not-allowed;
+}
+
+.ams-subject-cards__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.ams-subject-cards__icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.ams-subject-cards__glyph {
+  font-size: var(--ams-font-size-md);
+  font-weight: var(--ams-font-weight-bold);
+  font-family: 'Georgia', 'Times New Roman', serif;
+  font-style: italic;
+  letter-spacing: -0.02em;
+}
+
+.ams-subject-cards__hint {
+  margin-left: auto;
+  font-size: var(--ams-font-size-xs);
+  font-weight: var(--ams-font-weight-medium);
+  opacity: 0.75;
+}
+
+/* ============================================================
+ * 반 카드 리스트
+ * ============================================================ */
+.ams-class-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-2);
+}
+
+.ams-class-list__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-1);
+  padding: 14px var(--ams-space-card);
+  background: var(--ams-color-white);
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-lg);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+a.ams-class-list__item:hover {
+  border-color: var(--ams-color-primary);
+}
+
+/* 최근 본 반: 부드러운 surface 배경 + 우측 빨간 점 (목업 01-좌) */
+.ams-class-list__item--accent {
+  background: var(--ams-color-surface);
+  border-color: transparent;
+}
+
+.ams-class-list__dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ams-color-primary);
+  flex-shrink: 0;
+}
+
+.ams-class-list__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ams-space-3);
+}
+
+.ams-class-list__name {
+  font-size: var(--ams-font-size-md);
+  font-weight: var(--ams-font-weight-bold);
+  color: var(--ams-color-text);
+  line-height: var(--ams-line-height-tight);
+}
+
+.ams-class-list__meta {
+  font-size: var(--ams-font-size-sm);
+  color: var(--ams-color-text-secondary);
+}
+
+.ams-class-list__arrow {
+  color: var(--ams-color-text-secondary);
+  font-size: var(--ams-font-size-md);
+}
+
+/* badge: 클리닉/기록 등에서 과목 표기용 (학생 홈은 lead 텍스트로 과목 표시) */
+.ams-class-list__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: var(--ams-radius-pill);
+  background: var(--ams-color-primary-light);
+  color: var(--ams-color-primary);
+  font-size: var(--ams-font-size-xs);
+  font-weight: var(--ams-font-weight-semibold);
+}
+
+/* legacy 게이지 클래스 — components.css `.ams-gauge` 와 시각 동일 */
+.ams-class-list__gauge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: var(--ams-radius-pill);
+  font-size: var(--ams-font-size-xs);
+  font-weight: var(--ams-font-weight-bold);
+}
+
+.ams-class-list__gauge--green {
+  color: var(--ams-color-success-fg);
+  background: var(--ams-color-success-bg);
+}
+
+.ams-class-list__gauge--orange {
+  color: var(--ams-color-warning-fg);
+  background: var(--ams-color-warning-bg);
+}
+
+.ams-class-list__gauge--red {
+  color: var(--ams-color-danger-fg);
+  background: var(--ams-color-danger-bg);
+}
+
+/* ============================================================
+ * MY 메뉴
+ * ============================================================ */
+.ams-my-menu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-2);
+}
+
+.ams-my-menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: var(--ams-touch-target);
+  padding: 14px var(--ams-space-card);
+  background: var(--ams-color-white);
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-md);
+  text-decoration: none;
+  color: var(--ams-color-text);
+  font-weight: var(--ams-font-weight-semibold);
+  transition: border-color 0.15s ease;
+}
+
+.ams-my-menu__item:hover {
+  border-color: var(--ams-color-primary);
+}
+
+.ams-my-menu__badge {
+  min-width: 22px;
+  padding: 2px 8px;
+  border-radius: var(--ams-radius-pill);
+  background: var(--ams-color-primary);
+  color: var(--ams-color-white);
+  font-size: var(--ams-font-size-xs);
+  font-weight: var(--ams-font-weight-bold);
+  text-align: center;
+}
+
+.ams-my-logout {
+  width: 100%;
+  margin-top: var(--ams-space-4);
+}
+
+/* ============================================================
+ * 학생 홈 인사·과목칩과 무관한 옛 클래스 — 호환용으로만 유지
+ * ============================================================ */
+.ams-subject-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ams-space-2);
+}
+
+.ams-subject-pills__item {
+  padding: 8px 16px;
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-pill);
+  background: var(--ams-color-surface);
+  color: var(--ams-color-text-secondary);
+  font-size: var(--ams-font-size-sm);
+  font-weight: var(--ams-font-weight-semibold);
+  cursor: pointer;
+}
+
+.ams-subject-pills__item--active {
+  background: var(--ams-color-black);
+  border-color: var(--ams-color-black);
+  color: var(--ams-color-white);
+}
+
+.ams-subject-pills__item--disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.ams-subject-pills__muted {
+  font-weight: var(--ams-font-weight-regular);
+  font-size: var(--ams-font-size-xs);
+}
+
+/* 조교 홈 — 내 클리닉 주간 달력 */
+.ams-clinic-calendar--home {
+  gap: var(--ams-space-3);
+}
+
+.ams-assistant-clinic-home__range {
+  margin: 0 0 var(--ams-space-2);
+  font-size: var(--ams-font-size-xs);
+  color: var(--ams-color-text-secondary);
+}
+
+.ams-assistant-clinic-home__day {
+  padding-top: var(--ams-space-2);
+  border-top: var(--ams-border-width) solid var(--ams-color-border);
+}
+
+.ams-assistant-clinic-home__day-title {
+  margin: 0 0 var(--ams-space-1);
+  font-size: var(--ams-font-size-sm);
+  font-weight: var(--ams-font-weight-semibold);
+  color: var(--ams-color-text);
+}
+
+.ams-assistant-clinic-home__hint {
+  margin: 0 0 var(--ams-space-2);
+  font-size: var(--ams-font-size-xs);
+  color: var(--ams-color-text-secondary);
+}
+
+.ams-assistant-clinic-home__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-2);
+}
+
+.ams-assistant-clinic-home__item--expanded .ams-assistant-clinic-home__link {
+  border-color: var(--ams-color-primary);
+  background: var(--ams-color-primary-light);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.ams-assistant-clinic-home__link {
+  display: grid;
+  grid-template-columns: 3rem 1fr;
+  grid-template-rows: auto auto;
+  gap: 2px 10px;
+  width: 100%;
+  padding: var(--ams-space-3);
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-md);
+  background: var(--ams-color-surface);
+  color: var(--ams-color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.ams-assistant-clinic-home__link:hover {
+  border-color: var(--ams-color-primary);
+  background: var(--ams-color-primary-light);
+}
+
+.ams-assistant-clinic-home__expand {
+  padding: var(--ams-space-3);
+  border: var(--ams-border-width) solid var(--ams-color-primary);
+  border-top: none;
+  border-radius: 0 0 var(--ams-radius-md) var(--ams-radius-md);
+  background: var(--ams-color-surface);
+}
+
+.ams-assistant-clinic-home__expand-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--ams-space-2);
+  margin: 0 0 var(--ams-space-3);
+  font-size: var(--ams-font-size-sm);
+}
+
+.ams-assistant-clinic-home__expand-head strong {
+  color: var(--ams-color-primary);
+}
+
+.ams-assistant-clinic-home__expand-meta {
+  margin-left: auto;
+  font-size: var(--ams-font-size-xs);
+  color: var(--ams-color-text-secondary);
+}
+
+.ams-assistant-clinic-home__time {
+  grid-row: 1 / 3;
+  align-self: center;
+  font-size: var(--ams-font-size-md);
+  font-weight: var(--ams-font-weight-bold);
+  color: var(--ams-color-primary);
+}
+
+.ams-assistant-clinic-home__class {
+  font-size: var(--ams-font-size-sm);
+  font-weight: var(--ams-font-weight-semibold);
+}
+
+.ams-assistant-clinic-home__meta {
+  font-size: var(--ams-font-size-xs);
+  color: var(--ams-color-text-secondary);
+  line-height: var(--ams-line-height-normal);
+}

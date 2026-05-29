@@ -1,0 +1,37 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: ams_backend
+  profiles:
+    active: local
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+ams:
+  jwt:
+    access-expiration-ms: 3600000 # 1시간
+    refresh-expiration-ms: 7776000000 # 90일 (갱신 시 새 refresh 발급 = 슬라이딩)
+    login-select-expiration-ms: 300000
+    signup-invite-expiration-ms: 604800000
+  signup:
+    frontend-base-url: http://localhost:5173
+    # academy-bootstrap-key: # 학원 개설 링크 발급용 (로컬은 application-local.yaml)
+  upload:
+    dir: uploads
+    max-size-mb: 10
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html

@@ -1,0 +1,54 @@
+.ams-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  background: var(--ams-color-white);
+  border-top: var(--ams-border-width) solid var(--ams-color-border);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.ams-bottom-nav__inner {
+  display: flex;
+  width: 100%;
+  max-width: var(--ams-app-max-width);
+  height: var(--ams-nav-height);
+}
+
+.ams-bottom-nav__item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  text-decoration: none;
+  color: var(--ams-color-text-secondary);
+  font-size: var(--ams-font-size-xs);
+  font-weight: var(--ams-font-weight-medium);
+}
+
+.ams-bottom-nav__item--active {
+  color: var(--ams-color-primary);
+  font-weight: var(--ams-font-weight-bold);
+}
+
+.ams-bottom-nav__icon {
+  display: inline-flex;
+  width: 26px;
+  height: 26px;
+}
+
+.ams-bottom-nav__icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.ams-app--with-bottom-nav .ams-app__container {
+  padding-bottom: calc(
+    var(--ams-nav-height) + var(--ams-space-page) + env(safe-area-inset-bottom, 0)
+  );
+}

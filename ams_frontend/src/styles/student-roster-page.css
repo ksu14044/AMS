@@ -1,0 +1,88 @@
+/* 학생부 전용 페이지 — 홈(480px)보다 넓은 레이아웃 */
+
+.ams-app--roster-page .ams-app__header,
+.ams-app--roster-page .ams-app__main {
+  max-width: min(1100px, 100%);
+}
+
+.ams-app--roster-page .ams-app__container {
+  max-width: min(1100px, 100%);
+  overflow-x: visible;
+}
+
+.ams-student-roster-page__back {
+  display: inline-block;
+  margin-bottom: var(--ams-space-3);
+  font-size: var(--ams-font-size-sm);
+  color: var(--ams-color-text-secondary);
+  text-decoration: none;
+}
+
+.ams-student-roster-page__back:hover {
+  color: var(--ams-color-primary);
+}
+
+.ams-student-roster-page__title {
+  margin: 0 0 var(--ams-space-2);
+  font-size: var(--ams-font-size-lg);
+  font-weight: var(--ams-font-weight-bold);
+}
+
+.ams-student-roster--page .ams-admin__desc {
+  margin-bottom: var(--ams-space-4);
+}
+
+.ams-student-roster--page .ams-student-roster__table-wrap {
+  overflow-x: auto;
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-md);
+  background: var(--ams-color-white);
+}
+
+.ams-student-roster--page .ams-student-roster__table {
+  width: 100%;
+  min-width: 52rem;
+  border-collapse: collapse;
+  font-size: var(--ams-font-size-sm);
+}
+
+.ams-student-roster--page .ams-student-roster__table th,
+.ams-student-roster--page .ams-student-roster__table td {
+  padding: 12px 14px;
+  text-align: left;
+  border-bottom: var(--ams-border-width) solid var(--ams-color-border);
+  vertical-align: top;
+}
+
+.ams-student-roster--page .ams-student-roster__table th {
+  font-weight: var(--ams-font-weight-semibold);
+  color: var(--ams-color-text-secondary);
+  background: var(--ams-color-surface);
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.ams-student-roster--page .ams-student-roster__table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.ams-student-roster--page .ams-student-roster__email {
+  word-break: break-all;
+  min-width: 10rem;
+}
+
+.ams-student-roster--page .ams-student-roster__classes {
+  min-width: 9rem;
+  max-width: 18rem;
+  line-height: var(--ams-line-height-normal);
+}
+
+.ams-student-roster--page .ams-student-roster__phone {
+  white-space: nowrap;
+}
+
+.ams-student-roster--page .ams-student-roster__date {
+  white-space: nowrap;
+}

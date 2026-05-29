@@ -50,6 +50,9 @@ jobs:
     permissions:
       contents: read
       packages: write
+    env:
+      # GHCR 태그는 소문자만 허용 (저장소명 AMS 등 대문자 방지)
+      IMAGE_BASE: ghcr.io/${{ github.repository_owner }}/ams
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -64,8 +67,8 @@ jobs:
           context: ./ams_backend
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}/api:${{ github.sha }}
-            ghcr.io/${{ github.repository }}/api:latest
+            ${{ env.IMAGE_BASE }}/api:${{ github.sha }}
+            ${{ env.IMAGE_BASE }}/api:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Build and push Web image
@@ -74,14 +77,16 @@ jobs:
           context: ./ams_frontend
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}/web:${{ github.sha }}
-            ghcr.io/${{ github.repository }}/web:latest
+            ${{ env.IMAGE_BASE }}/web:${{ github.sha }}
+            ${{ env.IMAGE_BASE }}/web:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
   deploy:
     needs: publish-images
     runs-on: ubuntu-latest
+    env:
+      IMAGE_BASE: ghcr.io/${{ github.repository_owner }}/ams
     steps:
       - uses: actions/checkout@v4
       - name: Copy compose file to server
@@ -95,8 +100,8 @@ jobs:
       - name: Deploy on server
         uses: appleboy/ssh-action@v1.2.0
         env:
-          AMS_API_IMAGE: ghcr.io/${{ github.repository }}/api:${{ github.sha }}
-          AMS_WEB_IMAGE: ghcr.io/${{ github.repository }}/web:${{ github.sha }}
+          AMS_API_IMAGE: ${{ env.IMAGE_BASE }}/api:${{ github.sha }}
+          AMS_WEB_IMAGE: ${{ env.IMAGE_BASE }}/web:${{ github.sha }}
           GHCR_DEPLOY_TOKEN: ${{ secrets.GHCR_DEPLOY_TOKEN }}
         with:
           host: ${{ secrets.SSH_HOST }}

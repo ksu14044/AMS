@@ -35,7 +35,7 @@ ACG: **80**(또는 `AMS_HTTP_PORT`), **22**(SSH). MySQL **3306 외부 개방 금
 
 1. `ams_backend` — `./mvnw test`
 2. `ams_frontend` — `npm ci` + `npm run build`
-3. GHCR에 `api`, `web` 이미지 push
+3. GHCR에 `ghcr.io/<owner>/ams/api`, `.../web` 이미지 push (소문자 경로)
 4. SSH로 `/opt/ams`에 `docker-compose.yml` 동기화 후 `docker compose pull && up -d`
 
 ## 4. 로컬 Docker

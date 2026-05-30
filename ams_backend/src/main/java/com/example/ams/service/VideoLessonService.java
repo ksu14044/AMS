@@ -54,19 +54,42 @@ public class VideoLessonService {
 			Instant publishedAt) {
 		Clazz clazz = classAccessService.requireReadableClass(classId);
 		classAccessService.requireManageClassContent(clazz);
+		return insertVideo(clazz.classId(), null, youtubeUrl, title, description, publishedAt);
+	}
+
+	@Transactional
+	public VideoLesson createVideoForLessonRecord(
+			long classId,
+			long lessonRecordId,
+			String youtubeUrl,
+			String title,
+			Instant publishedAt) {
+		Clazz clazz = classAccessService.requireReadableClass(classId);
+		classAccessService.requireEditClassContent(clazz);
+		return insertVideo(clazz.classId(), lessonRecordId, youtubeUrl, title, null, publishedAt);
+	}
+
+	private VideoLesson insertVideo(
+			long classId,
+			Long lessonRecordId,
+			String youtubeUrl,
+			String title,
+			String description,
+			Instant publishedAt) {
 		String normalizedUrl = youtubeUrl.trim();
 		YoutubeUrlValidator.requireValid(normalizedUrl);
 		String thumbnailUrl = resolveThumbnail(normalizedUrl);
 		Instant when = publishedAt != null ? publishedAt : Instant.now();
 		VideoLesson created = videoRepository.insert(
-				clazz.classId(),
+				classId,
+				lessonRecordId,
 				normalizedUrl,
 				title,
 				description,
 				thumbnailUrl,
 				when,
 				currentUserService.requireUserId());
-		eventPublisher.publishEvent(new VideoLessonCreatedEvent(clazz.classId(), created.videoId(), title));
+		eventPublisher.publishEvent(new VideoLessonCreatedEvent(classId, created.videoId(), title));
 		return created;
 	}
 

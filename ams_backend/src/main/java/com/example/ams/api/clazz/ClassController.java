@@ -38,6 +38,7 @@ public class ClassController {
 	public ApiResponse<ClassDetailResponse> getDetail(@PathVariable long classId) {
 		Clazz clazz = classDetailService.getDetail(classId);
 		boolean canManage = classDetailService.canManageContent(clazz);
-		return ApiResponse.ok(ClassDetailResponse.from(clazz, canManage));
+		boolean canEdit = classDetailService.canEditClassContent(clazz);
+		return ApiResponse.ok(ClassDetailResponse.from(clazz, canManage, canEdit));
 	}
 }

@@ -1,192 +1,125 @@
 # DB 스키마 개요
 
-MySQL 8.0, 데이터베이스 `ams`. 모든 비즈니스 테이블에 `academy_id` 포함.
+MySQL 8.0, `ams`. 모든 비즈니스 테이블 `academy_id`.
 
-## Phase 0 — 인증·테넌트
+## Phase 0 — user (v3.0: PARENT)
 
 ```sql
-academy (
-  academy_id PK,
-  name, code UNIQUE,  -- 학원 코드
-  created_at
-)
-
 user (
-  user_id PK,
-  academy_id FK,
-  email UNIQUE per academy,
-  password_hash,
-  name,
-  role ENUM,           -- ACADEMY_ADMIN | TEACHER_KO/EN/MATH | STAFF_OFFICE | ASSISTANT_KO/EN/MATH | STUDENT
-  subject ENUM NULL,   -- KO, EN, MATH (담임·조교)
-  status ENUM,         -- PENDING, ACTIVE, SUSPENDED
-  created_at
+  role ENUM,  -- ... | STUDENT | PARENT
+  ...
 )
 ```
 
-## Phase 1 — 반·수강
+## Phase 1 — enrollment · parent (v3.0)
 
 ```sql
-class (
-  class_id PK,
-  academy_id FK,
-  subject ENUM,
-  name,                -- e.g. 국어 남고1반
-  homeroom_teacher_id FK user,
-  classroom,           -- optional
-  created_at
-)
-
 class_enrollment (
-  enrollment_id PK,
-  class_id FK,
-  student_id FK user,
-  assigned_at,
-  assigned_by FK user,
-  UNIQUE(class_id, student_id)
+  accessible_from DATE NULL,  -- v3.0
+  ...
 )
 
-assistant_class_assignment (
-  assignment_id PK,
-  assistant_id FK user,
-  class_id FK,
-  assigned_by FK user,
-  UNIQUE(assistant_id, class_id)
+parent_student_link (
+  link_id PK,
+  parent_id FK, student_id FK,
+  linked_by FK, linked_at,
+  UNIQUE(parent_id, student_id)
 )
 ```
 
-## Phase 2 — 반 7섹션
+## v3.0 — lesson_record
 
 ```sql
-class_schedule (class_id, day_of_week, start_time, end_time, room)
+lesson_record (
+  record_id PK, class_id FK,
+  lesson_date DATE, summary TEXT,
+  author_id FK, UNIQUE(class_id, lesson_date)
+)
 
-academy_notice (notice_id, academy_id, title, body, ...)  -- 행정·관리자 학원 공지
+report_period_preset (
+  preset_id, class_id FK NULL,
+  name, period_start, period_end
+)
 
-class_notice (notice_id, class_id, title, body, attachment_url, published_at, scheduled_at, author_id)
+clinic_result_preset (
+  preset_id, class_id FK,
+  name, field_schema JSON
+)
+```
 
-textbook (class_id PK or id, title, publisher, progress_note, updated_at)
+## v3.0 — homework · test
 
-video_lesson (video_id, class_id, youtube_url, title, thumbnail_url, published_at, ...)
-
+```sql
 homework (
-  homework_id, class_id, title, due_at, status SCHEDULED|COMPLETED
+  lesson_record_id FK,
+  question_count INT,
+  status OPEN|COMPLETED
+  -- due_at removed
 )
 
-homework_submission (
-  submission_id, homework_id, student_id,
-  submitted BOOLEAN, submitted_at, score, grade, memo
+homework_answer_key (homework_id, question_no, correct_answer)
+homework_submission (answers JSON, correct_count, raw_score, completed_at)
+
+test_exam (
+  lesson_record_id FK,
+  question_count, retake_threshold_count,
+  parent_test_id FK NULL,
+  retake_attempt_no INT DEFAULT 0
 )
 
-test (
-  test_id, class_id, title, test_at, status SCHEDULED|COMPLETED,
-  class_average, -- 시험 종료 후 집계
-  completed_at
-)
+test_score (answers JSON, raw_score, rank INT, class_avg)
+-- upper_rank_pct, percentile_rank deprecated
 
-test_score (
-  score_id, test_id, student_id,
-  raw_score, grade,
-  class_avg,           -- 반 평균 (보고서 표시)
-  upper_rank_pct,      -- 상위 % (보고서·UI)
-  percentile_rank      -- 0~100, 게이지 30%용 ([DECISIONS](../DECISIONS.md) §9)
-)
+assignment_target (entity_type, entity_id, student_id)
+```
 
+## Clinic · Video (v3.0)
+
+```sql
 clinic_slot (
-  slot_id, class_id, week_start_date,
-  day_of_week ENUM MON..FRI,  -- 원본 월~금만
-  start_time, assistant_id, max_capacity
+  lesson_record_id FK, start_time,
+  max_capacity DEFAULT 10,
+  clinic_result_preset_id FK
 )
+clinic_reservation (result_json JSON, result_saved_at)
+
+video_lesson (lesson_record_id FK)
+-- targets via assignment_target, default empty
 ```
 
-## Phase 5 — 클리닉 예약
-
-```sql
-clinic_week (class_id, week_start, status OPEN|LOCKED)
-
-clinic_reservation (
-  reservation_id, slot_id, student_id,
-  status EMPTY|RESERVED|CONFIRMED,
-  result_attended, result_memo, ...
-)
-```
-
-## Phase 4 — 영상 인증
-
-```sql
-video_certification (
-  certification_id, video_id, student_id,
-  image_url, submitted_at
-)
-```
-
-## Phase 6 — 공부기록 (구현)
-
-- 별도 `study_activity_log` **미사용** — 숙제·클리닉·테스트·영상 테이블 실시간 집계
-- API: `GET /classes/{id}/study-records/...`
-
-## Phase 7 — 성실도 보고서 (V14, V15)
+## Report (v3.0)
 
 ```sql
 diligence_report (
-  report_id, class_id, student_id, test_id,
   period_start, period_end,
-  homework_submitted, homework_total, homework_rate NULL, homework_grade NULL,
-  clinic_attended, clinic_total, clinic_rate NULL, clinic_grade NULL,
-  test_raw_score, test_class_avg, test_upper_rank_pct, test_percentile_rank, test_grade,
-  video_certified, video_total, video_rate NULL, video_grade NULL,
-  total_score, overall_grade, teacher_comment, pdf_path, created_at
+  period_preset_id FK NULL,
+  test_rank INT NULL,
+  -- test_id optional
 )
 ```
 
-UK: `(test_id, student_id)`. V15: 집계 대상 0건 시 rate/grade NULL.
-
-## Phase 11 — 감사·반 아카이브 (V17, API 미구현)
-
-```sql
-audit_log (
-  audit_id, academy_id, actor_user_id,
-  action, entity_type, entity_id, detail_json, created_at
-)
-
-class (
-  ... 기존 컬럼 ...,
-  status VARCHAR(16) NOT NULL DEFAULT 'ACTIVE',  -- ACTIVE | ARCHIVED 등
-  archived_at TIMESTAMP NULL
-)
-
-class_record_archive (
-  archive_id, academy_id, class_id, class_name, subject,
-  archived_by, archived_at, snapshot_json
-)
-```
-
-마이그레이션: `V17__audit_log_class_archive.sql`. 앱 코드·REST는 [STATUS.md](../../progress/STATUS.md) Phase 11 참고.
-
-## Phase 8 — 알림
+## Notification (v3.0)
 
 ```sql
 notification (
-  notification_id, academy_id, user_id,
-  type, title, body, reference_type, reference_id,
-  read_at, created_at
+  status ACTIVE|DISMISSED,
+  read_at, dismissed_at
 )
-
-device_token (user_id, fcm_token, platform)
 ```
 
-## 인덱스 권장
-
-- `(academy_id, class_id)` on 모든 class 하위 테이블
-- `(student_id, class_id)` on enrollment, reservation
-- `(class_id, week_start)` on clinic_slot
-
-## 마이그레이션 파일 명명
+## 마이그레이션 (예정)
 
 ```
-ams_backend/src/main/resources/db/migration/
-  V1__academy_user.sql
-  V2__class_enrollment.sql
-  V3__class_notice.sql
-  ...
-  V17__audit_log_class_archive.sql
+V21__lesson_record.sql
+V22__homework_test_v3.sql
+V23__clinic_preset.sql
+V24__parent_role.sql
+V25__notification_dismissed.sql
+V26__report_period_preset.sql
 ```
+
+[ROADMAP.md](../ROADMAP.md) Phase 12.
+
+## Phase 0~11 기존 테이블
+
+`academy`, `class`, `class_notice`, `class_schedule`, `textbook`, `clinic_week`, `video_certification`, `diligence_report`(V14), `audit_log`(V17) 등 — Phase 12에서 v3.0 컬럼·FK 추가.

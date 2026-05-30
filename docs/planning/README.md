@@ -1,6 +1,6 @@
 # AMS 기획 문서
 
-입시 학원 통합 관리 플랫폼(AMS) — 기획서 v2.0 기반 설계·구현 가이드.
+입시 학원 통합 관리 플랫폼(AMS) — 기획서 v2.0 + **v3.0 개정(2026-05-30)** 설계·구현 가이드.
 
 ## 문서 구조 (3층)
 
@@ -44,8 +44,8 @@
 | 질문 | 답 |
 |------|-----|
 | planning만으로 기획서 전 기능 구현 가능? | **예** — `01`~`10` + `DECISIONS` + `database` + `api` + `ROADMAP` |
-| 추가 비즈니스 결정 필요? | **아니오** — [DECISIONS.md](./DECISIONS.md) 9건 확정 완료 |
-| 원본과 모순 시 | **DECISIONS.md** 우선 (예: 조교 교재 = 조회만) |
+| 추가 비즈니스 결정 필요? | **아니오** — [DECISIONS.md](./DECISIONS.md) §1~§19 (v3.0 §10~§19, 2026-05-30) |
+| 원본·v2와 모순 시 | **DECISIONS.md** 우선 |
 
 ## 요구사항 문서 (01 ~ 10)
 
@@ -54,21 +54,21 @@
 | [01-service-overview.md](./01-service-overview.md) | 서비스 개요·목적 |
 | [02-roles-and-permissions.md](./02-roles-and-permissions.md) | 역할·권한·RBAC |
 | [03-feature-matrix.md](./03-feature-matrix.md) | 기능 권한 매트릭스 |
-| [04-class-data-model.md](./04-class-data-model.md) | 반(Class) 7섹션 |
+| [04-class-data-model.md](./04-class-data-model.md) | 반 8섹션 + **수업기록** (v3.0) |
 | [05-screens-by-role.md](./05-screens-by-role.md) | 역할별 화면 |
 | [06-notifications.md](./06-notifications.md) | 알림 |
 | [07-video-certification.md](./07-video-certification.md) | 영상·인증 |
 | [08-clinic-rules.md](./08-clinic-rules.md) | 클리닉 예약 |
 | [09-study-records-reports.md](./09-study-records-reports.md) | 공부기록·성실도 보고서 |
-| [10-technical-requirements.md](./10-technical-requirements.md) | 기술·비기능 (**Phase 11** 운영) |
+| [10-technical-requirements.md](./10-technical-requirements.md) | 기술·비기능 (**Phase 11** 운영, **최종**) |
 | [10-frontend-design.md](./10-frontend-design.md) | **Phase 10** UI 전면 개편 실행 |
 
 ## 실행 문서
 
 | 문서 | 내용 |
 |------|------|
-| [DECISIONS.md](./DECISIONS.md) | 구현 확정 9건 (역할·공지·출석·교재·성적·클리닉·영상·숙제·테스트 환산) |
-| [ROADMAP.md](./ROADMAP.md) | Phase 0~11, MVP, 체크리스트 |
+| [DECISIONS.md](./DECISIONS.md) | 구현 확정 §1~§19 (v3.0 §10~§19) |
+| [ROADMAP.md](./ROADMAP.md) | Phase 0~10 · **12 v3.0** · **11 운영(최종)** |
 | [10-frontend-design.md](./10-frontend-design.md) | Phase 10 디자인 전면 개편 |
 | [../progress/README.md](../progress/README.md) | 일일 루틴·STATUS·daily 일지 |
 | [../progress/STATUS.md](../progress/STATUS.md) | 현재 Phase·이번 주·블로커 (라이브) |
@@ -95,7 +95,8 @@
 
 | 날짜 | 내용 |
 |------|------|
-| 2026-05-19 | IMPLEMENTABILITY·VERIFICATION → README 통합, 메타 문서 3개로 정리 |
+| 2026-05-30 | **v3.0** — 수업기록·정오표·재시험·석차·학부모·알림·보고서 (`DECISIONS` §10~§19) |
+| 2026-05-19 | IMPLEMENTABILITY·VERIFICATION → README 통합 |
 | 2026-05-19 | DECISIONS §9·ROADMAP 감사 권장 반영 (학원 공지·승인·클리닉·알림·행정 UI) |
 | 2026-05-19 | UI 디자인 테마 — `docs/design/`, `design-tokens.css`, Cursor rule |
 | 2026-05-19 | 일일 진행 추적 — `docs/progress/` (STATUS, daily, README) |

@@ -23,11 +23,13 @@ export default function AppLayout({ title }) {
 
   const isStudent = user?.role === 'STUDENT'
   const isRosterPage = ROSTER_PATHS.includes(location.pathname)
+  const isClassDetailPage = location.pathname.startsWith('/classes/')
   const isStudentTab = isStudent && STUDENT_TAB_PATHS.includes(location.pathname)
   const showBottomNav =
     isStudent &&
-    !location.pathname.startsWith('/classes/') &&
+    !isClassDetailPage &&
     location.pathname !== '/notifications'
+  const useWideLayout = isClassDetailPage || isRosterPage || (!isStudent && !isStudentTab)
 
   const pageTitle = useMemo(() => {
     if (STUDENT_TAB_TITLES[location.pathname]) return STUDENT_TAB_TITLES[location.pathname]
@@ -49,7 +51,7 @@ export default function AppLayout({ title }) {
     <div
       className={`ams-app${showBottomNav ? ' ams-app--with-bottom-nav' : ''}${
         isStudentTab ? ' ams-app--student' : ''
-      }${isRosterPage ? ' ams-app--roster-page' : ''}`}
+      }${isRosterPage ? ' ams-app--roster-page' : ''}${useWideLayout ? ' ams-app--wide' : ''}`}
     >
       {isStudentTab ? (
         <header className="ams-app__header ams-app__header--student">

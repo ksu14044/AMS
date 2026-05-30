@@ -1,6 +1,6 @@
 import { addDays } from './weekDate'
 
-export const CLINIC_WEEKDAY_ORDER = ['MON', 'TUE', 'WED', 'THU', 'FRI']
+export const CLINIC_WEEKDAY_ORDER = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
 
 export function summarizeClinicWeekByDay(bookingSlots, weekStart) {
   return CLINIC_WEEKDAY_ORDER.map((day, index) => {

@@ -13,7 +13,7 @@
 |------|------|
 | 제품 | 입시 학원 통합 관리 플랫폼 (반 단위, 국·수·영) |
 | 플랫폼 | 웹 + 모바일 반응형 |
-| 사용자 | 관리자, 담임 선생님, 조교, 학생 |
+| 사용자 | 관리자, 담임, 조교, 학생, **학부모** (v3.0) |
 | 완료 기준 | 기획서 [03-feature-matrix.md](./03-feature-matrix.md)의 기능이 역할별로 동작하고, E2E 시나리오 통과 |
 
 ## 구현 원칙
@@ -251,9 +251,64 @@
 
 ---
 
-## Phase 11 — 비기능·운영 (2주)
+## Phase 12 — v3.0 기획 개정 (4~6주)
 
-**목표:** [10-technical-requirements.md](./10-technical-requirements.md) (문서명 유지, 내용은 Phase 11)
+**목표:** [DECISIONS.md](./DECISIONS.md) §10~§19 — 수업기록·정오표·재시험·학부모
+
+> **확정일:** 2026-05-30. Phase 0~10 완료 위 **마이그레이션·리팩터**. **Phase 11(운영)보다 먼저** 진행.
+
+### 12-1. 수업기록 (§10)
+
+- [x] `lesson_record` · 반 상세 **수업기록 탭**
+- [x] 숙제·테스트·클리닉·영상 FK 컬럼 (nullable)
+- [ ] 숙제·테스트 등록 API `lesson_record_id` 연동
+- [x] 공지·일정·교재 별도 유지
+
+### 12-2. 정오표·채점 (§11)
+
+- [ ] 문항별 answer_key · answers JSON
+- [ ] `ceil(100/q×correct,1)` · `due_at` 제거
+- [ ] 교직원 전용 · 조교 정답지 조회
+
+### 12-3. 석차·재시험 (§12, §13)
+
+- [ ] `rank` · 동점 공동·건너뛰기
+- [ ] 재시험 3회 · 올림/내림 · 최종=마지막
+- [ ] percentile deprecated
+
+### 12-4. 대상 학생·영상 (§14)
+
+- [ ] `assignment_target` · 영상 기본 미선택
+
+### 12-5. 조회 시작일 (§15)
+
+- [ ] `accessible_from` · 클리닉 제외
+
+### 12-6. 알림 (§16)
+
+- [ ] ACTIVE/DISMISSED · D-1 제거 · 홈 미완료
+
+### 12-7. 클리닉 프리셋 (§17)
+
+- [ ] preset · start_time only · capacity 10
+
+### 12-8. 보고서 (§18)
+
+- [ ] period preset · 학생 선택 · ZIP
+
+### 12-9. 학부모 (§19)
+
+- [ ] `PARENT` · parent-links · `/parent/*`
+
+DB: V21~V26 ([schema-overview](./database/schema-overview.md))
+
+---
+
+## Phase 11 — 비기능·운영 (2주) **← 최종 Phase**
+
+**목표:** [10-technical-requirements.md](./10-technical-requirements.md)
+
+> **실행 시점:** **Phase 12 (v3.0) 완료 후** 맨 마지막. v3.0 기능 안정화·배포 후 E2E·보안·캐싱·감사 로그.
 
 > **코드 기준 (2026-05-26):** 구현 롤백됨. `V17__audit_log_class_archive.sql`만 잔존. 상세는 [STATUS.md](../progress/STATUS.md).
 
@@ -283,7 +338,10 @@
 | 8 알림 | 2~3주 | 24주 |
 | 9 UI 완성 | 3~4주 | 28주 |
 | 10 디자인 개편 | 3~4주 | 32주 |
-| 11 운영 | 2주 | **약 34주 (~8개월)** |
+| **12 v3.0** | **4~6주** | **38주** |
+| **11 운영 (최종)** | 2주 | **약 40주** |
+
+> **실행 순서:** Phase 0~10 → **10.2 (선택)** → **12 v3.0** → **11 운영 (맨 마지막)**
 
 1인 개발 기준 참고치이며, 인원·MVP 범위에 따라 조정합니다.
 
@@ -323,8 +381,9 @@
 13. ~~**Phase 8:** 알림 (FCM 제외)~~ ✅
 14. ~~**Phase 9:** 역할별 화면 (MVP 홈·탭)~~ ✅ — 반 홈 전 섹션·a11y는 ROADMAP `[ ]` 유지
 15. ~~**Phase 10:** 프론트 디자인 전면 개편~~ ✅ (10-1~10-8 + **10.1-1~10.1-7 목업 정합**, [10-frontend-design.md](./10-frontend-design.md))
-16. **Phase 10.2 (BE):** `ClassResponse` 확장 → 학생 홈 반 카드 메타 "시간·담임명·새 알림 dot"
-17. **Phase 11:** 운영 — V17 아카이브 API → Playwright E2E → rate limit/MIME → React Query → Testcontainers
+16. **Phase 10.2 (BE):** `ClassResponse` 확장 → 학생 홈 반 카드 메타
+17. **Phase 12 (v3.0):** [DECISIONS](./DECISIONS.md) §10~§19 — 수업기록·정오표·재시험·학부모
+18. **Phase 11 (최종):** 운영 — V17 아카이브 API → E2E → rate limit → Testcontainers
 
 ---
 

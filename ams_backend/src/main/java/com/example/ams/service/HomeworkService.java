@@ -96,7 +96,27 @@ public class HomeworkService {
 	public Homework createHomework(long classId, String title, Instant dueAt) {
 		Clazz clazz = classAccessService.requireReadableClass(classId);
 		classAccessService.requireManageClassContent(clazz);
-		Homework homework = homeworkRepository.insert(classId, title, dueAt, AssignmentStatus.SCHEDULED);
+		return insertHomework(classId, null, title, dueAt);
+	}
+
+	@Transactional
+	public Homework createHomeworkForLessonRecord(
+			long classId,
+			long lessonRecordId,
+			String title,
+			Instant dueAt) {
+		Clazz clazz = classAccessService.requireReadableClass(classId);
+		classAccessService.requireEditClassContent(clazz);
+		return insertHomework(classId, lessonRecordId, title, dueAt);
+	}
+
+	private Homework insertHomework(long classId, Long lessonRecordId, String title, Instant dueAt) {
+		Homework homework = homeworkRepository.insert(
+				classId,
+				lessonRecordId,
+				title,
+				dueAt,
+				AssignmentStatus.SCHEDULED);
 		for (var e : enrollmentRepository.findByClassId(classId)) {
 			submissionRepository.insertEmpty(homework.homeworkId(), e.studentId());
 		}

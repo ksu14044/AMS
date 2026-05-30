@@ -20,4 +20,8 @@ public class ClassDetailService {
 	public boolean canManageContent(Clazz clazz) {
 		return classAccessService.canManageClassContent(clazz);
 	}
+
+	public boolean canEditClassContent(Clazz clazz) {
+		return classAccessService.canEditClassContent(clazz);
+	}
 }

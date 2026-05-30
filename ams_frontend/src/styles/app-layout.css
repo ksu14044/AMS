@@ -87,6 +87,18 @@
   padding-top: var(--ams-space-3);
 }
 
+/* 데스크탑: 반 상세·교직원 화면 전체 너비 활용 */
+@media (min-width: 768px) {
+  .ams-app--wide .ams-app__header,
+  .ams-app--wide .ams-app__container {
+    max-width: var(--ams-app-max-width-wide);
+  }
+
+  .ams-app--wide.ams-app--with-bottom-nav .ams-bottom-nav {
+    max-width: var(--ams-app-max-width-wide);
+  }
+}
+
 .ams-placeholder {
   background: var(--ams-color-white);
   border: var(--ams-border-width) solid var(--ams-color-border);

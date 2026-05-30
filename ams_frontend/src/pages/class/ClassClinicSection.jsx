@@ -22,7 +22,7 @@ const EMPTY_FORM = {
   maxCapacity: '1',
 }
 
-const WEEKDAY_ORDER = ['MON', 'TUE', 'WED', 'THU', 'FRI']
+const WEEKDAY_ORDER = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
 
 export default function ClassClinicSection({
   classId,
@@ -294,7 +294,7 @@ export default function ClassClinicSection({
       <h3 className="ams-class-detail__heading">클리닉</h3>
       <p className="ams-class-detail__hint-inline">
         {isStudent
-          ? '담임이 슬롯을 설정하고, 학생이 월~금 슬롯을 예약합니다. (토 23:00 마감)'
+          ? '담임이 슬롯을 설정하고, 학생이 슬롯을 예약합니다. (토 23:00 마감)'
           : '날짜를 눌러 해당 요일 슬롯·출결을 확인하세요. 카드의 「명」은 예약 학생 수, 「건」은 슬롯 수입니다.'}
       </p>
 

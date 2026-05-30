@@ -96,7 +96,22 @@ public class TestExamService {
 	public TestExam createTest(long classId, String title, Instant testAt) {
 		Clazz clazz = classAccessService.requireReadableClass(classId);
 		classAccessService.requireManageClassContent(clazz);
-		TestExam test = testRepository.insert(classId, title, testAt, AssignmentStatus.SCHEDULED);
+		return insertTest(classId, null, title, testAt);
+	}
+
+	@Transactional
+	public TestExam createTestForLessonRecord(
+			long classId,
+			long lessonRecordId,
+			String title,
+			Instant testAt) {
+		Clazz clazz = classAccessService.requireReadableClass(classId);
+		classAccessService.requireEditClassContent(clazz);
+		return insertTest(classId, lessonRecordId, title, testAt);
+	}
+
+	private TestExam insertTest(long classId, Long lessonRecordId, String title, Instant testAt) {
+		TestExam test = testRepository.insert(classId, lessonRecordId, title, testAt, AssignmentStatus.SCHEDULED);
 		for (var e : enrollmentRepository.findByClassId(classId)) {
 			scoreRepository.insertEmpty(test.testId(), e.studentId());
 		}

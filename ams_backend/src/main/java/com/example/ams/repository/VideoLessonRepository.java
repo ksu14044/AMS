@@ -67,23 +67,50 @@ public class VideoLessonRepository {
 			String thumbnailUrl,
 			Instant publishedAt,
 			long authorId) {
+		return insert(classId, null, youtubeUrl, title, description, thumbnailUrl, publishedAt, authorId);
+	}
+
+	public VideoLesson insert(
+			long classId,
+			Long lessonRecordId,
+			String youtubeUrl,
+			String title,
+			String description,
+			String thumbnailUrl,
+			Instant publishedAt,
+			long authorId) {
 		String sql = """
-				INSERT INTO video_lesson (class_id, youtube_url, title, description, thumbnail_url, published_at, author_id)
-				VALUES (?, ?, ?, ?, ?, ?, ?)
+				INSERT INTO video_lesson (class_id, lesson_record_id, youtube_url, title, description, thumbnail_url, published_at, author_id)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 				""";
 		KeyHolder keyHolder = new GeneratedKeyHolder();
 		jdbcTemplate.update(connection -> {
 			var ps = connection.prepareStatement(sql, new String[] { "video_id" });
 			ps.setLong(1, classId);
-			ps.setString(2, youtubeUrl);
-			ps.setString(3, title);
-			ps.setString(4, description);
-			ps.setString(5, thumbnailUrl);
-			ps.setTimestamp(6, java.sql.Timestamp.from(publishedAt));
-			ps.setLong(7, authorId);
+			if (lessonRecordId != null) {
+				ps.setLong(2, lessonRecordId);
+			} else {
+				ps.setNull(2, java.sql.Types.BIGINT);
+			}
+			ps.setString(3, youtubeUrl);
+			ps.setString(4, title);
+			ps.setString(5, description);
+			ps.setString(6, thumbnailUrl);
+			ps.setTimestamp(7, java.sql.Timestamp.from(publishedAt));
+			ps.setLong(8, authorId);
 			return ps;
 		}, keyHolder);
 		return findById(keyHolder.getKey().longValue()).orElseThrow();
+	}
+
+	public List<VideoSummary> findSummariesByLessonRecordId(long lessonRecordId) {
+		return jdbcTemplate.query(
+				"SELECT video_id, title FROM video_lesson WHERE lesson_record_id = ? ORDER BY video_id",
+				(rs, rowNum) -> new VideoSummary(rs.getLong("video_id"), rs.getString("title")),
+				lessonRecordId);
+	}
+
+	public record VideoSummary(long videoId, String title) {
 	}
 
 	public VideoLesson update(

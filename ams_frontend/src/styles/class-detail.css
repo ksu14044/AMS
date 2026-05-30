@@ -1928,3 +1928,628 @@
   font-weight: 600;
   color: var(--ams-color-primary);
 }
+
+/* ─── 수업기록 게시판 ───────────────────────── */
+.ams-lesson-board {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-5);
+}
+
+.ams-lesson-board--loading {
+  min-height: 200px;
+  align-items: center;
+  justify-content: center;
+}
+
+.ams-lesson-board__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ams-space-4);
+}
+
+.ams-lesson-board__title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ams-space-2);
+  margin-bottom: var(--ams-space-1);
+}
+
+.ams-lesson-board__title {
+  margin: 0;
+  font-size: var(--ams-font-size-xl);
+  font-weight: var(--ams-font-weight-bold);
+  color: var(--ams-color-text);
+  line-height: var(--ams-line-height-tight);
+}
+
+.ams-lesson-board__lead {
+  margin: 0;
+  max-width: 640px;
+  font-size: var(--ams-font-size-sm);
+  color: var(--ams-color-text-secondary);
+  line-height: var(--ams-line-height-normal);
+}
+
+/* ─── 작성 폼 ─────────────────────────────── */
+.ams-lesson-board__compose {
+  padding: 0;
+  overflow: hidden;
+}
+
+.ams-lesson-board__compose-head {
+  padding: var(--ams-space-5) var(--ams-space-5) var(--ams-space-4);
+  border-bottom: var(--ams-border-width) solid var(--ams-color-border);
+  background: linear-gradient(180deg, var(--ams-color-white) 0%, var(--ams-color-surface) 100%);
+}
+
+.ams-lesson-board__compose-title {
+  margin: 0 0 4px;
+  font-size: var(--ams-font-size-lg);
+  font-weight: var(--ams-font-weight-bold);
+}
+
+.ams-lesson-board__compose-desc {
+  margin: 0;
+  font-size: var(--ams-font-size-sm);
+  color: var(--ams-color-text-secondary);
+}
+
+.ams-lesson-board__compose-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+  gap: 0;
+}
+
+.ams-lesson-board__compose-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-4);
+  padding: var(--ams-space-5);
+  border-right: var(--ams-border-width) solid var(--ams-color-border);
+}
+
+.ams-lesson-board__compose-side {
+  padding: var(--ams-space-5);
+  background: var(--ams-color-surface);
+}
+
+.ams-lesson-board__compose-side-title {
+  margin: 0 0 var(--ams-space-3);
+  font-size: var(--ams-font-size-sm);
+  font-weight: var(--ams-font-weight-semibold);
+  color: var(--ams-color-text-secondary);
+}
+
+.ams-lesson-board__compose-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--ams-space-2);
+  padding: var(--ams-space-4) var(--ams-space-5);
+  border-top: var(--ams-border-width) solid var(--ams-color-border);
+  background: var(--ams-color-white);
+}
+
+/* 필드 */
+.ams-lesson-board .ams-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-2);
+}
+
+.ams-lesson-board .ams-field--compact {
+  gap: 6px;
+}
+
+.ams-lesson-board .ams-field__label {
+  font-size: var(--ams-font-size-xs);
+  font-weight: var(--ams-font-weight-semibold);
+  color: var(--ams-color-text-secondary);
+  letter-spacing: 0.01em;
+}
+
+.ams-lesson-board .ams-field__input,
+.ams-lesson-board .ams-field__textarea {
+  width: 100%;
+  padding: 11px 14px;
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-sm);
+  background: var(--ams-color-white);
+  font-family: inherit;
+  font-size: var(--ams-font-size-sm);
+  color: var(--ams-color-text);
+  line-height: var(--ams-line-height-normal);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.ams-lesson-board .ams-field__textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.ams-lesson-board .ams-field__input:focus,
+.ams-lesson-board .ams-field__textarea:focus {
+  outline: none;
+  border-color: var(--ams-color-primary);
+  box-shadow: 0 0 0 3px var(--ams-color-focus-ring);
+}
+
+.ams-lesson-board .ams-field__input::placeholder,
+.ams-lesson-board .ams-field__textarea::placeholder {
+  color: var(--ams-color-text-muted);
+}
+
+/* 옵션 카드 (숙제·테스트·영상) */
+.ams-lesson-board__options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-2);
+}
+
+.ams-lesson-board__option {
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-md);
+  background: var(--ams-color-white);
+  overflow: hidden;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.ams-lesson-board__option--active {
+  border-color: var(--ams-color-primary);
+  box-shadow: 0 0 0 1px rgba(194, 24, 49, 0.12);
+}
+
+.ams-lesson-board__option-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ams-space-3);
+  width: 100%;
+  padding: var(--ams-space-3) var(--ams-space-4);
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.ams-lesson-board__option-check {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  border: 2px solid var(--ams-color-border-strong);
+  border-radius: 5px;
+  background: var(--ams-color-white);
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.ams-lesson-board__option--active .ams-lesson-board__option-check {
+  border-color: var(--ams-color-primary);
+  background: var(--ams-color-primary);
+  box-shadow: inset 0 0 0 3px var(--ams-color-white);
+}
+
+.ams-lesson-board__option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ams-lesson-board__option-text strong {
+  font-size: var(--ams-font-size-sm);
+  font-weight: var(--ams-font-weight-semibold);
+  color: var(--ams-color-text);
+}
+
+.ams-lesson-board__option-text span {
+  font-size: var(--ams-font-size-xs);
+  color: var(--ams-color-text-secondary);
+}
+
+.ams-lesson-board__option-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-3);
+  padding: 0 var(--ams-space-4) var(--ams-space-4);
+  border-top: var(--ams-border-width) dashed var(--ams-color-border);
+  margin-top: 0;
+  padding-top: var(--ams-space-3);
+}
+
+/* ─── 목록 + 상세 레이아웃 ─────────────────── */
+.ams-lesson-board__layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--ams-space-4);
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .ams-lesson-board__layout {
+    grid-template-columns: minmax(0, 1.55fr) minmax(320px, 0.85fr);
+  }
+}
+
+.ams-lesson-board__list,
+.ams-lesson-board__detail {
+  padding: 0;
+  overflow: hidden;
+}
+
+.ams-lesson-board__list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--ams-space-4) var(--ams-space-5);
+  border-bottom: var(--ams-border-width) solid var(--ams-color-border);
+  background: var(--ams-color-white);
+}
+
+.ams-lesson-board__panel-title {
+  margin: 0;
+  font-size: var(--ams-font-size-md);
+  font-weight: var(--ams-font-weight-semibold);
+}
+
+.ams-lesson-board__list-meta {
+  font-size: var(--ams-font-size-xs);
+  color: var(--ams-color-text-muted);
+}
+
+.ams-lesson-board__table-wrap {
+  overflow-x: auto;
+}
+
+.ams-lesson-board__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--ams-font-size-sm);
+}
+
+.ams-lesson-board__table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.ams-lesson-board__table th,
+.ams-lesson-board__table td {
+  padding: 12px 16px;
+  border-bottom: var(--ams-border-width) solid var(--ams-color-border);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.ams-lesson-board__table th {
+  background: var(--ams-color-surface);
+  font-size: var(--ams-font-size-xs);
+  font-weight: var(--ams-font-weight-semibold);
+  color: var(--ams-color-text-secondary);
+  white-space: nowrap;
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+
+.ams-lesson-board__table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.ams-lesson-board__row {
+  cursor: pointer;
+  background: var(--ams-color-white);
+  transition: background-color 0.12s ease;
+}
+
+.ams-lesson-board__row:hover {
+  background: rgba(252, 232, 236, 0.45);
+}
+
+.ams-lesson-board__row--active {
+  background: var(--ams-color-primary-light);
+}
+
+.ams-lesson-board__row--active td:first-child {
+  box-shadow: inset 3px 0 0 var(--ams-color-primary);
+}
+
+.ams-lesson-board__col-no {
+  width: 56px;
+  text-align: center;
+}
+
+.ams-lesson-board__row-no {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  border-radius: var(--ams-radius-pill);
+  background: var(--ams-color-surface-strong);
+  font-size: var(--ams-font-size-xs);
+  font-weight: var(--ams-font-weight-semibold);
+  color: var(--ams-color-text-secondary);
+}
+
+.ams-lesson-board__row--active .ams-lesson-board__row-no {
+  background: var(--ams-color-primary);
+  color: var(--ams-color-white);
+}
+
+.ams-lesson-board__col-date {
+  white-space: nowrap;
+  font-weight: var(--ams-font-weight-semibold);
+  color: var(--ams-color-text);
+}
+
+.ams-lesson-board__summary-cell {
+  max-width: 420px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ams-color-text);
+}
+
+.ams-lesson-board__col-author {
+  white-space: nowrap;
+  color: var(--ams-color-text-secondary);
+}
+
+.ams-lesson-board__col-created {
+  white-space: nowrap;
+  font-size: var(--ams-font-size-xs);
+  color: var(--ams-color-text-muted);
+}
+
+/* 배지 */
+.ams-lesson-board__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ams-lesson-board__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: var(--ams-radius-pill);
+  font-size: 11px;
+  font-weight: var(--ams-font-weight-semibold);
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.ams-lesson-board__badge--homework {
+  background: #e8f4fd;
+  color: #1565c0;
+}
+
+.ams-lesson-board__badge--test {
+  background: #f3e8ff;
+  color: #7b1fa2;
+}
+
+.ams-lesson-board__badge--video {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.ams-lesson-board__badge--clinic {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.ams-lesson-board__empty-tag {
+  font-size: var(--ams-font-size-xs);
+  color: var(--ams-color-text-muted);
+}
+
+/* ─── 상세 패널 ───────────────────────────── */
+.ams-lesson-board__detail {
+  position: sticky;
+  top: var(--ams-space-4);
+}
+
+.ams-lesson-board__detail-head {
+  padding: var(--ams-space-5) var(--ams-space-5) var(--ams-space-3);
+  border-bottom: var(--ams-border-width) solid var(--ams-color-border);
+}
+
+.ams-lesson-board__detail-date {
+  display: block;
+  margin-bottom: 6px;
+  font-size: var(--ams-font-size-xl);
+  font-weight: var(--ams-font-weight-bold);
+  color: var(--ams-color-text);
+}
+
+.ams-lesson-board__detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: var(--ams-font-size-xs);
+  color: var(--ams-color-text-secondary);
+}
+
+.ams-lesson-board__detail > .ams-lesson-board__badges {
+  padding: var(--ams-space-3) var(--ams-space-5) 0;
+}
+
+.ams-lesson-board__detail-section {
+  padding: var(--ams-space-4) var(--ams-space-5);
+  border-top: var(--ams-border-width) solid var(--ams-color-border);
+}
+
+.ams-lesson-board__detail-label {
+  margin: 0 0 var(--ams-space-3);
+  font-size: var(--ams-font-size-xs);
+  font-weight: var(--ams-font-weight-semibold);
+  color: var(--ams-color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ams-lesson-board__detail-body {
+  margin: 0;
+  font-size: var(--ams-font-size-sm);
+  line-height: var(--ams-line-height-normal);
+  white-space: pre-wrap;
+  color: var(--ams-color-text);
+}
+
+.ams-lesson-board__detail-textarea {
+  min-height: 160px;
+  margin-bottom: var(--ams-space-3);
+}
+
+.ams-lesson-board__edit-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.ams-lesson-board__linked-items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-2);
+}
+
+.ams-lesson-board__linked-item {
+  display: flex;
+  align-items: center;
+  gap: var(--ams-space-3);
+  padding: var(--ams-space-3) var(--ams-space-4);
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-sm);
+  background: var(--ams-color-surface);
+}
+
+.ams-lesson-board__linked-item-type {
+  flex-shrink: 0;
+  min-width: 44px;
+  padding: 2px 8px;
+  border-radius: var(--ams-radius-pill);
+  font-size: 11px;
+  font-weight: var(--ams-font-weight-semibold);
+  text-align: center;
+}
+
+.ams-lesson-board__linked-item--homework .ams-lesson-board__linked-item-type {
+  background: #e8f4fd;
+  color: #1565c0;
+}
+
+.ams-lesson-board__linked-item--test .ams-lesson-board__linked-item-type {
+  background: #f3e8ff;
+  color: #7b1fa2;
+}
+
+.ams-lesson-board__linked-item--video .ams-lesson-board__linked-item-type {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.ams-lesson-board__field-hint {
+  margin: -4px 0 0;
+  font-size: var(--ams-font-size-xs);
+  color: var(--ams-color-text-muted);
+}
+
+.ams-lesson-board__field-hint--warn {
+  color: var(--ams-color-warning-fg);
+}
+
+.ams-lesson-board__linked-item--clinic .ams-lesson-board__linked-item-type {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.ams-lesson-board__linked-item-title {
+  font-size: var(--ams-font-size-sm);
+  color: var(--ams-color-text);
+  line-height: var(--ams-line-height-normal);
+}
+
+/* 빈 상태 */
+.ams-lesson-board__empty-state {
+  padding: var(--ams-space-7) var(--ams-space-5);
+  text-align: center;
+}
+
+.ams-lesson-board__empty-state--detail {
+  min-height: 240px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.ams-lesson-board__empty-title {
+  margin: 0 0 6px;
+  font-size: var(--ams-font-size-md);
+  font-weight: var(--ams-font-weight-semibold);
+  color: var(--ams-color-text);
+}
+
+.ams-lesson-board__empty-desc {
+  margin: 0;
+  max-width: 280px;
+  font-size: var(--ams-font-size-sm);
+  color: var(--ams-color-text-secondary);
+  line-height: var(--ams-line-height-normal);
+}
+
+@media (max-width: 1023px) {
+  .ams-lesson-board__header {
+    flex-direction: column;
+  }
+
+  .ams-lesson-board__compose-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ams-lesson-board__compose-main {
+    border-right: none;
+    border-bottom: var(--ams-border-width) solid var(--ams-color-border);
+  }
+
+  .ams-lesson-board__detail {
+    position: static;
+  }
+}
+
+@media (max-width: 767px) {
+  .ams-lesson-board__table th:nth-child(5),
+  .ams-lesson-board__table td:nth-child(5),
+  .ams-lesson-board__table th:nth-child(6),
+  .ams-lesson-board__table td:nth-child(6) {
+    display: none;
+  }
+}
+
+.ams-class-detail__subheading {
+  margin: 0 0 4px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.ams-class-detail__meta {
+  margin: 0 0 12px;
+  font-size: 0.8125rem;
+  color: var(--ams-color-text-secondary);
+}
+
+.ams-class-detail__hint {
+  margin: 0 0 12px;
+  font-size: 0.8125rem;
+  color: var(--ams-color-text-secondary);
+}

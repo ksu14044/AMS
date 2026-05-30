@@ -69,6 +69,7 @@
 
   /* ─── Layout ────────────────────────────────── */
   --ams-app-max-width: 480px;
+  --ams-app-max-width-wide: calc(100vw - 48px);
   --ams-nav-height: 60px;
   --ams-header-height: 56px;
   --ams-touch-target: 44px;

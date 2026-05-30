@@ -114,4 +114,24 @@ public class ClassAccessService {
 			throw new BusinessException(ErrorCode.FORBIDDEN);
 		}
 	}
+
+	/** 담임·관리자·담당 조교 — 수업기록·숙제 등 콘텐츠 편집 */
+	public boolean canEditClassContent(Clazz clazz) {
+		UserRole role = currentUserService.requireRole();
+		long userId = currentUserService.requireUserId();
+		if (role == UserRole.ACADEMY_ADMIN) {
+			return true;
+		}
+		if (role.isHomeroomTeacher() && clazz.homeroomTeacherId() == userId) {
+			return true;
+		}
+		return role.isAssistant()
+				&& assistantAssignmentRepository.existsByClassIdAndAssistantId(clazz.classId(), userId);
+	}
+
+	public void requireEditClassContent(Clazz clazz) {
+		if (!canEditClassContent(clazz)) {
+			throw new BusinessException(ErrorCode.FORBIDDEN);
+		}
+	}
 }

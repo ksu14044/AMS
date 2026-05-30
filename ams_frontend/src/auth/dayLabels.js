@@ -8,9 +8,7 @@ export const DAY_OPTIONS = [
   { value: 'SUN', label: '일' },
 ]
 
-export const CLINIC_DAY_OPTIONS = DAY_OPTIONS.filter((d) =>
-  ['MON', 'TUE', 'WED', 'THU', 'FRI'].includes(d.value),
-)
+export const CLINIC_DAY_OPTIONS = DAY_OPTIONS
 
 export function dayLabel(day) {
   return DAY_OPTIONS.find((d) => d.value === day)?.label ?? day

@@ -1,117 +1,97 @@
 # REST API 목록 (초안)
 
-Base URL: `/api/v1` (Phase 0에서 도입). 인증: `Authorization: Bearer {jwt}`
+Base URL: `/api/v1`. Bearer JWT.
 
-## Auth (Phase 0)
+## Auth (v3.0: parent signup)
 
 | Method | Path | 설명 |
 |--------|------|------|
-| POST | `/auth/signup/staff` | 교직원 가입 |
+| POST | `/auth/signup/parent` | 학부모 가입 |
 | POST | `/auth/signup/student` | 학생 가입 |
-| POST | `/auth/login` | 로그인 (이메일·비밀번호). 다중 소속 시 `loginToken`·`academies` 반환 |
-| POST | `/auth/login/select` | 다중 소속 시 학원 선택 후 토큰 발급 |
-| POST | `/auth/refresh` | 토큰 갱신 |
-| POST | `/admin/users/{id}/approve` | 원장 승인 — body: `role`, `subject`(선택) 확정/수정 ([DECISIONS](../DECISIONS.md) §1) |
-| GET | `/admin/users/pending` | 승인 대기 교직원 목록 (원장) |
+| POST | `/auth/signup/staff` | 교직원 가입 |
 
-## Academy & Users (Phase 0~1)
+(기존 login, refresh, approve 유지)
 
-| Method | Path | 역할 |
-|--------|------|------|
-| GET | `/admin/students` | 관리자 |
-| GET | `/admin/teachers` | 관리자 |
-| GET | `/admin/assistants` | 관리자 |
+## Parent (Phase 12)
 
-## Class (Phase 1~2)
+| Method | Path |
+|--------|------|
+| POST | `/admin/parent-links` |
+| GET | `/parent/children` |
+| GET | `/parent/children/{sid}/pending` |
+| GET | `/parent/children/{sid}/classes/{cid}/study-records` |
 
-| Method | Path | 설명 |
-|--------|------|------|
-| POST | `/admin/classes` | 반 생성 |
-| GET | `/classes` | 역할별 반 목록 |
-| GET | `/classes/{id}` | 반 상세(7섹션) |
-| PATCH | `/classes/{id}/schedule` | 수업 정보 |
-| GET/POST | `/academy/notices` | 학원 공지 (행정·관리자) |
-| GET/POST | `/classes/{id}/notices` | 반 공지 |
-| GET/PATCH | `/classes/{id}/textbook` | 교재 (담임 수정, 조교 GET만) |
-| GET/POST | `/classes/{id}/videos` | 영상 |
-| GET/POST | `/classes/{id}/homeworks` | 숙제 |
-| PATCH | `/classes/{id}/homeworks/{hid}/submissions/{studentId}` | 학생별 숙제 제출·점수 |
-| GET/POST | `/classes/{id}/tests` | 테스트 |
-| PATCH | `/classes/{id}/tests/{tid}/scores` | 학생별 점수 일괄/개별 → 보고서 트리거 |
+## Enrollment (v3.0)
 
-## Enrollment (Phase 1)
+| Method | Path |
+|--------|------|
+| POST | `/admin/classes/{id}/enrollments` | body: `accessibleFrom` |
+| PATCH | `/admin/enrollments/{id}` |
 
-| Method | Path | 설명 |
-|--------|------|------|
-| POST | `/admin/classes/{id}/enrollments` | 학생 배정 |
-| DELETE | `/admin/enrollments/{id}` | 배정 해제 |
+## Lesson record (Phase 12)
 
-## Assistant (Phase 3)
+| Method | Path |
+|--------|------|
+| GET/POST | `/classes/{id}/lesson-records` |
+| GET/PATCH | `/classes/{id}/lesson-records/{lrId}` |
 
-| Method | Path | 설명 |
-|--------|------|------|
-| POST | `/classes/{id}/assistants` | 조교 담당 반 지정 |
-| GET | `/assistant/classes` | 조교 담당 반 목록 |
+## Homework · Test (v3.0)
 
-## Video certification (Phase 4)
+| Method | Path |
+|--------|------|
+| POST | `.../lesson-records/{lrId}/homeworks` |
+| PUT | `/homeworks/{hid}/answer-key` |
+| PUT | `/homeworks/{hid}/submissions/{studentId}` |
+| POST | `.../lesson-records/{lrId}/tests` |
+| PUT | `/tests/{tid}/scores/{studentId}` |
+| POST | `/tests/{tid}/retakes` |
 
-| Method | Path | 설명 |
-|--------|------|------|
-| POST | `/videos/{id}/certifications` | multipart 인증사진 |
+점수: `ceil(100/q×correct, 1)` ([§11](../DECISIONS.md#11-정오표채점-수동)).
 
-## Clinic (Phase 5)
+## Clinic preset
 
-| Method | Path | 설명 |
-|--------|------|------|
-| POST | `/classes/{id}/clinic/slots` | 슬롯 생성 |
-| GET | `/classes/{id}/clinic/weeks/{date}` | 주간 슬롯·예약 |
-| PUT | `/classes/{id}/clinic/reservations` | 학생 예약/변경 |
-| PATCH | `/clinic/reservations/{id}/result` | 결과 입력 |
+| Method | Path |
+|--------|------|
+| GET/POST | `/classes/{id}/clinic-presets` |
+| PATCH | `/clinic/reservations/{id}/result` |
 
-## Study record (Phase 6)
+## Video (v3.0)
 
-| Method | Path | 설명 |
-|--------|------|------|
-| GET | `/classes/{id}/study-records/me` | 학생 본인 |
-| GET | `/classes/{id}/study-records/students` | 담임·관리자 (학생 목록) |
-| GET | `/classes/{id}/study-records/students/{sid}` | 담임·관리자 (학생별) |
+| Method | Path |
+|--------|------|
+| POST | `.../lesson-records/{lrId}/videos` |
+| PUT | `/videos/{id}/targets` |
 
-테스트 항목: `ratePercent` = `percentile_rank` 평균(높을수록 우수). `test` 응답은 `StudyRecordTestMetricResponse`(응시/마감·최근 점수 요약).
+## Study record
 
-## Report (Phase 7)
+| Method | Path |
+|--------|------|
+| GET | `/classes/{id}/study-records/me?from=&to=` |
 
-| Method | Path | 설명 |
-|--------|------|------|
-| GET | `/classes/{id}/reports` | 목록 (학생=본인만, 조교=403) |
-| GET | `/reports/{id}` | 상세 |
-| GET | `/reports/{id}/pdf` | PDF 다운로드 |
-| GET | `/classes/{id}/reports/tests/{testId}/pdf-archive` | 해당 시험 보고서 PDF ZIP (담임·관리자) |
-| PATCH | `/reports/{id}/comment` | 담임 코멘트 |
+테스트 `ratePercent` = **`raw_score` 평균** (v3.0).
 
-트리거: 보고서 탭 `POST …/reports/generate/{testId}` (수동). 구간 0건 항목은 rate/grade `null`. 종합: 숙제·클리닉 % + **이번 시험 원점수(0~100%)** ×0.3 재가중. 표시용 상위 %·percentile은 상세 필드.
+## Report (v3.0)
 
-## Admin · 운영 (Phase 11, 예정)
+| Method | Path |
+|--------|------|
+| GET/POST | `/classes/{id}/report-period-presets` |
+| POST | `/classes/{id}/reports/generate` |
 
-| Method | Path | 설명 | 상태 |
-|--------|------|------|------|
-| DELETE | `/admin/classes/{id}` | 반 아카이브(소프트 삭제)·기록 스냅샷 | 🔲 V17만 |
+body: `{ periodStart, periodEnd, studentIds[] }`
 
-## Notification (Phase 8)
+~~POST …/generate/{testId}~~ — 대체.
 
-| Method | Path | 설명 |
-|--------|------|------|
-| GET | `/notifications` | 목록 (?unreadOnly) |
-| PATCH | `/notifications/{id}/read` | 읽음 |
-| POST | `/devices/fcm-token` | 토큰 등록 |
+## Notification (v3.0)
 
-## 공통 응답
+| Method | Path |
+|--------|------|
+| GET | `/notifications?status=ACTIVE` |
+| PATCH | `/notifications/{id}/read` |
 
-```json
-{
-  "success": true,
-  "data": { },
-  "error": null
-}
-```
+완료 시 내부 `DISMISSED`.
 
-에러 시 HTTP 4xx/5xx + `error.code`, `error.message`
+## Class · 기존 (Phase 1~2)
+
+공지·일정·교재·클리닉 예약·영상 인증 등 — Phase 12에서 lesson-record 경로로 점진 이전.
+
+[04-class-data-model.md](../04-class-data-model.md) · [DECISIONS.md](../DECISIONS.md) §10~§19.

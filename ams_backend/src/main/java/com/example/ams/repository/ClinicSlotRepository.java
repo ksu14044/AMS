@@ -72,7 +72,7 @@ public class ClinicSlotRepository {
 						LEFT JOIN `user` u ON s.assistant_id = u.user_id
 						INNER JOIN `class` c ON s.class_id = c.class_id
 						WHERE s.assistant_id = ? AND s.week_start_date = ? AND c.academy_id = ?
-						ORDER BY FIELD(s.day_of_week, 'MON','TUE','WED','THU','FRI'), s.start_time, c.name
+						ORDER BY FIELD(s.day_of_week, 'MON','TUE','WED','THU','FRI','SAT','SUN'), s.start_time, c.name
 						""",
 				ASSISTANT_WEEK_ROW_MAPPER,
 				assistantId,
@@ -85,7 +85,7 @@ public class ClinicSlotRepository {
 				SELECT_BASE
 						+ """
 								WHERE s.class_id = ? AND s.week_start_date = ?
-								ORDER BY FIELD(s.day_of_week, 'MON','TUE','WED','THU','FRI'), s.start_time
+								ORDER BY FIELD(s.day_of_week, 'MON','TUE','WED','THU','FRI','SAT','SUN'), s.start_time
 								""",
 				ROW_MAPPER,
 				classId,
@@ -111,9 +111,20 @@ public class ClinicSlotRepository {
 			LocalTime startTime,
 			Long assistantId,
 			int maxCapacity) {
+		return insert(classId, weekStart, dayOfWeek, startTime, assistantId, maxCapacity, null);
+	}
+
+	public ClinicSlot insert(
+			long classId,
+			LocalDate weekStart,
+			DayOfWeek dayOfWeek,
+			LocalTime startTime,
+			Long assistantId,
+			int maxCapacity,
+			Long lessonRecordId) {
 		String sql = """
-				INSERT INTO clinic_slot (class_id, week_start_date, day_of_week, start_time, assistant_id, max_capacity)
-				VALUES (?, ?, ?, ?, ?, ?)
+				INSERT INTO clinic_slot (class_id, week_start_date, day_of_week, start_time, assistant_id, max_capacity, lesson_record_id)
+				VALUES (?, ?, ?, ?, ?, ?, ?)
 				""";
 		KeyHolder keyHolder = new GeneratedKeyHolder();
 		jdbcTemplate.update(connection -> {
@@ -128,9 +139,40 @@ public class ClinicSlotRepository {
 				ps.setNull(5, java.sql.Types.BIGINT);
 			}
 			ps.setInt(6, maxCapacity);
+			if (lessonRecordId != null) {
+				ps.setLong(7, lessonRecordId);
+			} else {
+				ps.setNull(7, java.sql.Types.BIGINT);
+			}
 			return ps;
 		}, keyHolder);
 		return findByIdAndClassId(keyHolder.getKey().longValue(), classId).orElseThrow();
+	}
+
+	public List<ClinicSlotSummary> findSummariesByLessonRecordId(long lessonRecordId) {
+		return jdbcTemplate.query(
+				"""
+						SELECT s.slot_id, s.week_start_date, s.day_of_week, s.start_time, u.name AS assistant_name
+						FROM clinic_slot s
+						LEFT JOIN `user` u ON s.assistant_id = u.user_id
+						WHERE s.lesson_record_id = ?
+						ORDER BY s.slot_id
+						""",
+				(rs, rowNum) -> new ClinicSlotSummary(
+						rs.getLong("slot_id"),
+						rs.getDate("week_start_date").toLocalDate(),
+						DayOfWeek.valueOf(rs.getString("day_of_week")),
+						rs.getTime("start_time").toLocalTime(),
+						rs.getString("assistant_name")),
+				lessonRecordId);
+	}
+
+	public record ClinicSlotSummary(
+			long slotId,
+			LocalDate weekStartDate,
+			DayOfWeek dayOfWeek,
+			LocalTime startTime,
+			String assistantName) {
 	}
 
 	public ClinicSlot update(

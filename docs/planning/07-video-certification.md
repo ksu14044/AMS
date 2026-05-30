@@ -1,39 +1,25 @@
 # 07. 영상 수업 및 인증
 
-## 9-1. 등록 (선생님/조교)
+## 등록 (선생님/조교)
 
-- 유튜브 URL 입력
-- **YouTube oEmbed API** → 썸네일·제목 자동
-- 내부 제목, 설명, 게시일 추가 입력
-- 비공개/미등록: 썸네일 미표시 처리
+- **수업기록**에 귀속 ([§10](./DECISIONS.md#10-수업기록-lesson-record))
+- YouTube URL → oEmbed 썸네일·제목
+- **대상 학생** ([§14](./DECISIONS.md#14-대상-학생-지정)): 기본 **전원 미선택**
 
-## 9-2. 수강 (학생)
+## 수강 (학생)
 
-- 반 홈에서 썸네일·제목 확인
-- 썸네일 또는 제목 클릭 → 유튜브 앱/브라우저
-- [인증사진 제출]: 카메라 촬영 또는 앨범
-- 저장: 학생 ID + 날짜 + 영상 ID 경로
-- 제출된 인증사진은 공부기록에 **날짜·영상명**과 함께 저장
-- 선생님/조교: 학생별 인증 여부를 **공부기록 탭**에서 확인
+- **대상 학생만** [인증사진 제출]
+- **완료(알림):** 제출 시 ([§16](./DECISIONS.md#16-알림-완료-기준))
+- 비대상: 조회만
 
-### 영상 수업 섹션 — 학생 뷰 (원본 §09)
+## API
 
-```
-[유튜브 썸네일]
-현진건 — 운수 좋은 날 작품 분석
-등록일: 2025.05.18 | 국어 남고1반
-[ 유튜브에서 보기 ↗ ]  [ 인증사진 제출 📷 ]
-```
+| Method | Path |
+|--------|------|
+| POST | `/classes/{id}/lesson-records/{lrId}/videos` |
+| PUT | `/videos/{id}/targets` |
+| POST | `/videos/{id}/certifications` |
 
-## API 초안
+JPEG/PNG, 최대 10MB.
 
-- `POST /api/classes/{id}/videos` — 등록
-- `GET /api/classes/{id}/videos` — 목록
-- `POST /api/videos/{id}/certifications` — multipart 업로드
-
-## 제약
-
-- 파일: JPEG/PNG, 최대 10MB
-- 스토리지: S3 호환 (개발 시 로컬 `uploads/`)
-
-Phase: [ROADMAP.md](./ROADMAP.md) Phase 4
+Phase: Phase 4 · **Phase 12**

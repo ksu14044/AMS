@@ -45,17 +45,41 @@ public class TestExamRepository {
 	}
 
 	public TestExam insert(long classId, String title, Instant testAt, AssignmentStatus status) {
-		String sql = "INSERT INTO test (class_id, title, test_at, status) VALUES (?, ?, ?, ?)";
+		return insert(classId, null, title, testAt, status);
+	}
+
+	public TestExam insert(
+			long classId,
+			Long lessonRecordId,
+			String title,
+			Instant testAt,
+			AssignmentStatus status) {
+		String sql = "INSERT INTO test (class_id, lesson_record_id, title, test_at, status) VALUES (?, ?, ?, ?, ?)";
 		KeyHolder keyHolder = new GeneratedKeyHolder();
 		jdbcTemplate.update(connection -> {
 			var ps = connection.prepareStatement(sql, new String[] { "test_id" });
 			ps.setLong(1, classId);
-			ps.setString(2, title);
-			ps.setTimestamp(3, java.sql.Timestamp.from(testAt));
-			ps.setString(4, status.name());
+			if (lessonRecordId != null) {
+				ps.setLong(2, lessonRecordId);
+			} else {
+				ps.setNull(2, java.sql.Types.BIGINT);
+			}
+			ps.setString(3, title);
+			ps.setTimestamp(4, java.sql.Timestamp.from(testAt));
+			ps.setString(5, status.name());
 			return ps;
 		}, keyHolder);
 		return findById(keyHolder.getKey().longValue()).orElseThrow();
+	}
+
+	public List<TestSummary> findSummariesByLessonRecordId(long lessonRecordId) {
+		return jdbcTemplate.query(
+				"SELECT test_id, title FROM test WHERE lesson_record_id = ? ORDER BY test_id",
+				(rs, rowNum) -> new TestSummary(rs.getLong("test_id"), rs.getString("title")),
+				lessonRecordId);
+	}
+
+	public record TestSummary(long testId, String title) {
 	}
 
 	public void complete(long testId, BigDecimal classAverage, Instant completedAt) {

@@ -5,6 +5,7 @@ import { useAuth } from '../../auth/AuthContext'
 import { homePathForRole } from '../../auth/roleLabels'
 import { subjectLabel } from '../../auth/subjectLabels'
 import ClassHomeSection from './ClassHomeSection'
+import ClassLessonRecordSection from './ClassLessonRecordSection'
 import ClassNoticesSection from './ClassNoticesSection'
 import ClassScheduleSection from './ClassScheduleSection'
 import ClassTextbookSection from './ClassTextbookSection'
@@ -18,12 +19,13 @@ import ClassReportsSection from './ClassReportsSection'
 import '../../styles/class-detail.css'
 
 const BASE_TABS = [
+  { id: 'lessons', label: '수업기록' },
   { id: 'notices', label: '공지' },
   { id: 'schedule', label: '수업정보' },
   { id: 'textbook', label: '교재' },
   { id: 'video', label: '영상' },
-  { id: 'homework', label: '숙제' },
-  { id: 'test', label: '테스트' },
+  { id: 'homework', label: '숙제 확인' },
+  { id: 'test', label: '테스트 확인' },
   { id: 'clinic', label: '클리닉' },
   { id: 'study', label: '공부기록' },
 ]
@@ -35,7 +37,7 @@ export default function ClassDetailPage() {
   const [searchParams] = useSearchParams()
   const tabFromUrl = searchParams.get('tab')
   const clinicDayFromUrl = searchParams.get('clinicDay')
-  const initialClinicDay = ['MON', 'TUE', 'WED', 'THU', 'FRI'].includes(clinicDayFromUrl)
+  const initialClinicDay = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'].includes(clinicDayFromUrl)
     ? clinicDayFromUrl
     : undefined
   const { user } = useAuth()
@@ -43,7 +45,7 @@ export default function ClassDetailPage() {
   const isAssistant = ASSISTANT_ROLES.includes(user?.role)
   const isStudent = user?.role === 'STUDENT'
 
-  const [activeTab, setActiveTab] = useState(() => (user?.role === 'STUDENT' ? 'home' : 'notices'))
+  const [activeTab, setActiveTab] = useState(() => (user?.role === 'STUDENT' ? 'home' : 'lessons'))
   const [detail, setDetail] = useState(null)
   const [notices, setNotices] = useState([])
   const [loading, setLoading] = useState(true)
@@ -182,6 +184,14 @@ export default function ClassDetailPage() {
         />
       )}
 
+      {activeTab === 'lessons' && (
+        <ClassLessonRecordSection
+          classId={classId}
+          canEdit={detail.canEditContent}
+          onError={setError}
+        />
+      )}
+
       {activeTab === 'notices' && (
         <ClassNoticesSection
           classId={classId}
@@ -221,6 +231,7 @@ export default function ClassDetailPage() {
         <ClassHomeworkSection
           classId={classId}
           canManage={detail.canManageContent}
+          verifyOnly
           onError={setError}
         />
       )}
@@ -229,6 +240,7 @@ export default function ClassDetailPage() {
         <ClassTestSection
           classId={classId}
           canManage={detail.canManageContent}
+          verifyOnly
           onError={setError}
         />
       )}

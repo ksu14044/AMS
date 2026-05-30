@@ -2,6 +2,7 @@ package com.example.ams.service;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 
 import org.springframework.context.ApplicationEventPublisher;
@@ -20,12 +21,14 @@ import com.example.ams.domain.user.User;
 import com.example.ams.event.ClinicSlotUpdatedEvent;
 import com.example.ams.repository.ClinicReservationRepository;
 import com.example.ams.repository.ClinicSlotRepository;
+import com.example.ams.repository.ClinicWeekRepository;
 import com.example.ams.repository.UserRepository;
 
 @Service
 public class ClinicSlotService {
 
 	private final ClinicSlotRepository clinicSlotRepository;
+	private final ClinicWeekRepository clinicWeekRepository;
 	private final ClinicReservationRepository clinicReservationRepository;
 	private final UserRepository userRepository;
 	private final ClassAccessService classAccessService;
@@ -33,11 +36,13 @@ public class ClinicSlotService {
 
 	public ClinicSlotService(
 			ClinicSlotRepository clinicSlotRepository,
+			ClinicWeekRepository clinicWeekRepository,
 			ClinicReservationRepository clinicReservationRepository,
 			UserRepository userRepository,
 			ClassAccessService classAccessService,
 			ApplicationEventPublisher eventPublisher) {
 		this.clinicSlotRepository = clinicSlotRepository;
+		this.clinicWeekRepository = clinicWeekRepository;
 		this.clinicReservationRepository = clinicReservationRepository;
 		this.userRepository = userRepository;
 		this.classAccessService = classAccessService;
@@ -66,12 +71,50 @@ public class ClinicSlotService {
 			int maxCapacity) {
 		Clazz clazz = classAccessService.requireReadableClass(classId);
 		classAccessService.requireManageClassContent(clazz);
-		validateClinicDay(dayOfWeek);
+		return insertSlot(classId, weekStart, dayOfWeek, startTime, assistantId, maxCapacity, null);
+	}
+
+	@Transactional
+	public ClinicSlot createSlotForLessonRecord(
+			long classId,
+			long lessonRecordId,
+			LocalDate clinicDate,
+			LocalTime startTime,
+			Long assistantId,
+			int maxCapacity) {
+		Clazz clazz = classAccessService.requireReadableClass(classId);
+		classAccessService.requireEditClassContent(clazz);
+		DayOfWeek dayOfWeek = toDomainDayOfWeek(clinicDate);
+		LocalDate monday = clinicDate.with(TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
+		clinicWeekRepository.ensureOpenWeek(classId, monday);
+		return insertSlot(classId, monday, dayOfWeek, startTime, assistantId, maxCapacity, lessonRecordId);
+	}
+
+	private DayOfWeek toDomainDayOfWeek(LocalDate date) {
+		return DayOfWeek.valueOf(date.getDayOfWeek().name().substring(0, 3));
+	}
+
+	private ClinicSlot insertSlot(
+			long classId,
+			LocalDate weekStart,
+			DayOfWeek dayOfWeek,
+			LocalTime startTime,
+			Long assistantId,
+			int maxCapacity,
+			Long lessonRecordId) {
+		Clazz clazz = classAccessService.requireReadableClass(classId);
 		validateCapacity(maxCapacity);
-		LocalDate monday = WeekStartDateValidator.requireMonday(weekStart);
 		validateAssistant(clazz.academyId(), assistantId);
+		LocalDate monday = WeekStartDateValidator.requireMonday(weekStart);
 		try {
-			return clinicSlotRepository.insert(classId, monday, dayOfWeek, startTime, assistantId, maxCapacity);
+			return clinicSlotRepository.insert(
+					classId,
+					monday,
+					dayOfWeek,
+					startTime,
+					assistantId,
+					maxCapacity,
+					lessonRecordId);
 		} catch (DuplicateKeyException ex) {
 			throw duplicateSlotException();
 		}
@@ -88,7 +131,6 @@ public class ClinicSlotService {
 		Clazz clazz = classAccessService.requireReadableClass(classId);
 		classAccessService.requireManageClassContent(clazz);
 		requireSlot(classId, slotId);
-		validateClinicDay(dayOfWeek);
 		validateCapacity(maxCapacity);
 		validateAssistant(clazz.academyId(), assistantId);
 		var affectedStudents = clinicReservationRepository.findBySlotId(slotId).stream()
@@ -117,12 +159,6 @@ public class ClinicSlotService {
 	private ClinicSlot requireSlot(long classId, long slotId) {
 		return clinicSlotRepository.findByIdAndClassId(slotId, classId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.CLINIC_SLOT_NOT_FOUND));
-	}
-
-	private void validateClinicDay(DayOfWeek dayOfWeek) {
-		if (dayOfWeek == DayOfWeek.SAT || dayOfWeek == DayOfWeek.SUN) {
-			throw new BusinessException(ErrorCode.INVALID_REQUEST, "클리닉은 월~금만 등록할 수 있습니다.");
-		}
 	}
 
 	private void validateCapacity(int maxCapacity) {

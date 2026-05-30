@@ -33,7 +33,7 @@ function isDraftDirty(row, draft) {
   )
 }
 
-export default function ClassHomeworkSection({ classId, canManage, onError }) {
+export default function ClassHomeworkSection({ classId, canManage, verifyOnly = false, onError }) {
   const [homeworks, setHomeworks] = useState([])
   const [selectedId, setSelectedId] = useState('')
   const [submissions, setSubmissions] = useState([])
@@ -157,13 +157,14 @@ export default function ClassHomeworkSection({ classId, canManage, onError }) {
 
   return (
     <section className="ams-class-detail__section">
-      <h3 className="ams-class-detail__heading">숙제</h3>
+      <h3 className="ams-class-detail__heading">{verifyOnly ? '숙제 확인' : '숙제'}</h3>
       <p className="ams-class-detail__hint-inline">
-        교사·관리자가 학생별 제출 여부·점수를 입력합니다. 점수·등급은 입력 후 다른 칸으로
-        이동하면 저장됩니다.
+        {verifyOnly
+          ? '수업기록에서 등록한 숙제의 제출·점수를 확인합니다. 새 숙제는 수업기록 탭에서 등록하세요.'
+          : '교사·관리자가 학생별 제출 여부·점수를 입력합니다. 점수·등급은 입력 후 다른 칸으로 이동하면 저장됩니다.'}
       </p>
 
-      {canManage && (
+      {canManage && !verifyOnly && (
         <form className="ams-assignment-form" onSubmit={handleCreate}>
           <label>
             제목

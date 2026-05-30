@@ -44,14 +44,28 @@ public class HomeworkRepository {
 	}
 
 	public Homework insert(long classId, String title, Instant dueAt, AssignmentStatus status) {
-		String sql = "INSERT INTO homework (class_id, title, due_at, status) VALUES (?, ?, ?, ?)";
+		return insert(classId, null, title, dueAt, status);
+	}
+
+	public Homework insert(
+			long classId,
+			Long lessonRecordId,
+			String title,
+			Instant dueAt,
+			AssignmentStatus status) {
+		String sql = "INSERT INTO homework (class_id, lesson_record_id, title, due_at, status) VALUES (?, ?, ?, ?, ?)";
 		KeyHolder keyHolder = new GeneratedKeyHolder();
 		jdbcTemplate.update(connection -> {
 			var ps = connection.prepareStatement(sql, new String[] { "homework_id" });
 			ps.setLong(1, classId);
-			ps.setString(2, title);
-			ps.setTimestamp(3, java.sql.Timestamp.from(dueAt));
-			ps.setString(4, status.name());
+			if (lessonRecordId != null) {
+				ps.setLong(2, lessonRecordId);
+			} else {
+				ps.setNull(2, java.sql.Types.BIGINT);
+			}
+			ps.setString(3, title);
+			ps.setTimestamp(4, java.sql.Timestamp.from(dueAt));
+			ps.setString(5, status.name());
 			return ps;
 		}, keyHolder);
 		return findById(keyHolder.getKey().longValue()).orElseThrow();
@@ -59,6 +73,16 @@ public class HomeworkRepository {
 
 	public void updateStatus(long homeworkId, AssignmentStatus status) {
 		jdbcTemplate.update("UPDATE homework SET status = ? WHERE homework_id = ?", status.name(), homeworkId);
+	}
+
+	public List<HomeworkSummary> findSummariesByLessonRecordId(long lessonRecordId) {
+		return jdbcTemplate.query(
+				"SELECT homework_id, title FROM homework WHERE lesson_record_id = ? ORDER BY homework_id",
+				(rs, rowNum) -> new HomeworkSummary(rs.getLong("homework_id"), rs.getString("title")),
+				lessonRecordId);
+	}
+
+	public record HomeworkSummary(long homeworkId, String title) {
 	}
 
 	public List<Homework> findScheduledDueBetween(java.time.Instant startInclusive, java.time.Instant endExclusive) {

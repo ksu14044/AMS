@@ -9,6 +9,28 @@ export function fetchClassDetail(classId) {
   return apiRequest(`/classes/${classId}`)
 }
 
+export function fetchLessonRecords(classId) {
+  return apiRequest(`/classes/${classId}/lesson-records`)
+}
+
+export function fetchLessonRecord(classId, lessonRecordId) {
+  return apiRequest(`/classes/${classId}/lesson-records/${lessonRecordId}`)
+}
+
+export function createLessonRecord(classId, payload) {
+  return apiRequest(`/classes/${classId}/lesson-records`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function updateLessonRecord(classId, lessonRecordId, { summary }) {
+  return apiRequest(`/classes/${classId}/lesson-records/${lessonRecordId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ summary }),
+  })
+}
+
 export function fetchClassNotices(classId) {
   return apiRequest(`/classes/${classId}/notices`)
 }

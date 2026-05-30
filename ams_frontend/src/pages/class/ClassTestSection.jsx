@@ -9,7 +9,7 @@ import {
 
 const STATUS_LABEL = { SCHEDULED: '예정', COMPLETED: '완료' }
 
-export default function ClassTestSection({ classId, canManage, onError }) {
+export default function ClassTestSection({ classId, canManage, verifyOnly = false, onError }) {
   const [tests, setTests] = useState([])
   const [selectedId, setSelectedId] = useState('')
   const [scores, setScores] = useState([])
@@ -109,13 +109,14 @@ export default function ClassTestSection({ classId, canManage, onError }) {
 
   return (
     <section className="ams-class-detail__section">
-      <h3 className="ams-class-detail__heading">테스트</h3>
+      <h3 className="ams-class-detail__heading">{verifyOnly ? '테스트 확인' : '테스트'}</h3>
       <p className="ams-class-detail__hint-inline">
-        점수 저장 시 반 평균·상위 %가 계산되고 테스트가 완료 처리됩니다. 성실도 보고서는
-        「보고서」 탭에서 별도로 생성합니다.
+        {verifyOnly
+          ? '수업기록에서 등록한 테스트의 점수·석차를 확인합니다. 새 테스트는 수업기록 탭에서 등록하세요.'
+          : '점수 저장 시 반 평균·상위 %가 계산되고 테스트가 완료 처리됩니다. 성실도 보고서는 「보고서」 탭에서 별도로 생성합니다.'}
       </p>
 
-      {canManage && (
+      {canManage && !verifyOnly && (
         <form className="ams-assignment-form" onSubmit={handleCreate}>
           <label>
             제목

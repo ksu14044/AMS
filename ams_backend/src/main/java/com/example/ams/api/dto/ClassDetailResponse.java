@@ -9,9 +9,10 @@ public record ClassDetailResponse(
 		String name,
 		long homeroomTeacherId,
 		String classroom,
-		boolean canManageContent) {
+		boolean canManageContent,
+		boolean canEditContent) {
 
-	public static ClassDetailResponse from(Clazz clazz, boolean canManageContent) {
+	public static ClassDetailResponse from(Clazz clazz, boolean canManageContent, boolean canEditContent) {
 		return new ClassDetailResponse(
 				clazz.classId(),
 				clazz.academyId(),
@@ -19,6 +20,7 @@ public record ClassDetailResponse(
 				clazz.name(),
 				clazz.homeroomTeacherId(),
 				clazz.classroom(),
-				canManageContent);
+				canManageContent,
+				canEditContent);
 	}
 }

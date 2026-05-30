@@ -22,4 +22,4 @@ DROP INDEX idx_homework_class ON homework;
 
 ALTER TABLE homework DROP COLUMN due_at;
 
-ALTER TABLE homework RENAME INDEX idx_homework_class_v3 TO idx_homework_class;
+-- H2는 RENAME INDEX 미지원 → idx_homework_class_v3 유지 (class_id FK 인덱스 역할 동일)

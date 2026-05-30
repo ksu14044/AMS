@@ -31,6 +31,67 @@ export function updateLessonRecord(classId, lessonRecordId, { summary }) {
   })
 }
 
+export function addLessonRecordLinkedItems(classId, lessonRecordId, payload) {
+  return apiRequest(`/classes/${classId}/lesson-records/${lessonRecordId}/linked-items`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function updateLessonRecordHomework(classId, lessonRecordId, homeworkId, payload) {
+  return apiRequest(
+    `/classes/${classId}/lesson-records/${lessonRecordId}/homeworks/${homeworkId}`,
+    { method: 'PATCH', body: JSON.stringify(payload) },
+  )
+}
+
+export function updateLessonRecordTest(classId, lessonRecordId, testId, payload) {
+  return apiRequest(`/classes/${classId}/lesson-records/${lessonRecordId}/tests/${testId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function updateLessonRecordVideo(classId, lessonRecordId, videoId, payload) {
+  return apiRequest(`/classes/${classId}/lesson-records/${lessonRecordId}/videos/${videoId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function updateLessonRecordClinicSlot(classId, lessonRecordId, slotId, payload) {
+  return apiRequest(
+    `/classes/${classId}/lesson-records/${lessonRecordId}/clinic-slots/${slotId}`,
+    { method: 'PATCH', body: JSON.stringify(payload) },
+  )
+}
+
+export function deleteLessonRecordHomework(classId, lessonRecordId, homeworkId) {
+  return apiRequest(
+    `/classes/${classId}/lesson-records/${lessonRecordId}/homeworks/${homeworkId}`,
+    { method: 'DELETE' },
+  )
+}
+
+export function deleteLessonRecordTest(classId, lessonRecordId, testId) {
+  return apiRequest(`/classes/${classId}/lesson-records/${lessonRecordId}/tests/${testId}`, {
+    method: 'DELETE',
+  })
+}
+
+export function deleteLessonRecordVideo(classId, lessonRecordId, videoId) {
+  return apiRequest(`/classes/${classId}/lesson-records/${lessonRecordId}/videos/${videoId}`, {
+    method: 'DELETE',
+  })
+}
+
+export function deleteLessonRecordClinicSlot(classId, lessonRecordId, slotId) {
+  return apiRequest(
+    `/classes/${classId}/lesson-records/${lessonRecordId}/clinic-slots/${slotId}`,
+    { method: 'DELETE' },
+  )
+}
+
 export function fetchClassNotices(classId) {
   return apiRequest(`/classes/${classId}/notices`)
 }

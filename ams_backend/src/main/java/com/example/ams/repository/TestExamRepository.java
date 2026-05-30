@@ -114,12 +114,27 @@ public class TestExamRepository {
 
 	public List<TestSummary> findSummariesByLessonRecordId(long lessonRecordId) {
 		return jdbcTemplate.query(
-				"SELECT test_id, title FROM test WHERE lesson_record_id = ? ORDER BY test_id",
-				(rs, rowNum) -> new TestSummary(rs.getLong("test_id"), rs.getString("title")),
+				"""
+						SELECT test_id, title, question_count, retake_threshold_count, status, retake_attempt_no
+						FROM test WHERE lesson_record_id = ? ORDER BY test_id
+						""",
+				(rs, rowNum) -> new TestSummary(
+						rs.getLong("test_id"),
+						rs.getString("title"),
+						rs.getObject("question_count") != null ? rs.getInt("question_count") : null,
+						rs.getObject("retake_threshold_count") != null ? rs.getInt("retake_threshold_count") : null,
+						AssignmentStatus.valueOf(rs.getString("status")),
+						rs.getInt("retake_attempt_no")),
 				lessonRecordId);
 	}
 
-	public record TestSummary(long testId, String title) {
+	public record TestSummary(
+			long testId,
+			String title,
+			Integer questionCount,
+			Integer retakeThresholdCount,
+			AssignmentStatus status,
+			int retakeAttemptNo) {
 	}
 
 	public void complete(long testId, BigDecimal classAverage, Instant completedAt) {
@@ -136,6 +151,30 @@ public class TestExamRepository {
 
 	public void updateQuestionCount(long testId, int questionCount) {
 		jdbcTemplate.update("UPDATE test SET question_count = ? WHERE test_id = ?", questionCount, testId);
+	}
+
+	public void updateMetadata(long testId, String title, Integer questionCount, Integer retakeThresholdCount) {
+		jdbcTemplate.update(
+				"""
+						UPDATE test
+						SET title = ?, question_count = ?, retake_threshold_count = ?
+						WHERE test_id = ?
+						""",
+				title,
+				questionCount,
+				retakeThresholdCount,
+				testId);
+	}
+
+	public Long findLessonRecordId(long testId) {
+		return jdbcTemplate.query(
+				"SELECT lesson_record_id FROM test WHERE test_id = ?",
+				rs -> rs.next() ? rs.getLong("lesson_record_id") : null,
+				testId);
+	}
+
+	public void deleteById(long testId) {
+		jdbcTemplate.update("DELETE FROM test WHERE test_id = ?", testId);
 	}
 
 	public void updateClassAverage(long testId, BigDecimal classAverage) {

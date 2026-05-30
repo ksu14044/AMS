@@ -149,10 +149,21 @@ public class ClinicSlotRepository {
 		return findByIdAndClassId(keyHolder.getKey().longValue(), classId).orElseThrow();
 	}
 
+	public record ClinicSlotSummary(
+			long slotId,
+			LocalDate weekStartDate,
+			DayOfWeek dayOfWeek,
+			LocalTime startTime,
+			String assistantName,
+			Long assistantId,
+			int maxCapacity) {
+	}
+
 	public List<ClinicSlotSummary> findSummariesByLessonRecordId(long lessonRecordId) {
 		return jdbcTemplate.query(
 				"""
-						SELECT s.slot_id, s.week_start_date, s.day_of_week, s.start_time, u.name AS assistant_name
+						SELECT s.slot_id, s.week_start_date, s.day_of_week, s.start_time,
+						       u.name AS assistant_name, s.assistant_id, s.max_capacity
 						FROM clinic_slot s
 						LEFT JOIN `user` u ON s.assistant_id = u.user_id
 						WHERE s.lesson_record_id = ?
@@ -163,16 +174,17 @@ public class ClinicSlotRepository {
 						rs.getDate("week_start_date").toLocalDate(),
 						DayOfWeek.valueOf(rs.getString("day_of_week")),
 						rs.getTime("start_time").toLocalTime(),
-						rs.getString("assistant_name")),
+						rs.getString("assistant_name"),
+						rs.getObject("assistant_id", Long.class),
+						rs.getInt("max_capacity")),
 				lessonRecordId);
 	}
 
-	public record ClinicSlotSummary(
-			long slotId,
-			LocalDate weekStartDate,
-			DayOfWeek dayOfWeek,
-			LocalTime startTime,
-			String assistantName) {
+	public Long findLessonRecordId(long slotId) {
+		return jdbcTemplate.query(
+				"SELECT lesson_record_id FROM clinic_slot WHERE slot_id = ?",
+				rs -> rs.next() ? rs.getLong("lesson_record_id") : null,
+				slotId);
 	}
 
 	public ClinicSlot update(
@@ -188,6 +200,30 @@ public class ClinicSlotRepository {
 						SET day_of_week = ?, start_time = ?, assistant_id = ?, max_capacity = ?
 						WHERE slot_id = ? AND class_id = ?
 						""",
+				dayOfWeek.name(),
+				java.sql.Time.valueOf(startTime),
+				assistantId,
+				maxCapacity,
+				slotId,
+				classId);
+		return findByIdAndClassId(slotId, classId).orElseThrow();
+	}
+
+	public ClinicSlot updateSchedule(
+			long slotId,
+			long classId,
+			LocalDate weekStart,
+			DayOfWeek dayOfWeek,
+			LocalTime startTime,
+			Long assistantId,
+			int maxCapacity) {
+		jdbcTemplate.update(
+				"""
+						UPDATE clinic_slot
+						SET week_start_date = ?, day_of_week = ?, start_time = ?, assistant_id = ?, max_capacity = ?
+						WHERE slot_id = ? AND class_id = ?
+						""",
+				java.sql.Date.valueOf(weekStart),
 				dayOfWeek.name(),
 				java.sql.Time.valueOf(startTime),
 				assistantId,

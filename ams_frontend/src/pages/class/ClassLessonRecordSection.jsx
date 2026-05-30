@@ -1,14 +1,27 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
+  addLessonRecordLinkedItems,
   createLessonRecord,
+  deleteLessonRecordClinicSlot,
+  deleteLessonRecordHomework,
+  deleteLessonRecordTest,
+  deleteLessonRecordVideo,
   fetchClinicAssistants,
   fetchLessonRecord,
   fetchLessonRecords,
   updateLessonRecord,
+  updateLessonRecordClinicSlot,
+  updateLessonRecordHomework,
+  updateLessonRecordTest,
+  updateLessonRecordVideo,
 } from '../../api/classesApi'
 import { dayLabel } from '../../auth/dayLabels'
 import StudentTargetPicker from '../../components/StudentTargetPicker'
-import { buildTargetStudentIdsPayload, createInitialTarget } from '../../utils/assignmentTargets'
+import {
+  buildTargetStudentIdsPayload,
+  createInitialTarget,
+  targetFromResponse,
+} from '../../utils/assignmentTargets'
 
 const JS_DAY_TO_CLINIC = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
 
@@ -21,6 +34,24 @@ function dayOfWeekFromDate(dateStr) {
 const EMPTY_CREATE = {
   lessonDate: '',
   summary: '',
+  includeHomework: false,
+  homeworkTitle: '',
+  homeworkQuestionCount: '',
+  includeTest: false,
+  testTitle: '',
+  testQuestionCount: '',
+  testRetakeThresholdCount: '',
+  includeVideo: false,
+  videoTitle: '',
+  youtubeUrl: '',
+  includeClinic: false,
+  clinicDate: '',
+  clinicStartTime: '18:00',
+  clinicAssistantId: '',
+  clinicMaxCapacity: '10',
+}
+
+const EMPTY_ADD_LINKED = {
   includeHomework: false,
   homeworkTitle: '',
   homeworkQuestionCount: '',
@@ -80,8 +111,256 @@ function linkedBadges(record) {
   return badges
 }
 
+function linkedItemKey(item) {
+  return `${item.type}-${item.id}`
+}
+
+function editDraftFromItem(item) {
+  if (item.type === 'homework') {
+    return {
+      title: item.title ?? '',
+      questionCount: item.questionCount != null ? String(item.questionCount) : '',
+    }
+  }
+  if (item.type === 'test') {
+    return {
+      title: item.title ?? '',
+      questionCount: item.questionCount != null ? String(item.questionCount) : '',
+      retakeThresholdCount:
+        item.retakeThresholdCount != null ? String(item.retakeThresholdCount) : '',
+    }
+  }
+  if (item.type === 'video') {
+    return {
+      title: item.title ?? '',
+      youtubeUrl: item.youtubeUrl ?? '',
+    }
+  }
+  if (item.type === 'clinic') {
+    return {
+      clinicDate: item.clinicDate ?? '',
+      clinicStartTime: item.clinicStartTime ?? '18:00',
+      clinicAssistantId: item.assistantId != null ? String(item.assistantId) : '',
+      clinicMaxCapacity: item.maxCapacity != null ? String(item.maxCapacity) : '10',
+    }
+  }
+  return {}
+}
+
 function linkedTypeLabel(type) {
   return LINKED_META[type]?.label ?? type
+}
+
+function LinkedItemEditForm({
+  item,
+  draft,
+  onDraftChange,
+  target,
+  onTargetChange,
+  classId,
+  assistants,
+  submitting,
+  onCancel,
+  onSave,
+}) {
+  const metadataLocked = (item.type === 'homework' || item.type === 'test') && !item.canDelete
+  const scheduleLocked = item.type === 'clinic' && !item.canDelete
+  const allByDefault = item.type !== 'video'
+
+  return (
+    <form
+      className="ams-lesson-board__linked-edit"
+      onSubmit={(e) => {
+        e.preventDefault()
+        onSave()
+      }}
+    >
+      {item.type === 'homework' && (
+        <>
+          <label className="ams-field ams-field--compact">
+            <span className="ams-field__label">숙제 제목</span>
+            <input
+              className="ams-field__input"
+              value={draft.title}
+              onChange={(e) => onDraftChange({ ...draft, title: e.target.value })}
+              maxLength={200}
+              required
+              disabled={metadataLocked}
+            />
+          </label>
+          <label className="ams-field ams-field--compact">
+            <span className="ams-field__label">문항 수</span>
+            <input
+              className="ams-field__input"
+              type="number"
+              min={1}
+              value={draft.questionCount}
+              onChange={(e) => onDraftChange({ ...draft, questionCount: e.target.value })}
+              required
+              disabled={metadataLocked}
+            />
+          </label>
+          {metadataLocked && (
+            <p className="ams-lesson-board__field-hint ams-lesson-board__field-hint--warn">
+              완료된 숙제는 제목·문항 수를 변경할 수 없습니다.
+            </p>
+          )}
+        </>
+      )}
+
+      {item.type === 'test' && (
+        <>
+          <label className="ams-field ams-field--compact">
+            <span className="ams-field__label">테스트 제목</span>
+            <input
+              className="ams-field__input"
+              value={draft.title}
+              onChange={(e) => onDraftChange({ ...draft, title: e.target.value })}
+              maxLength={200}
+              required
+              disabled={metadataLocked}
+            />
+          </label>
+          <label className="ams-field ams-field--compact">
+            <span className="ams-field__label">문항 수</span>
+            <input
+              className="ams-field__input"
+              type="number"
+              min={1}
+              value={draft.questionCount}
+              onChange={(e) => onDraftChange({ ...draft, questionCount: e.target.value })}
+              required
+              disabled={metadataLocked}
+            />
+          </label>
+          <label className="ams-field ams-field--compact">
+            <span className="ams-field__label">합격 기준 (맞은 문항 수)</span>
+            <input
+              className="ams-field__input"
+              type="number"
+              min={1}
+              value={draft.retakeThresholdCount}
+              onChange={(e) => onDraftChange({ ...draft, retakeThresholdCount: e.target.value })}
+              required
+              disabled={metadataLocked}
+            />
+          </label>
+          {metadataLocked && (
+            <p className="ams-lesson-board__field-hint ams-lesson-board__field-hint--warn">
+              완료된 테스트는 제목·문항 수·합격 기준을 변경할 수 없습니다.
+            </p>
+          )}
+        </>
+      )}
+
+      {item.type === 'video' && (
+        <>
+          <label className="ams-field ams-field--compact">
+            <span className="ams-field__label">영상 제목</span>
+            <input
+              className="ams-field__input"
+              value={draft.title}
+              onChange={(e) => onDraftChange({ ...draft, title: e.target.value })}
+              maxLength={200}
+              required
+            />
+          </label>
+          <label className="ams-field ams-field--compact">
+            <span className="ams-field__label">YouTube URL</span>
+            <input
+              className="ams-field__input"
+              type="url"
+              value={draft.youtubeUrl}
+              onChange={(e) => onDraftChange({ ...draft, youtubeUrl: e.target.value })}
+              required
+            />
+          </label>
+        </>
+      )}
+
+      {item.type === 'clinic' && (
+        <>
+          <label className="ams-field ams-field--compact">
+            <span className="ams-field__label">클리닉 날짜</span>
+            <input
+              className="ams-field__input"
+              type="date"
+              value={draft.clinicDate}
+              onChange={(e) => onDraftChange({ ...draft, clinicDate: e.target.value })}
+              required
+              disabled={scheduleLocked}
+            />
+          </label>
+          <label className="ams-field ams-field--compact">
+            <span className="ams-field__label">시작 시각</span>
+            <input
+              className="ams-field__input"
+              type="time"
+              value={draft.clinicStartTime}
+              onChange={(e) => onDraftChange({ ...draft, clinicStartTime: e.target.value })}
+              required
+              disabled={scheduleLocked}
+            />
+          </label>
+          {scheduleLocked && (
+            <p className="ams-lesson-board__field-hint ams-lesson-board__field-hint--warn">
+              예약이 있는 슬롯은 날짜·시간을 변경할 수 없습니다.
+            </p>
+          )}
+          <label className="ams-field ams-field--compact">
+            <span className="ams-field__label">담당 조교</span>
+            <select
+              className="ams-field__input"
+              value={draft.clinicAssistantId}
+              onChange={(e) => onDraftChange({ ...draft, clinicAssistantId: e.target.value })}
+              required
+            >
+              <option value="">조교 선택</option>
+              {assistants.map((a) => (
+                <option key={a.userId} value={a.userId}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="ams-field ams-field--compact">
+            <span className="ams-field__label">정원</span>
+            <input
+              className="ams-field__input"
+              type="number"
+              min={1}
+              max={20}
+              value={draft.clinicMaxCapacity}
+              onChange={(e) => onDraftChange({ ...draft, clinicMaxCapacity: e.target.value })}
+            />
+          </label>
+        </>
+      )}
+
+      {(item.type === 'homework' ||
+        item.type === 'test' ||
+        item.type === 'video' ||
+        item.type === 'clinic') && (
+        <StudentTargetPicker
+          classId={classId}
+          allByDefault={allByDefault}
+          label={item.type === 'video' ? '인증 대상 학생' : undefined}
+          value={target}
+          onChange={onTargetChange}
+          disabled={submitting}
+        />
+      )}
+
+      <div className="ams-lesson-board__linked-edit-actions">
+        <button type="button" className="ams-btn ams-btn--ghost ams-btn--sm" onClick={onCancel}>
+          취소
+        </button>
+        <button type="submit" className="ams-btn ams-btn--primary ams-btn--sm" disabled={submitting}>
+          {submitting ? '저장 중…' : '저장'}
+        </button>
+      </div>
+    </form>
+  )
 }
 
 function LinkedBadgeGroup({ record }) {
@@ -131,6 +410,15 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
   const [clinicTarget, setClinicTarget] = useState(() => createInitialTarget(true))
   const [editSummary, setEditSummary] = useState('')
   const [assistants, setAssistants] = useState([])
+  const [showAddLinked, setShowAddLinked] = useState(false)
+  const [addLinkedForm, setAddLinkedForm] = useState(EMPTY_ADD_LINKED)
+  const [addHomeworkTarget, setAddHomeworkTarget] = useState(() => createInitialTarget(true))
+  const [addTestTarget, setAddTestTarget] = useState(() => createInitialTarget(true))
+  const [addVideoTarget, setAddVideoTarget] = useState(() => createInitialTarget(false))
+  const [addClinicTarget, setAddClinicTarget] = useState(() => createInitialTarget(true))
+  const [editingLinkedKey, setEditingLinkedKey] = useState('')
+  const [editDraft, setEditDraft] = useState(null)
+  const [editTarget, setEditTarget] = useState(() => createInitialTarget(true))
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -167,8 +455,12 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
     if (!selectedId) {
       setDetail(null)
       setEditSummary('')
+      setEditingLinkedKey('')
+      setShowAddLinked(false)
       return
     }
+    setEditingLinkedKey('')
+    setShowAddLinked(false)
     let cancelled = false
     ;(async () => {
       setDetailLoading(true)
@@ -217,6 +509,228 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
       item.targetStudentIds = targetStudentIds
     }
     return item
+  }
+
+  function closeLinkedEdit() {
+    setEditingLinkedKey('')
+    setEditDraft(null)
+  }
+
+  function openLinkedEdit(item) {
+    setShowAddLinked(false)
+    setEditingLinkedKey(linkedItemKey(item))
+    setEditDraft(editDraftFromItem(item))
+    setEditTarget(targetFromResponse(item.targets, item.type !== 'video'))
+  }
+
+  async function handleSaveLinkedEdit(item) {
+    if (!selectedId || !editDraft) return
+    const allByDefault = item.type !== 'video'
+    if (item.type !== 'video' && editTarget.mode === 'custom' && editTarget.studentIds.length === 0) {
+      onError(`${linkedTypeLabel(item.type)} 대상 학생을 한 명 이상 선택하세요.`)
+      return
+    }
+
+    let payload
+    if (item.type === 'homework') {
+      payload = appendTargetPayload(
+        { title: editDraft.title.trim(), questionCount: Number(editDraft.questionCount) },
+        editTarget,
+        true,
+      )
+    } else if (item.type === 'test') {
+      payload = appendTargetPayload(
+        {
+          title: editDraft.title.trim(),
+          questionCount: Number(editDraft.questionCount),
+          retakeThresholdCount: Number(editDraft.retakeThresholdCount),
+        },
+        editTarget,
+        true,
+      )
+    } else if (item.type === 'video') {
+      payload = appendTargetPayload(
+        { title: editDraft.title.trim(), youtubeUrl: editDraft.youtubeUrl.trim() },
+        editTarget,
+        false,
+      )
+    } else if (item.type === 'clinic') {
+      if (!editDraft.clinicDate || !editDraft.clinicAssistantId) return
+      payload = appendTargetPayload(
+        {
+          clinicDate: editDraft.clinicDate,
+          startTime: editDraft.clinicStartTime,
+          assistantId: Number(editDraft.clinicAssistantId),
+          maxCapacity: Number(editDraft.clinicMaxCapacity) || 10,
+        },
+        editTarget,
+        true,
+      )
+    } else {
+      return
+    }
+
+    setSubmitting(true)
+    onError('')
+    try {
+      let updated
+      if (item.type === 'homework') {
+        updated = await updateLessonRecordHomework(classId, selectedId, item.id, payload)
+      } else if (item.type === 'test') {
+        updated = await updateLessonRecordTest(classId, selectedId, item.id, payload)
+      } else if (item.type === 'video') {
+        updated = await updateLessonRecordVideo(classId, selectedId, item.id, payload)
+      } else {
+        updated = await updateLessonRecordClinicSlot(classId, selectedId, item.id, payload)
+      }
+      setDetail(updated)
+      setEditSummary(updated.summary ?? '')
+      await load()
+      closeLinkedEdit()
+    } catch (err) {
+      onError(err.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleDeleteLinked(item) {
+    if (!selectedId || !item.canDelete) return
+    const label = linkedTypeLabel(item.type)
+    if (!window.confirm(`이 ${label} 항목을 삭제할까요?`)) return
+
+    setSubmitting(true)
+    onError('')
+    try {
+      let updated
+      if (item.type === 'homework') {
+        updated = await deleteLessonRecordHomework(classId, selectedId, item.id)
+      } else if (item.type === 'test') {
+        updated = await deleteLessonRecordTest(classId, selectedId, item.id)
+      } else if (item.type === 'video') {
+        updated = await deleteLessonRecordVideo(classId, selectedId, item.id)
+      } else {
+        updated = await deleteLessonRecordClinicSlot(classId, selectedId, item.id)
+      }
+      setDetail(updated)
+      setEditSummary(updated.summary ?? '')
+      await load()
+      closeLinkedEdit()
+    } catch (err) {
+      onError(err.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  function closeAddLinked() {
+    setShowAddLinked(false)
+    setAddLinkedForm(EMPTY_ADD_LINKED)
+    setAddHomeworkTarget(createInitialTarget(true))
+    setAddTestTarget(createInitialTarget(true))
+    setAddVideoTarget(createInitialTarget(false))
+    setAddClinicTarget(createInitialTarget(true))
+  }
+
+  async function handleAddLinked(e) {
+    e.preventDefault()
+    if (!selectedId) return
+    if (
+      !addLinkedForm.includeHomework &&
+      !addLinkedForm.includeTest &&
+      !addLinkedForm.includeVideo &&
+      !addLinkedForm.includeClinic
+    ) {
+      onError('추가할 항목을 선택하세요.')
+      return
+    }
+    if (addLinkedForm.includeHomework && !addLinkedForm.homeworkTitle.trim()) return
+    if (addLinkedForm.includeHomework && !addLinkedForm.homeworkQuestionCount) return
+    if (
+      addLinkedForm.includeHomework &&
+      addHomeworkTarget.mode === 'custom' &&
+      addHomeworkTarget.studentIds.length === 0
+    ) {
+      onError('숙제 대상 학생을 한 명 이상 선택하세요.')
+      return
+    }
+    if (addLinkedForm.includeTest && !addLinkedForm.testTitle.trim()) return
+    if (addLinkedForm.includeTest && (!addLinkedForm.testQuestionCount || !addLinkedForm.testRetakeThresholdCount)) {
+      return
+    }
+    if (addLinkedForm.includeTest && addTestTarget.mode === 'custom' && addTestTarget.studentIds.length === 0) {
+      onError('테스트 대상 학생을 한 명 이상 선택하세요.')
+      return
+    }
+    if (addLinkedForm.includeVideo && (!addLinkedForm.videoTitle.trim() || !addLinkedForm.youtubeUrl.trim())) {
+      return
+    }
+    if (addLinkedForm.includeClinic) {
+      if (!addLinkedForm.clinicDate || !addLinkedForm.clinicAssistantId) return
+      if (addClinicTarget.mode === 'custom' && addClinicTarget.studentIds.length === 0) {
+        onError('클리닉 대상 학생을 한 명 이상 선택하세요.')
+        return
+      }
+    }
+
+    const payload = {}
+    if (addLinkedForm.includeHomework) {
+      payload.homework = appendTargetPayload(
+        {
+          title: addLinkedForm.homeworkTitle.trim(),
+          questionCount: Number(addLinkedForm.homeworkQuestionCount),
+        },
+        addHomeworkTarget,
+        true,
+      )
+    }
+    if (addLinkedForm.includeTest) {
+      payload.test = appendTargetPayload(
+        {
+          title: addLinkedForm.testTitle.trim(),
+          questionCount: Number(addLinkedForm.testQuestionCount),
+          retakeThresholdCount: Number(addLinkedForm.testRetakeThresholdCount),
+        },
+        addTestTarget,
+        true,
+      )
+    }
+    if (addLinkedForm.includeVideo) {
+      payload.video = appendTargetPayload(
+        {
+          title: addLinkedForm.videoTitle.trim(),
+          youtubeUrl: addLinkedForm.youtubeUrl.trim(),
+        },
+        addVideoTarget,
+        false,
+      )
+    }
+    if (addLinkedForm.includeClinic) {
+      payload.clinic = appendTargetPayload(
+        {
+          clinicDate: addLinkedForm.clinicDate,
+          startTime: addLinkedForm.clinicStartTime,
+          assistantId: Number(addLinkedForm.clinicAssistantId),
+          maxCapacity: Number(addLinkedForm.clinicMaxCapacity) || 10,
+        },
+        addClinicTarget,
+        true,
+      )
+    }
+
+    setSubmitting(true)
+    onError('')
+    try {
+      const updated = await addLessonRecordLinkedItems(classId, selectedId, payload)
+      setDetail(updated)
+      setEditSummary(updated.summary ?? '')
+      await load()
+      closeAddLinked()
+    } catch (err) {
+      onError(err.message)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   async function handleCreate(e) {
@@ -730,23 +1244,338 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
               </div>
 
               <div className="ams-lesson-board__detail-section">
-                <h5 className="ams-lesson-board__detail-label">귀속 항목</h5>
+                <div className="ams-lesson-board__detail-section-head">
+                  <h5 className="ams-lesson-board__detail-label">귀속 항목</h5>
+                  {canEdit && (
+                    <button
+                      type="button"
+                      className="ams-btn ams-btn--ghost ams-btn--sm"
+                      onClick={() => {
+                        closeLinkedEdit()
+                        setShowAddLinked((v) => !v)
+                        if (showAddLinked) closeAddLinked()
+                        else {
+                          setAddLinkedForm((f) => ({
+                            ...EMPTY_ADD_LINKED,
+                            clinicDate: detail.lessonDate ?? '',
+                          }))
+                        }
+                      }}
+                    >
+                      {showAddLinked ? '추가 취소' : '+ 항목 추가'}
+                    </button>
+                  )}
+                </div>
+
+                {canEdit && showAddLinked && (
+                  <form className="ams-lesson-board__add-linked" onSubmit={handleAddLinked}>
+                    <p className="ams-lesson-board__compose-desc">이 수업기록에 연결할 항목을 선택하세요.</p>
+                    <div className="ams-lesson-board__options">
+                      <OptionCard
+                        active={addLinkedForm.includeHomework}
+                        label="숙제"
+                        description="기본 반 전원 · 필요 시 학생 선택"
+                        onToggle={() =>
+                          setAddLinkedForm({
+                            ...addLinkedForm,
+                            includeHomework: !addLinkedForm.includeHomework,
+                          })
+                        }
+                      >
+                        <label className="ams-field ams-field--compact">
+                          <span className="ams-field__label">숙제 제목</span>
+                          <input
+                            className="ams-field__input"
+                            value={addLinkedForm.homeworkTitle}
+                            onChange={(e) =>
+                              setAddLinkedForm({ ...addLinkedForm, homeworkTitle: e.target.value })
+                            }
+                            maxLength={200}
+                            required
+                          />
+                        </label>
+                        <label className="ams-field ams-field--compact">
+                          <span className="ams-field__label">문항 수</span>
+                          <input
+                            className="ams-field__input"
+                            type="number"
+                            min={1}
+                            value={addLinkedForm.homeworkQuestionCount}
+                            onChange={(e) =>
+                              setAddLinkedForm({
+                                ...addLinkedForm,
+                                homeworkQuestionCount: e.target.value,
+                              })
+                            }
+                            required
+                          />
+                        </label>
+                        <StudentTargetPicker
+                          classId={classId}
+                          allByDefault
+                          value={addHomeworkTarget}
+                          onChange={setAddHomeworkTarget}
+                          disabled={submitting}
+                        />
+                      </OptionCard>
+
+                      <OptionCard
+                        active={addLinkedForm.includeTest}
+                        label="테스트"
+                        description="기본 반 전원 · 필요 시 학생 선택"
+                        onToggle={() =>
+                          setAddLinkedForm({ ...addLinkedForm, includeTest: !addLinkedForm.includeTest })
+                        }
+                      >
+                        <label className="ams-field ams-field--compact">
+                          <span className="ams-field__label">테스트 제목</span>
+                          <input
+                            className="ams-field__input"
+                            value={addLinkedForm.testTitle}
+                            onChange={(e) =>
+                              setAddLinkedForm({ ...addLinkedForm, testTitle: e.target.value })
+                            }
+                            maxLength={200}
+                            required
+                          />
+                        </label>
+                        <label className="ams-field ams-field--compact">
+                          <span className="ams-field__label">문항 수</span>
+                          <input
+                            className="ams-field__input"
+                            type="number"
+                            min={1}
+                            value={addLinkedForm.testQuestionCount}
+                            onChange={(e) =>
+                              setAddLinkedForm({ ...addLinkedForm, testQuestionCount: e.target.value })
+                            }
+                            required
+                          />
+                        </label>
+                        <label className="ams-field ams-field--compact">
+                          <span className="ams-field__label">합격 기준 (맞은 문항 수)</span>
+                          <input
+                            className="ams-field__input"
+                            type="number"
+                            min={1}
+                            value={addLinkedForm.testRetakeThresholdCount}
+                            onChange={(e) =>
+                              setAddLinkedForm({
+                                ...addLinkedForm,
+                                testRetakeThresholdCount: e.target.value,
+                              })
+                            }
+                            required
+                          />
+                        </label>
+                        <StudentTargetPicker
+                          classId={classId}
+                          allByDefault
+                          value={addTestTarget}
+                          onChange={setAddTestTarget}
+                          disabled={submitting}
+                        />
+                      </OptionCard>
+
+                      <OptionCard
+                        active={addLinkedForm.includeVideo}
+                        label="영상"
+                        description="전원 시청 · 인증 대상 선택"
+                        onToggle={() =>
+                          setAddLinkedForm({ ...addLinkedForm, includeVideo: !addLinkedForm.includeVideo })
+                        }
+                      >
+                        <label className="ams-field ams-field--compact">
+                          <span className="ams-field__label">영상 제목</span>
+                          <input
+                            className="ams-field__input"
+                            value={addLinkedForm.videoTitle}
+                            onChange={(e) =>
+                              setAddLinkedForm({ ...addLinkedForm, videoTitle: e.target.value })
+                            }
+                            maxLength={200}
+                            required
+                          />
+                        </label>
+                        <label className="ams-field ams-field--compact">
+                          <span className="ams-field__label">YouTube URL</span>
+                          <input
+                            className="ams-field__input"
+                            type="url"
+                            value={addLinkedForm.youtubeUrl}
+                            onChange={(e) =>
+                              setAddLinkedForm({ ...addLinkedForm, youtubeUrl: e.target.value })
+                            }
+                            required
+                          />
+                        </label>
+                        <StudentTargetPicker
+                          classId={classId}
+                          allByDefault={false}
+                          label="인증 대상 학생"
+                          value={addVideoTarget}
+                          onChange={setAddVideoTarget}
+                          disabled={submitting}
+                        />
+                      </OptionCard>
+
+                      <OptionCard
+                        active={addLinkedForm.includeClinic}
+                        label="클리닉"
+                        description="날짜·시간·조교 슬롯"
+                        onToggle={() =>
+                          setAddLinkedForm({
+                            ...addLinkedForm,
+                            includeClinic: !addLinkedForm.includeClinic,
+                            clinicDate: addLinkedForm.clinicDate || detail.lessonDate || '',
+                          })
+                        }
+                      >
+                        <label className="ams-field ams-field--compact">
+                          <span className="ams-field__label">클리닉 날짜</span>
+                          <input
+                            className="ams-field__input"
+                            type="date"
+                            value={addLinkedForm.clinicDate}
+                            onChange={(e) =>
+                              setAddLinkedForm({ ...addLinkedForm, clinicDate: e.target.value })
+                            }
+                            required
+                          />
+                        </label>
+                        <label className="ams-field ams-field--compact">
+                          <span className="ams-field__label">시작 시각</span>
+                          <input
+                            className="ams-field__input"
+                            type="time"
+                            value={addLinkedForm.clinicStartTime}
+                            onChange={(e) =>
+                              setAddLinkedForm({ ...addLinkedForm, clinicStartTime: e.target.value })
+                            }
+                            required
+                          />
+                        </label>
+                        <label className="ams-field ams-field--compact">
+                          <span className="ams-field__label">담당 조교</span>
+                          <select
+                            className="ams-field__input"
+                            value={addLinkedForm.clinicAssistantId}
+                            onChange={(e) =>
+                              setAddLinkedForm({ ...addLinkedForm, clinicAssistantId: e.target.value })
+                            }
+                            required
+                          >
+                            <option value="">조교 선택</option>
+                            {assistants.map((a) => (
+                              <option key={a.userId} value={a.userId}>
+                                {a.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="ams-field ams-field--compact">
+                          <span className="ams-field__label">정원</span>
+                          <input
+                            className="ams-field__input"
+                            type="number"
+                            min={1}
+                            max={20}
+                            value={addLinkedForm.clinicMaxCapacity}
+                            onChange={(e) =>
+                              setAddLinkedForm({ ...addLinkedForm, clinicMaxCapacity: e.target.value })
+                            }
+                          />
+                        </label>
+                        <StudentTargetPicker
+                          classId={classId}
+                          allByDefault
+                          value={addClinicTarget}
+                          onChange={setAddClinicTarget}
+                          disabled={submitting}
+                        />
+                      </OptionCard>
+                    </div>
+                    <div className="ams-lesson-board__linked-edit-actions">
+                      <button
+                        type="button"
+                        className="ams-btn ams-btn--ghost ams-btn--sm"
+                        onClick={closeAddLinked}
+                      >
+                        취소
+                      </button>
+                      <button
+                        type="submit"
+                        className="ams-btn ams-btn--primary ams-btn--sm"
+                        disabled={submitting}
+                      >
+                        {submitting ? '추가 중…' : '항목 추가'}
+                      </button>
+                    </div>
+                  </form>
+                )}
+
                 {detail.linkedItems?.length > 0 ? (
                   <ul className="ams-lesson-board__linked-items">
-                    {detail.linkedItems.map((item) => (
-                      <li
-                        key={`${item.type}-${item.id}`}
-                        className={`ams-lesson-board__linked-item ams-lesson-board__linked-item--${item.type}`}
-                      >
-                        <span className="ams-lesson-board__linked-item-type">
-                          {linkedTypeLabel(item.type)}
-                        </span>
-                        <span className="ams-lesson-board__linked-item-title">{item.title}</span>
-                      </li>
-                    ))}
+                    {detail.linkedItems.map((item) => {
+                      const key = linkedItemKey(item)
+                      const isEditing = editingLinkedKey === key
+                      return (
+                        <li
+                          key={key}
+                          className={`ams-lesson-board__linked-item ams-lesson-board__linked-item--${item.type}${isEditing ? ' ams-lesson-board__linked-item--editing' : ''}`}
+                        >
+                          <div className="ams-lesson-board__linked-item-main">
+                            <span className="ams-lesson-board__linked-item-type">
+                              {linkedTypeLabel(item.type)}
+                            </span>
+                            <span className="ams-lesson-board__linked-item-title">{item.title}</span>
+                            {canEdit && (
+                              <div className="ams-lesson-board__linked-item-actions">
+                                {item.canEdit && (
+                                  <button
+                                    type="button"
+                                    className="ams-btn ams-btn--ghost ams-btn--sm"
+                                    onClick={() =>
+                                      isEditing ? closeLinkedEdit() : openLinkedEdit(item)
+                                    }
+                                    disabled={submitting}
+                                  >
+                                    {isEditing ? '닫기' : '수정'}
+                                  </button>
+                                )}
+                                {item.canDelete && (
+                                  <button
+                                    type="button"
+                                    className="ams-btn ams-btn--ghost ams-btn--sm ams-lesson-board__linked-delete"
+                                    onClick={() => handleDeleteLinked(item)}
+                                    disabled={submitting}
+                                  >
+                                    삭제
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          {isEditing && editDraft && (
+                            <LinkedItemEditForm
+                              item={item}
+                              draft={editDraft}
+                              onDraftChange={setEditDraft}
+                              target={editTarget}
+                              onTargetChange={setEditTarget}
+                              classId={classId}
+                              assistants={assistants}
+                              submitting={submitting}
+                              onCancel={closeLinkedEdit}
+                              onSave={() => handleSaveLinkedEdit(item)}
+                            />
+                          )}
+                        </li>
+                      )
+                    })}
                   </ul>
                 ) : (
-                  <p className="ams-lesson-board__empty-tag">연결된 항목 없음</p>
+                  !showAddLinked && <p className="ams-lesson-board__empty-tag">연결된 항목 없음</p>
                 )}
               </div>
             </>

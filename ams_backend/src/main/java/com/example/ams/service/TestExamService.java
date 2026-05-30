@@ -439,6 +439,66 @@ public class TestExamService {
 		return targets;
 	}
 
+	@Transactional
+	public TestExam updateTestMetadata(
+			long testId,
+			String title,
+			Integer questionCount,
+			Integer retakeThresholdCount,
+			List<Long> targetStudentIds) {
+		TestExam test = getTest(testId);
+		classAccessService.requireEditClassContent(
+				classAccessService.requireReadableClass(test.classId()));
+		if (test.isRetake()) {
+			throw new BusinessException(ErrorCode.LESSON_RECORD_LINK_LOCKED, "재시험은 수업기록에서 수정할 수 없습니다.");
+		}
+		if (test.status() == AssignmentStatus.SCHEDULED) {
+			testRepository.updateMetadata(testId, title.trim(), questionCount, retakeThresholdCount);
+			assignmentTargetService.updateTargets(
+					AssignmentEntityType.TEST, testId, test.classId(), targetStudentIds);
+			syncScoreRows(testId, test.classId());
+		} else {
+			if (!title.trim().equals(test.title())) {
+				throw new BusinessException(ErrorCode.LESSON_RECORD_LINK_LOCKED, "완료된 테스트는 제목·문항 수를 변경할 수 없습니다.");
+			}
+			assignmentTargetService.updateTargets(
+					AssignmentEntityType.TEST, testId, test.classId(), targetStudentIds);
+		}
+		return testRepository.findById(testId).orElseThrow();
+	}
+
+	@Transactional
+	public void deleteTestIfAllowed(long testId) {
+		TestExam test = getTest(testId);
+		classAccessService.requireEditClassContent(
+				classAccessService.requireReadableClass(test.classId()));
+		if (test.isRetake()) {
+			throw new BusinessException(ErrorCode.LESSON_RECORD_LINK_LOCKED, "재시험은 삭제할 수 없습니다.");
+		}
+		if (test.status() != AssignmentStatus.SCHEDULED) {
+			throw new BusinessException(ErrorCode.LESSON_RECORD_LINK_LOCKED, "완료된 테스트는 삭제할 수 없습니다.");
+		}
+		if (scoreRepository.hasGradedScore(testId)) {
+			throw new BusinessException(ErrorCode.LESSON_RECORD_LINK_LOCKED, "채점된 테스트는 삭제할 수 없습니다.");
+		}
+		if (!testRepository.findRetakesByParentTestId(testId).isEmpty()) {
+			throw new BusinessException(ErrorCode.LESSON_RECORD_LINK_LOCKED, "재시험이 연결된 테스트는 삭제할 수 없습니다.");
+		}
+		assignmentTargetService.clearTargets(AssignmentEntityType.TEST, testId);
+		scoreRepository.deleteByTestId(testId);
+		answerKeyRepository.deleteByTestId(testId);
+		testRepository.deleteById(testId);
+	}
+
+	private void syncScoreRows(long testId, long classId) {
+		for (long studentId : assignmentTargetService.resolveTargetStudentIds(
+				AssignmentEntityType.TEST, testId, classId)) {
+			if (scoreRepository.findByTestIdAndStudentId(testId, studentId).isEmpty()) {
+				scoreRepository.insertEmpty(testId, studentId);
+			}
+		}
+	}
+
 	public record ScoreRow(long studentId, String studentName, TestScore score) {
 	}
 

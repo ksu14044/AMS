@@ -325,6 +325,52 @@ public class HomeworkService {
 		return homeworkRepository.findById(homeworkId).orElseThrow();
 	}
 
+	@Transactional
+	public Homework updateHomeworkMetadata(
+			long homeworkId,
+			String title,
+			Integer questionCount,
+			List<Long> targetStudentIds) {
+		Homework homework = getHomework(homeworkId);
+		classAccessService.requireEditClassContent(
+				classAccessService.requireReadableClass(homework.classId()));
+		if (homework.status() == AssignmentStatus.SCHEDULED) {
+			homeworkRepository.updateMetadata(homeworkId, title.trim(), questionCount);
+		} else if (!title.trim().equals(homework.title())) {
+			throw new BusinessException(ErrorCode.LESSON_RECORD_LINK_LOCKED, "완료된 숙제는 제목·문항 수를 변경할 수 없습니다.");
+		}
+		assignmentTargetService.updateTargets(
+				AssignmentEntityType.HOMEWORK, homeworkId, homework.classId(), targetStudentIds);
+		syncSubmissionRows(homeworkId, homework.classId());
+		return homeworkRepository.findById(homeworkId).orElseThrow();
+	}
+
+	@Transactional
+	public void deleteHomeworkIfAllowed(long homeworkId) {
+		Homework homework = getHomework(homeworkId);
+		classAccessService.requireEditClassContent(
+				classAccessService.requireReadableClass(homework.classId()));
+		if (homework.status() != AssignmentStatus.SCHEDULED) {
+			throw new BusinessException(ErrorCode.LESSON_RECORD_LINK_LOCKED, "완료된 숙제는 삭제할 수 없습니다.");
+		}
+		if (submissionRepository.hasGradedSubmission(homeworkId)) {
+			throw new BusinessException(ErrorCode.LESSON_RECORD_LINK_LOCKED, "채점된 숙제는 삭제할 수 없습니다.");
+		}
+		assignmentTargetService.clearTargets(AssignmentEntityType.HOMEWORK, homeworkId);
+		submissionRepository.deleteByHomeworkId(homeworkId);
+		answerKeyRepository.deleteByHomeworkId(homeworkId);
+		homeworkRepository.deleteById(homeworkId);
+	}
+
+	private void syncSubmissionRows(long homeworkId, long classId) {
+		for (long studentId : assignmentTargetService.resolveTargetStudentIds(
+				AssignmentEntityType.HOMEWORK, homeworkId, classId)) {
+			if (submissionRepository.findByHomeworkIdAndStudentId(homeworkId, studentId).isEmpty()) {
+				submissionRepository.insertEmpty(homeworkId, studentId);
+			}
+		}
+	}
+
 	public record SubmissionRow(long studentId, String studentName, HomeworkSubmission submission) {
 	}
 }

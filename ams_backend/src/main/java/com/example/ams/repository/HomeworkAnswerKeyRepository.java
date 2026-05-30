@@ -47,4 +47,8 @@ public class HomeworkAnswerKeyRepository {
 					key.correctAnswer());
 		}
 	}
+
+	public void deleteByHomeworkId(long homeworkId) {
+		jdbcTemplate.update("DELETE FROM homework_answer_key WHERE homework_id = ?", homeworkId);
+	}
 }

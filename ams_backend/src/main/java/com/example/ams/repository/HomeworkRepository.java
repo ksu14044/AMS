@@ -78,17 +78,43 @@ public class HomeworkRepository {
 		jdbcTemplate.update("UPDATE homework SET question_count = ? WHERE homework_id = ?", questionCount, homeworkId);
 	}
 
+	public void updateMetadata(long homeworkId, String title, Integer questionCount) {
+		jdbcTemplate.update(
+				"UPDATE homework SET title = ?, question_count = ? WHERE homework_id = ?",
+				title,
+				questionCount,
+				homeworkId);
+	}
+
+	public Long findLessonRecordId(long homeworkId) {
+		return jdbcTemplate.query(
+				"SELECT lesson_record_id FROM homework WHERE homework_id = ?",
+				rs -> rs.next() ? rs.getLong("lesson_record_id") : null,
+				homeworkId);
+	}
+
+	public void deleteById(long homeworkId) {
+		jdbcTemplate.update("DELETE FROM homework WHERE homework_id = ?", homeworkId);
+	}
+
 	public void updateStatus(long homeworkId, AssignmentStatus status) {
 		jdbcTemplate.update("UPDATE homework SET status = ? WHERE homework_id = ?", status.name(), homeworkId);
 	}
 
 	public List<HomeworkSummary> findSummariesByLessonRecordId(long lessonRecordId) {
 		return jdbcTemplate.query(
-				"SELECT homework_id, title FROM homework WHERE lesson_record_id = ? ORDER BY homework_id",
-				(rs, rowNum) -> new HomeworkSummary(rs.getLong("homework_id"), rs.getString("title")),
+				"""
+						SELECT homework_id, title, question_count, status
+						FROM homework WHERE lesson_record_id = ? ORDER BY homework_id
+						""",
+				(rs, rowNum) -> new HomeworkSummary(
+						rs.getLong("homework_id"),
+						rs.getString("title"),
+						rs.getObject("question_count") != null ? rs.getInt("question_count") : null,
+						AssignmentStatus.valueOf(rs.getString("status"))),
 				lessonRecordId);
 	}
 
-	public record HomeworkSummary(long homeworkId, String title) {
+	public record HomeworkSummary(long homeworkId, String title, Integer questionCount, AssignmentStatus status) {
 	}
 }

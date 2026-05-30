@@ -14,6 +14,8 @@ public enum ErrorCode {
 	CLASS_NOT_FOUND(HttpStatus.NOT_FOUND, "반을 찾을 수 없습니다."),
 	LESSON_RECORD_NOT_FOUND(HttpStatus.NOT_FOUND, "수업기록을 찾을 수 없습니다."),
 	LESSON_RECORD_DATE_EXISTS(HttpStatus.CONFLICT, "해당 날짜의 수업기록이 이미 있습니다."),
+	LESSON_RECORD_LINK_NOT_FOUND(HttpStatus.NOT_FOUND, "수업기록에 연결된 항목이 아닙니다."),
+	LESSON_RECORD_LINK_LOCKED(HttpStatus.CONFLICT, "진행 중인 항목은 삭제할 수 없습니다."),
 	CLASS_NAME_ALREADY_EXISTS(HttpStatus.CONFLICT, "이미 사용 중인 반 이름입니다."),
 	INVALID_HOMEROOM_TEACHER(HttpStatus.BAD_REQUEST, "담임으로 지정할 수 없는 선생님입니다."),
 	ALREADY_ENROLLED(HttpStatus.CONFLICT, "이미 해당 반에 배정된 학생입니다."),

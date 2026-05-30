@@ -145,4 +145,20 @@ public class HomeworkSubmissionRepository {
 				studentId);
 		return findByHomeworkIdAndStudentId(homeworkId, studentId).orElseThrow();
 	}
+
+	public boolean hasGradedSubmission(long homeworkId) {
+		Integer count = jdbcTemplate.queryForObject(
+				"""
+						SELECT COUNT(*) FROM homework_submission
+						WHERE homework_id = ?
+						  AND (score IS NOT NULL OR correct_count IS NOT NULL OR completed_at IS NOT NULL)
+						""",
+				Integer.class,
+				homeworkId);
+		return count != null && count > 0;
+	}
+
+	public void deleteByHomeworkId(long homeworkId) {
+		jdbcTemplate.update("DELETE FROM homework_submission WHERE homework_id = ?", homeworkId);
+	}
 }

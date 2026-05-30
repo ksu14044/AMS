@@ -15,6 +15,7 @@ import com.example.ams.common.ErrorCode;
 import com.example.ams.common.WeekStartDateValidator;
 import com.example.ams.domain.clazz.AssignmentEntityType;
 import com.example.ams.domain.clazz.ClinicReservation;
+import com.example.ams.domain.clazz.ClinicSlotOccurrence;
 import com.example.ams.domain.clazz.ClinicSlot;
 import com.example.ams.domain.clazz.Clazz;
 import com.example.ams.domain.clazz.DayOfWeek;
@@ -172,6 +173,57 @@ public class ClinicSlotService {
 		classAccessService.requireManageClassContent(clazz);
 		requireSlot(classId, slotId);
 		clinicSlotRepository.delete(slotId, classId);
+	}
+
+	@Transactional
+	public void deleteSlotIfAllowed(long classId, long slotId) {
+		Clazz clazz = classAccessService.requireReadableClass(classId);
+		classAccessService.requireEditClassContent(clazz);
+		requireSlot(classId, slotId);
+		if (clinicReservationRepository.countBySlotId(slotId) > 0) {
+			throw new BusinessException(ErrorCode.LESSON_RECORD_LINK_LOCKED, "예약이 있는 클리닉 슬롯은 삭제할 수 없습니다.");
+		}
+		assignmentTargetService.clearTargets(AssignmentEntityType.CLINIC_SLOT, slotId);
+		clinicSlotRepository.delete(slotId, classId);
+	}
+
+	@Transactional
+	public ClinicSlot updateSlotForLessonRecord(
+			long classId,
+			long slotId,
+			LocalDate clinicDate,
+			LocalTime startTime,
+			Long assistantId,
+			int maxCapacity,
+			List<Long> targetStudentIds) {
+		Clazz clazz = classAccessService.requireReadableClass(classId);
+		classAccessService.requireEditClassContent(clazz);
+		ClinicSlot existing = requireSlot(classId, slotId);
+		validateCapacity(maxCapacity);
+		validateAssistant(clazz.academyId(), assistantId);
+		if (clinicReservationRepository.countBySlotId(slotId) > 0
+				&& scheduleChanged(existing, clinicDate, startTime)) {
+			throw new BusinessException(
+					ErrorCode.LESSON_RECORD_LINK_LOCKED,
+					"예약이 있는 슬롯은 날짜·시간을 변경할 수 없습니다.");
+		}
+		DayOfWeek dayOfWeek = toDomainDayOfWeek(clinicDate);
+		LocalDate monday = clinicDate.with(TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
+		clinicWeekRepository.ensureOpenWeek(classId, monday);
+		try {
+			ClinicSlot updated = clinicSlotRepository.updateSchedule(
+					slotId, classId, monday, dayOfWeek, startTime, assistantId, maxCapacity);
+			assignmentTargetService.updateTargets(
+					AssignmentEntityType.CLINIC_SLOT, slotId, classId, targetStudentIds);
+			return updated;
+		} catch (DuplicateKeyException ex) {
+			throw duplicateSlotException();
+		}
+	}
+
+	private static boolean scheduleChanged(ClinicSlot slot, LocalDate clinicDate, LocalTime startTime) {
+		LocalDate slotDate = ClinicSlotOccurrence.slotDate(slot.weekStartDate(), slot.dayOfWeek());
+		return !slotDate.equals(clinicDate) || !slot.startTime().equals(startTime);
 	}
 
 	private ClinicSlot requireSlot(long classId, long slotId) {

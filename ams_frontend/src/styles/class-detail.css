@@ -2774,12 +2774,72 @@
 
 .ams-lesson-board__linked-item {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   gap: var(--ams-space-3);
   padding: var(--ams-space-3) var(--ams-space-4);
   border: var(--ams-border-width) solid var(--ams-color-border);
   border-radius: var(--ams-radius-sm);
   background: var(--ams-color-surface);
+}
+
+.ams-lesson-board__linked-item-main {
+  display: flex;
+  align-items: center;
+  gap: var(--ams-space-3);
+  min-width: 0;
+}
+
+.ams-lesson-board__linked-item-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: var(--ams-space-1);
+  margin-left: auto;
+}
+
+.ams-lesson-board__linked-delete {
+  color: var(--ams-color-danger-fg, #c62828);
+}
+
+.ams-lesson-board__linked-item--editing {
+  border-color: var(--ams-color-primary);
+}
+
+.ams-lesson-board__linked-edit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-3);
+  padding-top: var(--ams-space-2);
+  border-top: var(--ams-border-width) solid var(--ams-color-border);
+}
+
+.ams-lesson-board__linked-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--ams-space-2);
+}
+
+.ams-lesson-board__detail-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ams-space-3);
+  margin-bottom: var(--ams-space-3);
+}
+
+.ams-lesson-board__detail-section-head .ams-lesson-board__detail-label {
+  margin: 0;
+}
+
+.ams-lesson-board__add-linked {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-3);
+  margin-bottom: var(--ams-space-4);
+  padding: var(--ams-space-4);
+  border: var(--ams-border-width) dashed var(--ams-color-border);
+  border-radius: var(--ams-radius-sm);
+  background: var(--ams-color-surface-muted, #fafafa);
 }
 
 .ams-lesson-board__linked-item-type {

@@ -32,6 +32,27 @@ public class AssignmentTargetService {
 		targetRepository.replaceAll(entityType, entityId, studentIds);
 	}
 
+	/** 숙제·테스트·클리닉: null/empty → 반 전원(명시 대상 제거). 영상: null/empty → 인증 대상 없음. */
+	public void updateTargets(
+			AssignmentEntityType entityType,
+			long entityId,
+			long classId,
+			List<Long> targetStudentIds) {
+		if (targetStudentIds == null || targetStudentIds.isEmpty()) {
+			if (entityType == AssignmentEntityType.VIDEO) {
+				targetRepository.replaceAll(entityType, entityId, List.of());
+			} else {
+				targetRepository.deleteByEntity(entityType, entityId);
+			}
+			return;
+		}
+		saveExplicitTargets(entityType, entityId, classId, targetStudentIds);
+	}
+
+	public void clearTargets(AssignmentEntityType entityType, long entityId) {
+		targetRepository.deleteByEntity(entityType, entityId);
+	}
+
 	public void applyOnCreate(
 			AssignmentEntityType entityType,
 			long entityId,

@@ -125,6 +125,28 @@ public class VideoLessonService {
 	}
 
 	@Transactional
+	public VideoLesson updateVideoWithTargets(
+			long classId,
+			long videoId,
+			String youtubeUrl,
+			String title,
+			List<Long> targetStudentIds) {
+		VideoLesson video = updateVideo(classId, videoId, youtubeUrl, title, null);
+		assignmentTargetService.updateTargets(
+				AssignmentEntityType.VIDEO, videoId, classId, targetStudentIds);
+		return videoRepository.findById(videoId).orElseThrow();
+	}
+
+	@Transactional
+	public void deleteVideoIfAllowed(long classId, long videoId) {
+		Clazz clazz = classAccessService.requireReadableClass(classId);
+		classAccessService.requireManageClassContent(clazz);
+		requireVideoInClass(classId, videoId);
+		assignmentTargetService.clearTargets(AssignmentEntityType.VIDEO, videoId);
+		videoRepository.delete(videoId, classId);
+	}
+
+	@Transactional
 	public VideoLesson updateVideo(
 			long classId,
 			long videoId,

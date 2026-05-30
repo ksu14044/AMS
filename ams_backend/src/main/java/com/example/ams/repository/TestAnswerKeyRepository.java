@@ -47,4 +47,8 @@ public class TestAnswerKeyRepository {
 					key.correctAnswer());
 		}
 	}
+
+	public void deleteByTestId(long testId) {
+		jdbcTemplate.update("DELETE FROM test_answer_key WHERE test_id = ?", testId);
+	}
 }

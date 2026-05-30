@@ -103,14 +103,24 @@ public class VideoLessonRepository {
 		return findById(keyHolder.getKey().longValue()).orElseThrow();
 	}
 
+	public record VideoSummary(long videoId, String title, String youtubeUrl) {
+	}
+
 	public List<VideoSummary> findSummariesByLessonRecordId(long lessonRecordId) {
 		return jdbcTemplate.query(
-				"SELECT video_id, title FROM video_lesson WHERE lesson_record_id = ? ORDER BY video_id",
-				(rs, rowNum) -> new VideoSummary(rs.getLong("video_id"), rs.getString("title")),
+				"SELECT video_id, title, youtube_url FROM video_lesson WHERE lesson_record_id = ? ORDER BY video_id",
+				(rs, rowNum) -> new VideoSummary(
+						rs.getLong("video_id"),
+						rs.getString("title"),
+						rs.getString("youtube_url")),
 				lessonRecordId);
 	}
 
-	public record VideoSummary(long videoId, String title) {
+	public Long findLessonRecordId(long videoId) {
+		return jdbcTemplate.query(
+				"SELECT lesson_record_id FROM video_lesson WHERE video_id = ?",
+				rs -> rs.next() ? rs.getLong("lesson_record_id") : null,
+				videoId);
 	}
 
 	public VideoLesson update(

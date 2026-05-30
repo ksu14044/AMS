@@ -135,4 +135,20 @@ public class TestScoreRepository {
 				studentId);
 		return findByTestIdAndStudentId(testId, studentId).orElseThrow();
 	}
+
+	public boolean hasGradedScore(long testId) {
+		Integer count = jdbcTemplate.queryForObject(
+				"""
+						SELECT COUNT(*) FROM test_score
+						WHERE test_id = ?
+						  AND (raw_score IS NOT NULL OR correct_count IS NOT NULL OR graded_at IS NOT NULL)
+						""",
+				Integer.class,
+				testId);
+		return count != null && count > 0;
+	}
+
+	public void deleteByTestId(long testId) {
+		jdbcTemplate.update("DELETE FROM test_score WHERE test_id = ?", testId);
+	}
 }

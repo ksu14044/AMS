@@ -2,6 +2,7 @@ package com.example.ams.api.clazz;
 
 import java.util.List;
 
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -10,8 +11,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.ams.api.dto.AddLessonRecordLinkedItemsRequest;
 import com.example.ams.api.dto.CreateLessonRecordRequest;
+import com.example.ams.api.dto.LessonRecordClinicItem;
+import com.example.ams.api.dto.LessonRecordHomeworkItem;
 import com.example.ams.api.dto.LessonRecordResponse;
+import com.example.ams.api.dto.LessonRecordTestItem;
+import com.example.ams.api.dto.LessonRecordVideoItem;
 import com.example.ams.api.dto.UpdateLessonRecordRequest;
 import com.example.ams.common.ApiResponse;
 import com.example.ams.service.LessonRecordService;
@@ -61,6 +67,101 @@ public class ClassLessonRecordController {
 		var existing = lessonRecordService.getLessonRecord(lessonRecordId);
 		assertSameClass(classId, existing.record().classId());
 		var row = lessonRecordService.updateLessonRecord(lessonRecordId, request.summary());
+		return ApiResponse.ok(LessonRecordResponse.from(row));
+	}
+
+	@PostMapping("/{lessonRecordId}/linked-items")
+	public ApiResponse<LessonRecordResponse> addLinkedItems(
+			@PathVariable long classId,
+			@PathVariable long lessonRecordId,
+			@Valid @RequestBody AddLessonRecordLinkedItemsRequest request) {
+		var existing = lessonRecordService.getLessonRecord(lessonRecordId);
+		assertSameClass(classId, existing.record().classId());
+		var row = lessonRecordService.addLinkedItems(lessonRecordId, request);
+		return ApiResponse.ok(LessonRecordResponse.from(row));
+	}
+
+	@PatchMapping("/{lessonRecordId}/homeworks/{homeworkId}")
+	public ApiResponse<LessonRecordResponse> updateHomework(
+			@PathVariable long classId,
+			@PathVariable long lessonRecordId,
+			@PathVariable long homeworkId,
+			@Valid @RequestBody LessonRecordHomeworkItem request) {
+		assertSameClass(classId, lessonRecordService.getLessonRecord(lessonRecordId).record().classId());
+		var row = lessonRecordService.updateLinkedHomework(lessonRecordId, homeworkId, request);
+		return ApiResponse.ok(LessonRecordResponse.from(row));
+	}
+
+	@PatchMapping("/{lessonRecordId}/tests/{testId}")
+	public ApiResponse<LessonRecordResponse> updateTest(
+			@PathVariable long classId,
+			@PathVariable long lessonRecordId,
+			@PathVariable long testId,
+			@Valid @RequestBody LessonRecordTestItem request) {
+		assertSameClass(classId, lessonRecordService.getLessonRecord(lessonRecordId).record().classId());
+		var row = lessonRecordService.updateLinkedTest(lessonRecordId, testId, request);
+		return ApiResponse.ok(LessonRecordResponse.from(row));
+	}
+
+	@PatchMapping("/{lessonRecordId}/videos/{videoId}")
+	public ApiResponse<LessonRecordResponse> updateVideo(
+			@PathVariable long classId,
+			@PathVariable long lessonRecordId,
+			@PathVariable long videoId,
+			@Valid @RequestBody LessonRecordVideoItem request) {
+		assertSameClass(classId, lessonRecordService.getLessonRecord(lessonRecordId).record().classId());
+		var row = lessonRecordService.updateLinkedVideo(lessonRecordId, videoId, request);
+		return ApiResponse.ok(LessonRecordResponse.from(row));
+	}
+
+	@PatchMapping("/{lessonRecordId}/clinic-slots/{slotId}")
+	public ApiResponse<LessonRecordResponse> updateClinicSlot(
+			@PathVariable long classId,
+			@PathVariable long lessonRecordId,
+			@PathVariable long slotId,
+			@Valid @RequestBody LessonRecordClinicItem request) {
+		assertSameClass(classId, lessonRecordService.getLessonRecord(lessonRecordId).record().classId());
+		var row = lessonRecordService.updateLinkedClinicSlot(lessonRecordId, slotId, request);
+		return ApiResponse.ok(LessonRecordResponse.from(row));
+	}
+
+	@DeleteMapping("/{lessonRecordId}/homeworks/{homeworkId}")
+	public ApiResponse<LessonRecordResponse> deleteHomework(
+			@PathVariable long classId,
+			@PathVariable long lessonRecordId,
+			@PathVariable long homeworkId) {
+		assertSameClass(classId, lessonRecordService.getLessonRecord(lessonRecordId).record().classId());
+		var row = lessonRecordService.deleteLinkedHomework(lessonRecordId, homeworkId);
+		return ApiResponse.ok(LessonRecordResponse.from(row));
+	}
+
+	@DeleteMapping("/{lessonRecordId}/tests/{testId}")
+	public ApiResponse<LessonRecordResponse> deleteTest(
+			@PathVariable long classId,
+			@PathVariable long lessonRecordId,
+			@PathVariable long testId) {
+		assertSameClass(classId, lessonRecordService.getLessonRecord(lessonRecordId).record().classId());
+		var row = lessonRecordService.deleteLinkedTest(lessonRecordId, testId);
+		return ApiResponse.ok(LessonRecordResponse.from(row));
+	}
+
+	@DeleteMapping("/{lessonRecordId}/videos/{videoId}")
+	public ApiResponse<LessonRecordResponse> deleteVideo(
+			@PathVariable long classId,
+			@PathVariable long lessonRecordId,
+			@PathVariable long videoId) {
+		assertSameClass(classId, lessonRecordService.getLessonRecord(lessonRecordId).record().classId());
+		var row = lessonRecordService.deleteLinkedVideo(lessonRecordId, videoId);
+		return ApiResponse.ok(LessonRecordResponse.from(row));
+	}
+
+	@DeleteMapping("/{lessonRecordId}/clinic-slots/{slotId}")
+	public ApiResponse<LessonRecordResponse> deleteClinicSlot(
+			@PathVariable long classId,
+			@PathVariable long lessonRecordId,
+			@PathVariable long slotId) {
+		assertSameClass(classId, lessonRecordService.getLessonRecord(lessonRecordId).record().classId());
+		var row = lessonRecordService.deleteLinkedClinicSlot(lessonRecordId, slotId);
 		return ApiResponse.ok(LessonRecordResponse.from(row));
 	}
 

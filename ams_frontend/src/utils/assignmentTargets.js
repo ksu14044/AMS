@@ -14,6 +14,13 @@ export function buildTargetStudentIdsPayload(target, allByDefault) {
   return target.studentIds
 }
 
+/** API 응답 targets → StudentTargetPicker 값 */
+export function targetFromResponse(targets, allByDefault) {
+  if (!targets) return createInitialTarget(allByDefault)
+  if (targets.allClassTargeted) return { ...ALL_CLASS_TARGET }
+  return { mode: 'custom', studentIds: [...(targets.targetStudentIds ?? [])] }
+}
+
 export function formatTargetSummary(targets) {
   if (!targets) return '—'
   if (targets.allClassTargeted) return '반 전원'

@@ -10,6 +10,12 @@ import {
   saveTestAnswerKeys,
   toInstant,
 } from '../../api/classesApi'
+import StudentTargetPicker from '../../components/StudentTargetPicker'
+import {
+  buildTargetStudentIdsPayload,
+  createInitialTarget,
+  formatTargetSummary,
+} from '../../utils/assignmentTargets'
 
 const STATUS_LABEL = { SCHEDULED: '예정', COMPLETED: '완료' }
 
@@ -236,6 +242,7 @@ export default function ClassTestSection({ classId, canManage, verifyOnly = fals
     questionCount: '',
     retakeThresholdCount: '',
   })
+  const [createTarget, setCreateTarget] = useState(() => createInitialTarget(true))
 
   const selectedTest = useMemo(
     () => tests.find((t) => String(t.testId) === selectedId),
@@ -461,17 +468,26 @@ export default function ClassTestSection({ classId, canManage, verifyOnly = fals
   async function handleCreate(e) {
     e.preventDefault()
     if (!form.title.trim() || !form.testDate) return
+    if (createTarget.mode === 'custom' && createTarget.studentIds.length === 0) {
+      onError('대상 학생을 한 명 이상 선택하세요.')
+      return
+    }
     setSubmitting(true)
     onError('')
     try {
-      const created = await createTest(classId, {
+      const targetStudentIds = buildTargetStudentIdsPayload(createTarget, true)
+      const payload = {
         title: form.title.trim(),
         testAt: toInstant(form.testDate, form.testTime),
         questionCount: form.questionCount ? Number(form.questionCount) : null,
         retakeThresholdCount: form.retakeThresholdCount
           ? Number(form.retakeThresholdCount)
           : null,
-      })
+      }
+      if (targetStudentIds !== undefined) {
+        payload.targetStudentIds = targetStudentIds
+      }
+      const created = await createTest(classId, payload)
       setForm({
         title: '',
         testDate: '',
@@ -479,6 +495,7 @@ export default function ClassTestSection({ classId, canManage, verifyOnly = fals
         questionCount: '',
         retakeThresholdCount: '',
       })
+      setCreateTarget(createInitialTarget(true))
       await loadTests()
       setSelectedId(String(created.testId))
     } catch (err) {
@@ -571,6 +588,14 @@ export default function ClassTestSection({ classId, canManage, verifyOnly = fals
               onChange={(e) => setForm({ ...form, retakeThresholdCount: e.target.value })}
             />
           </label>
+          <StudentTargetPicker
+            className="ams-assignment-form__full"
+            classId={classId}
+            allByDefault
+            value={createTarget}
+            onChange={setCreateTarget}
+            disabled={submitting}
+          />
           <button type="submit" className="ams-btn ams-btn--primary" disabled={submitting}>
             테스트 등록
           </button>
@@ -601,6 +626,7 @@ export default function ClassTestSection({ classId, canManage, verifyOnly = fals
               {selectedTest.retakeThresholdCount
                 ? ` · 합격 ${selectedTest.retakeThresholdCount}문항 이상`
                 : ''}
+              {selectedTest.targets ? ` · 대상 ${formatTargetSummary(selectedTest.targets)}` : ''}
             </p>
           )}
 

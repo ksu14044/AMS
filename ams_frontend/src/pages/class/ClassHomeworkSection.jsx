@@ -8,6 +8,12 @@ import {
   gradeHomeworkSubmission,
   saveHomeworkAnswerKeys,
 } from '../../api/classesApi'
+import StudentTargetPicker from '../../components/StudentTargetPicker'
+import {
+  buildTargetStudentIdsPayload,
+  createInitialTarget,
+  formatTargetSummary,
+} from '../../utils/assignmentTargets'
 
 const STATUS_LABEL = { SCHEDULED: '예정', COMPLETED: '완료' }
 
@@ -221,6 +227,7 @@ export default function ClassHomeworkSection({ classId, canManage, verifyOnly = 
   const [modal, setModal] = useState(null)
   const [gradeModalDraft, setGradeModalDraft] = useState([])
   const [form, setForm] = useState({ title: '', questionCount: '' })
+  const [createTarget, setCreateTarget] = useState(() => createInitialTarget(true))
 
   const selectedHomework = useMemo(
     () => homeworks.find((h) => String(h.homeworkId) === selectedId),
@@ -414,14 +421,24 @@ export default function ClassHomeworkSection({ classId, canManage, verifyOnly = 
   async function handleCreate(e) {
     e.preventDefault()
     if (!form.title.trim()) return
+    if (createTarget.mode === 'custom' && createTarget.studentIds.length === 0) {
+      onError('대상 학생을 한 명 이상 선택하세요.')
+      return
+    }
     setSubmitting(true)
     onError('')
     try {
-      const created = await createHomework(classId, {
+      const targetStudentIds = buildTargetStudentIdsPayload(createTarget, true)
+      const payload = {
         title: form.title.trim(),
         questionCount: form.questionCount ? Number(form.questionCount) : null,
-      })
+      }
+      if (targetStudentIds !== undefined) {
+        payload.targetStudentIds = targetStudentIds
+      }
+      const created = await createHomework(classId, payload)
       setForm({ title: '', questionCount: '' })
+      setCreateTarget(createInitialTarget(true))
       await loadHomeworks()
       setSelectedId(String(created.homeworkId))
     } catch (err) {
@@ -482,6 +499,14 @@ export default function ClassHomeworkSection({ classId, canManage, verifyOnly = 
               placeholder="정오표 설정 시 입력"
             />
           </label>
+          <StudentTargetPicker
+            className="ams-assignment-form__full"
+            classId={classId}
+            allByDefault
+            value={createTarget}
+            onChange={setCreateTarget}
+            disabled={submitting}
+          />
           <button type="submit" className="ams-btn ams-btn--primary" disabled={submitting}>
             숙제 등록
           </button>
@@ -506,6 +531,11 @@ export default function ClassHomeworkSection({ classId, canManage, verifyOnly = 
 
           {selectedId && (
             <div className="ams-homework-toolbar">
+              {selectedHomework?.targets && (
+                <p className="ams-class-detail__meta">
+                  대상: {formatTargetSummary(selectedHomework.targets)}
+                </p>
+              )}
               {canManage && (
                 <>
                   <button

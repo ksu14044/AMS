@@ -7,25 +7,37 @@ import {
   toInstant,
 } from '../../api/classesApi'
 import { fetchMyVideoCertification, mediaUrl, uploadVideoCertification } from '../../api/videosApi'
+import { useAuth } from '../../auth/AuthContext'
+import StudentTargetPicker from '../../components/StudentTargetPicker'
+import {
+  buildTargetStudentIdsPayload,
+  createInitialTarget,
+  formatVideoCertTargetSummary,
+  requiresVideoCertification,
+} from '../../utils/assignmentTargets'
 import { youtubeThumbnailUrl, youtubeWatchUrl } from '../../utils/youtube'
 
 const EMPTY_FORM = { youtubeUrl: '', title: '', description: '', publishedDate: '' }
 
 export default function ClassVideoSection({ classId, canManage, isStudent, onError }) {
+  const { user } = useAuth()
+  const studentId = isStudent ? user?.userId : null
   const [videos, setVideos] = useState([])
   const [certs, setCerts] = useState({})
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
+  const [createTarget, setCreateTarget] = useState(() => createInitialTarget(false))
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState(EMPTY_FORM)
 
   const loadCerts = useCallback(
     async (list) => {
-      if (!isStudent) return
+      if (!isStudent || !studentId) return
       const map = {}
+      const certVideos = list.filter((v) => requiresVideoCertification(v, studentId))
       await Promise.all(
-        list.map(async (v) => {
+        certVideos.map(async (v) => {
           try {
             map[v.videoId] = await fetchMyVideoCertification(v.videoId)
           } catch {
@@ -35,7 +47,7 @@ export default function ClassVideoSection({ classId, canManage, isStudent, onErr
       )
       setCerts(map)
     },
-    [isStudent],
+    [isStudent, studentId],
   )
 
   const load = useCallback(async () => {
@@ -67,8 +79,10 @@ export default function ClassVideoSection({ classId, canManage, isStudent, onErr
         title: form.title.trim(),
         description: form.description.trim() || null,
         publishedAt: form.publishedDate ? toInstant(form.publishedDate, '12:00') : null,
+        targetStudentIds: buildTargetStudentIdsPayload(createTarget, false),
       })
       setForm(EMPTY_FORM)
+      setCreateTarget(createInitialTarget(false))
       await load()
     } catch (err) {
       onError(err.message)
@@ -149,7 +163,7 @@ export default function ClassVideoSection({ classId, canManage, isStudent, onErr
     <section className="ams-class-detail__section">
       <h3 className="ams-class-detail__heading">영상 수업</h3>
       <p className="ams-class-detail__hint-inline">
-        등록 시 YouTube oEmbed로 썸네일을 가져옵니다. 비공개·미등록 영상은 썸네일 없이 표시됩니다.
+        모든 수강생이 영상을 시청할 수 있습니다. 인증 사진은 지정한 학생만 제출합니다.
       </p>
 
       {canManage && (
@@ -189,6 +203,15 @@ export default function ClassVideoSection({ classId, canManage, isStudent, onErr
               rows={2}
             />
           </label>
+          <StudentTargetPicker
+            className="ams-video-form__full"
+            classId={classId}
+            allByDefault={false}
+            label="인증 대상 학생"
+            value={createTarget}
+            onChange={setCreateTarget}
+            disabled={submitting}
+          />
           <button type="submit" className="ams-btn ams-btn--primary" disabled={submitting}>
             영상 등록
           </button>
@@ -205,6 +228,7 @@ export default function ClassVideoSection({ classId, canManage, isStudent, onErr
             const watch = youtubeWatchUrl(v.youtubeUrl)
             const isEditing = editingId === v.videoId
             const cert = certs[v.videoId]
+            const certRequired = requiresVideoCertification(v, studentId)
 
             return (
               <li key={v.videoId} className="ams-video-list__item">
@@ -280,7 +304,10 @@ export default function ClassVideoSection({ classId, canManage, isStudent, onErr
                       <h4 className="ams-video-list__title">{v.title}</h4>
                       <p className="ams-video-list__meta">
                         <time>{new Date(v.publishedAt).toLocaleDateString('ko-KR')}</time>
-                        {isStudent && (
+                        {canManage && v.targets && (
+                          <span> · {formatVideoCertTargetSummary(v.targets)}</span>
+                        )}
+                        {isStudent && certRequired && (
                           <span
                             className={
                               cert
@@ -297,7 +324,7 @@ export default function ClassVideoSection({ classId, canManage, isStudent, onErr
                       )}
                     </div>
 
-                    {isStudent && (
+                    {isStudent && certRequired && (
                       <div className="ams-video-cert">
                         {cert ? (
                           <p className="ams-video-cert__done">

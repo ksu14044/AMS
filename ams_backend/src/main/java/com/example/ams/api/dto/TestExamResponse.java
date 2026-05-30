@@ -5,6 +5,7 @@ import java.time.Instant;
 
 import com.example.ams.domain.clazz.AssignmentStatus;
 import com.example.ams.domain.clazz.TestExam;
+import com.example.ams.service.AssignmentTargetService.TargetView;
 
 public record TestExamResponse(
 		long testId,
@@ -18,9 +19,10 @@ public record TestExamResponse(
 		Integer retakeThresholdCount,
 		Long parentTestId,
 		int retakeAttemptNo,
-		long rootTestId) {
+		long rootTestId,
+		AssignmentTargetResponse targets) {
 
-	public static TestExamResponse from(TestExam test) {
+	public static TestExamResponse from(TestExam test, TargetView targets) {
 		return new TestExamResponse(
 				test.testId(),
 				test.classId(),
@@ -33,6 +35,7 @@ public record TestExamResponse(
 				test.retakeThresholdCount(),
 				test.parentTestId(),
 				test.retakeAttemptNo(),
-				test.rootTestId());
+				test.rootTestId(),
+				AssignmentTargetResponse.from(targets));
 	}
 }

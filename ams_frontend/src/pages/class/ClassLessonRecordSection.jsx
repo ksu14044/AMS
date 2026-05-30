@@ -7,6 +7,8 @@ import {
   updateLessonRecord,
 } from '../../api/classesApi'
 import { dayLabel } from '../../auth/dayLabels'
+import StudentTargetPicker from '../../components/StudentTargetPicker'
+import { buildTargetStudentIdsPayload, createInitialTarget } from '../../utils/assignmentTargets'
 
 const JS_DAY_TO_CLINIC = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
 
@@ -123,6 +125,10 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
   const [detailLoading, setDetailLoading] = useState(false)
   const [showWrite, setShowWrite] = useState(false)
   const [createForm, setCreateForm] = useState(EMPTY_CREATE)
+  const [homeworkTarget, setHomeworkTarget] = useState(() => createInitialTarget(true))
+  const [testTarget, setTestTarget] = useState(() => createInitialTarget(true))
+  const [videoTarget, setVideoTarget] = useState(() => createInitialTarget(false))
+  const [clinicTarget, setClinicTarget] = useState(() => createInitialTarget(true))
   const [editSummary, setEditSummary] = useState('')
   const [assistants, setAssistants] = useState([])
 
@@ -199,6 +205,18 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
   function closeWrite() {
     setShowWrite(false)
     setCreateForm(EMPTY_CREATE)
+    setHomeworkTarget(createInitialTarget(true))
+    setTestTarget(createInitialTarget(true))
+    setVideoTarget(createInitialTarget(false))
+    setClinicTarget(createInitialTarget(true))
+  }
+
+  function appendTargetPayload(item, target, allByDefault) {
+    const targetStudentIds = buildTargetStudentIdsPayload(target, allByDefault)
+    if (targetStudentIds !== undefined) {
+      item.targetStudentIds = targetStudentIds
+    }
+    return item
   }
 
   async function handleCreate(e) {
@@ -206,13 +224,25 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
     if (!createForm.lessonDate || !createForm.summary.trim()) return
     if (createForm.includeHomework && !createForm.homeworkTitle.trim()) return
     if (createForm.includeHomework && !createForm.homeworkQuestionCount) return
+    if (createForm.includeHomework && homeworkTarget.mode === 'custom' && homeworkTarget.studentIds.length === 0) {
+      onError('숙제 대상 학생을 한 명 이상 선택하세요.')
+      return
+    }
     if (createForm.includeTest && !createForm.testTitle.trim()) return
     if (createForm.includeTest && (!createForm.testQuestionCount || !createForm.testRetakeThresholdCount)) return
+    if (createForm.includeTest && testTarget.mode === 'custom' && testTarget.studentIds.length === 0) {
+      onError('테스트 대상 학생을 한 명 이상 선택하세요.')
+      return
+    }
     if (createForm.includeVideo && (!createForm.videoTitle.trim() || !createForm.youtubeUrl.trim())) {
       return
     }
     if (createForm.includeClinic) {
       if (!createForm.clinicDate || !createForm.clinicAssistantId) return
+      if (clinicTarget.mode === 'custom' && clinicTarget.studentIds.length === 0) {
+        onError('클리닉 대상 학생을 한 명 이상 선택하세요.')
+        return
+      }
     }
 
     const payload = {
@@ -220,31 +250,47 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
       summary: createForm.summary.trim(),
     }
     if (createForm.includeHomework) {
-      payload.homework = {
-        title: createForm.homeworkTitle.trim(),
-        questionCount: Number(createForm.homeworkQuestionCount),
-      }
+      payload.homework = appendTargetPayload(
+        {
+          title: createForm.homeworkTitle.trim(),
+          questionCount: Number(createForm.homeworkQuestionCount),
+        },
+        homeworkTarget,
+        true,
+      )
     }
     if (createForm.includeTest) {
-      payload.test = {
-        title: createForm.testTitle.trim(),
-        questionCount: Number(createForm.testQuestionCount),
-        retakeThresholdCount: Number(createForm.testRetakeThresholdCount),
-      }
+      payload.test = appendTargetPayload(
+        {
+          title: createForm.testTitle.trim(),
+          questionCount: Number(createForm.testQuestionCount),
+          retakeThresholdCount: Number(createForm.testRetakeThresholdCount),
+        },
+        testTarget,
+        true,
+      )
     }
     if (createForm.includeVideo) {
-      payload.video = {
-        title: createForm.videoTitle.trim(),
-        youtubeUrl: createForm.youtubeUrl.trim(),
-      }
+      payload.video = appendTargetPayload(
+        {
+          title: createForm.videoTitle.trim(),
+          youtubeUrl: createForm.youtubeUrl.trim(),
+        },
+        videoTarget,
+        false,
+      )
     }
     if (createForm.includeClinic) {
-      payload.clinic = {
-        clinicDate: createForm.clinicDate,
-        startTime: createForm.clinicStartTime,
-        assistantId: Number(createForm.clinicAssistantId),
-        maxCapacity: Number(createForm.clinicMaxCapacity) || 10,
-      }
+      payload.clinic = appendTargetPayload(
+        {
+          clinicDate: createForm.clinicDate,
+          startTime: createForm.clinicStartTime,
+          assistantId: Number(createForm.clinicAssistantId),
+          maxCapacity: Number(createForm.clinicMaxCapacity) || 10,
+        },
+        clinicTarget,
+        true,
+      )
     }
 
     setSubmitting(true)
@@ -347,7 +393,7 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
                 <OptionCard
                   active={createForm.includeHomework}
                   label="숙제"
-                  description="반 전원 대상"
+                  description="기본 반 전원 · 필요 시 학생 선택"
                   onToggle={() =>
                     setCreateForm({ ...createForm, includeHomework: !createForm.includeHomework })
                   }
@@ -379,12 +425,19 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
                       required
                     />
                   </label>
+                  <StudentTargetPicker
+                    classId={classId}
+                    allByDefault
+                    value={homeworkTarget}
+                    onChange={setHomeworkTarget}
+                    disabled={submitting}
+                  />
                 </OptionCard>
 
                 <OptionCard
                   active={createForm.includeTest}
                   label="테스트"
-                  description="반 전원 대상"
+                  description="기본 반 전원 · 필요 시 학생 선택"
                   onToggle={() => setCreateForm({ ...createForm, includeTest: !createForm.includeTest })}
                 >
                   <label className="ams-field ams-field--compact">
@@ -425,12 +478,19 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
                       required
                     />
                   </label>
+                  <StudentTargetPicker
+                    classId={classId}
+                    allByDefault
+                    value={testTarget}
+                    onChange={setTestTarget}
+                    disabled={submitting}
+                  />
                 </OptionCard>
 
                 <OptionCard
                   active={createForm.includeVideo}
                   label="영상"
-                  description="YouTube 링크"
+                  description="전원 시청 · 인증 대상 선택"
                   onToggle={() => setCreateForm({ ...createForm, includeVideo: !createForm.includeVideo })}
                 >
                   <label className="ams-field ams-field--compact">
@@ -455,6 +515,14 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
                       required
                     />
                   </label>
+                  <StudentTargetPicker
+                    classId={classId}
+                    allByDefault={false}
+                    label="인증 대상 학생"
+                    value={videoTarget}
+                    onChange={setVideoTarget}
+                    disabled={submitting}
+                  />
                 </OptionCard>
 
                 <OptionCard
@@ -531,6 +599,13 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
                       }
                     />
                   </label>
+                  <StudentTargetPicker
+                    classId={classId}
+                    allByDefault
+                    value={clinicTarget}
+                    onChange={setClinicTarget}
+                    disabled={submitting}
+                  />
                 </OptionCard>
               </div>
             </div>

@@ -22,6 +22,7 @@ public class VideoCertificationService {
 	private final VideoCertificationRepository certificationRepository;
 	private final VideoLessonRepository videoRepository;
 	private final ClassAccessService classAccessService;
+	private final AssignmentTargetService assignmentTargetService;
 	private final CurrentUserService currentUserService;
 	private final LocalFileStorageService fileStorageService;
 
@@ -29,11 +30,13 @@ public class VideoCertificationService {
 			VideoCertificationRepository certificationRepository,
 			VideoLessonRepository videoRepository,
 			ClassAccessService classAccessService,
+			AssignmentTargetService assignmentTargetService,
 			CurrentUserService currentUserService,
 			LocalFileStorageService fileStorageService) {
 		this.certificationRepository = certificationRepository;
 		this.videoRepository = videoRepository;
 		this.classAccessService = classAccessService;
+		this.assignmentTargetService = assignmentTargetService;
 		this.currentUserService = currentUserService;
 		this.fileStorageService = fileStorageService;
 	}
@@ -44,8 +47,13 @@ public class VideoCertificationService {
 			throw new BusinessException(ErrorCode.FORBIDDEN);
 		}
 		classAccessService.requireReadableClass(video.classId());
+		long studentId = currentUserService.requireUserId();
+		if (!assignmentTargetService.requiresVideoCertification(
+				video.videoId(), video.classId(), studentId)) {
+			return null;
+		}
 		return certificationRepository
-				.findByVideoIdAndStudentId(videoId, currentUserService.requireUserId())
+				.findByVideoIdAndStudentId(videoId, studentId)
 				.orElse(null);
 	}
 
@@ -68,6 +76,7 @@ public class VideoCertificationService {
 		classAccessService.requireReadableClass(video.classId());
 
 		long studentId = currentUserService.requireUserId();
+		requireTargetStudent(video, studentId);
 		long academyId = currentUserService.requireAcademyId();
 		String imageUrl = fileStorageService.storeCertificationImage(academyId, studentId, file);
 
@@ -91,5 +100,12 @@ public class VideoCertificationService {
 	private VideoLesson requireReadableVideo(long videoId) {
 		return videoRepository.findById(videoId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.VIDEO_NOT_FOUND));
+	}
+
+	private void requireTargetStudent(VideoLesson video, long studentId) {
+		if (!assignmentTargetService.requiresVideoCertification(
+				video.videoId(), video.classId(), studentId)) {
+			throw new BusinessException(ErrorCode.FORBIDDEN, "영상 인증 대상 학생만 제출할 수 있습니다.");
+		}
 	}
 }

@@ -11,6 +11,11 @@ import {
 } from '../../api/classesApi'
 import { useAuth } from '../../auth/AuthContext'
 import { CLINIC_DAY_OPTIONS, dayLabel } from '../../auth/dayLabels'
+import StudentTargetPicker from '../../components/StudentTargetPicker'
+import {
+  buildTargetStudentIdsPayload,
+  createInitialTarget,
+} from '../../utils/assignmentTargets'
 import { addDays, mondayOfWeek } from '../../utils/weekDate'
 import ClinicStaffCalendar from './ClinicStaffCalendar'
 import { pickDefaultClinicDay, summarizeClinicWeekByDay } from '../../utils/clinicWeekCalendar'
@@ -40,6 +45,7 @@ export default function ClassClinicSection({
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
+  const [createTarget, setCreateTarget] = useState(() => createInitialTarget(true))
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState(EMPTY_FORM)
   const [resultDraft, setResultDraft] = useState({})
@@ -107,17 +113,27 @@ export default function ClassClinicSection({
   async function handleCreate(e) {
     e.preventDefault()
     if (!form.assistantId) return
+    if (createTarget.mode === 'custom' && createTarget.studentIds.length === 0) {
+      onError('대상 학생을 한 명 이상 선택하세요.')
+      return
+    }
     setSubmitting(true)
     onError('')
     try {
-      await createClinicSlot(classId, {
+      const payload = {
         weekStartDate: weekStart,
         dayOfWeek: form.dayOfWeek,
         startTime: form.startTime,
         assistantId: Number(form.assistantId),
         maxCapacity: Number(form.maxCapacity) || 1,
-      })
+      }
+      const targetStudentIds = buildTargetStudentIdsPayload(createTarget, true)
+      if (targetStudentIds !== undefined) {
+        payload.targetStudentIds = targetStudentIds
+      }
+      await createClinicSlot(classId, payload)
       setForm(EMPTY_FORM)
+      setCreateTarget(createInitialTarget(true))
       setSelectedDay(form.dayOfWeek)
       await loadWeek()
     } catch (err) {
@@ -379,6 +395,14 @@ export default function ClassClinicSection({
               onChange={(e) => setForm({ ...form, maxCapacity: e.target.value })}
             />
           </label>
+          <StudentTargetPicker
+            className="ams-assignment-form__full"
+            classId={classId}
+            allByDefault
+            value={createTarget}
+            onChange={setCreateTarget}
+            disabled={submitting}
+          />
           <button type="submit" className="ams-btn ams-btn--primary" disabled={submitting}>
             슬롯 추가
           </button>

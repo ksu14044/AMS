@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.ams.common.BusinessException;
 import com.example.ams.common.ErrorCode;
 import com.example.ams.common.YoutubeUrlValidator;
+import com.example.ams.domain.clazz.AssignmentEntityType;
 import com.example.ams.domain.clazz.Clazz;
 import com.example.ams.domain.clazz.VideoLesson;
 import com.example.ams.event.VideoLessonCreatedEvent;
@@ -24,6 +25,7 @@ public class VideoLessonService {
 	private final VideoLessonRepository videoRepository;
 	private final ClassAccessService classAccessService;
 	private final CurrentUserService currentUserService;
+	private final AssignmentTargetService assignmentTargetService;
 	private final YoutubeOEmbedClient youtubeOEmbedClient;
 	private final ApplicationEventPublisher eventPublisher;
 
@@ -31,11 +33,13 @@ public class VideoLessonService {
 			VideoLessonRepository videoRepository,
 			ClassAccessService classAccessService,
 			CurrentUserService currentUserService,
+			AssignmentTargetService assignmentTargetService,
 			YoutubeOEmbedClient youtubeOEmbedClient,
 			ApplicationEventPublisher eventPublisher) {
 		this.videoRepository = videoRepository;
 		this.classAccessService = classAccessService;
 		this.currentUserService = currentUserService;
+		this.assignmentTargetService = assignmentTargetService;
 		this.youtubeOEmbedClient = youtubeOEmbedClient;
 		this.eventPublisher = eventPublisher;
 	}
@@ -45,16 +49,29 @@ public class VideoLessonService {
 		return videoRepository.findByClassId(classId);
 	}
 
+	public AssignmentTargetService.TargetView getTargets(long videoId) {
+		VideoLesson video = requireVideoInClass(videoId);
+		return assignmentTargetService.getTargetView(AssignmentEntityType.VIDEO, videoId, video.classId());
+	}
+
+	private VideoLesson requireVideoInClass(long videoId) {
+		VideoLesson video = videoRepository.findById(videoId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.VIDEO_NOT_FOUND));
+		classAccessService.requireReadableClass(video.classId());
+		return video;
+	}
+
 	@Transactional
 	public VideoLesson createVideo(
 			long classId,
 			String youtubeUrl,
 			String title,
 			String description,
-			Instant publishedAt) {
+			Instant publishedAt,
+			List<Long> targetStudentIds) {
 		Clazz clazz = classAccessService.requireReadableClass(classId);
 		classAccessService.requireManageClassContent(clazz);
-		return insertVideo(clazz.classId(), null, youtubeUrl, title, description, publishedAt);
+		return insertVideo(clazz.classId(), null, youtubeUrl, title, description, publishedAt, targetStudentIds);
 	}
 
 	@Transactional
@@ -63,10 +80,11 @@ public class VideoLessonService {
 			long lessonRecordId,
 			String youtubeUrl,
 			String title,
-			Instant publishedAt) {
+			Instant publishedAt,
+			List<Long> targetStudentIds) {
 		Clazz clazz = classAccessService.requireReadableClass(classId);
 		classAccessService.requireEditClassContent(clazz);
-		return insertVideo(clazz.classId(), lessonRecordId, youtubeUrl, title, null, publishedAt);
+		return insertVideo(clazz.classId(), lessonRecordId, youtubeUrl, title, null, publishedAt, targetStudentIds);
 	}
 
 	private VideoLesson insertVideo(
@@ -75,7 +93,8 @@ public class VideoLessonService {
 			String youtubeUrl,
 			String title,
 			String description,
-			Instant publishedAt) {
+			Instant publishedAt,
+			List<Long> targetStudentIds) {
 		String normalizedUrl = youtubeUrl.trim();
 		YoutubeUrlValidator.requireValid(normalizedUrl);
 		String thumbnailUrl = resolveThumbnail(normalizedUrl);
@@ -89,8 +108,20 @@ public class VideoLessonService {
 				thumbnailUrl,
 				when,
 				currentUserService.requireUserId());
+		assignmentTargetService.applyOnCreate(
+				AssignmentEntityType.VIDEO, created.videoId(), classId, targetStudentIds);
 		eventPublisher.publishEvent(new VideoLessonCreatedEvent(classId, created.videoId(), title));
 		return created;
+	}
+
+	@Transactional
+	public VideoLesson saveTargets(long videoId, List<Long> studentIds) {
+		VideoLesson video = requireVideoInClass(videoId);
+		classAccessService.requireEditClassContent(
+				classAccessService.requireReadableClass(video.classId()));
+		assignmentTargetService.saveExplicitTargets(
+				AssignmentEntityType.VIDEO, videoId, video.classId(), studentIds);
+		return videoRepository.findById(videoId).orElseThrow();
 	}
 
 	@Transactional

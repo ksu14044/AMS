@@ -3,6 +3,7 @@ package com.example.ams.api.dto;
 import java.time.Instant;
 
 import com.example.ams.domain.clazz.VideoLesson;
+import com.example.ams.service.AssignmentTargetService.TargetView;
 
 public record VideoLessonResponse(
 		long videoId,
@@ -13,9 +14,10 @@ public record VideoLessonResponse(
 		String thumbnailUrl,
 		Instant publishedAt,
 		long authorId,
-		boolean thumbnailAvailable) {
+		boolean thumbnailAvailable,
+		AssignmentTargetResponse targets) {
 
-	public static VideoLessonResponse from(VideoLesson video) {
+	public static VideoLessonResponse from(VideoLesson video, TargetView targets) {
 		return new VideoLessonResponse(
 				video.videoId(),
 				video.classId(),
@@ -25,6 +27,7 @@ public record VideoLessonResponse(
 				video.thumbnailUrl(),
 				video.publishedAt(),
 				video.authorId(),
-				video.thumbnailUrl() != null && !video.thumbnailUrl().isBlank());
+				video.thumbnailUrl() != null && !video.thumbnailUrl().isBlank(),
+				AssignmentTargetResponse.from(targets));
 	}
 }

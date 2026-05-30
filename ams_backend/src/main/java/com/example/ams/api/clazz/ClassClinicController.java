@@ -39,7 +39,8 @@ public class ClassClinicController {
 			@PathVariable long classId,
 			@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate weekStart) {
 		List<ClinicSlotResponse> slots = clinicSlotService.listSlots(classId, weekStart).stream()
-				.map(ClinicSlotResponse::from)
+				.map(slot -> ClinicSlotResponse.from(
+						slot, clinicSlotService.getTargets(slot.slotId())))
 				.toList();
 		return ApiResponse.ok(slots);
 	}
@@ -63,8 +64,10 @@ public class ClassClinicController {
 				request.dayOfWeek(),
 				request.startTime(),
 				request.assistantId(),
-				capacity);
-		return ApiResponse.ok(ClinicSlotResponse.from(created));
+				capacity,
+				request.targetStudentIds());
+		return ApiResponse.ok(ClinicSlotResponse.from(
+				created, clinicSlotService.getTargets(created.slotId())));
 	}
 
 	@PatchMapping("/slots/{slotId}")
@@ -80,7 +83,8 @@ public class ClassClinicController {
 				request.startTime(),
 				request.assistantId(),
 				capacity);
-		return ApiResponse.ok(ClinicSlotResponse.from(updated));
+		return ApiResponse.ok(ClinicSlotResponse.from(
+				updated, clinicSlotService.getTargets(updated.slotId())));
 	}
 
 	@DeleteMapping("/slots/{slotId}")

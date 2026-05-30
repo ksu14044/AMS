@@ -104,7 +104,8 @@ public class LessonRecordService {
 					classId,
 					lessonRecordId,
 					request.homework().title().trim(),
-					request.homework().questionCount());
+					request.homework().questionCount(),
+					request.homework().targetStudentIds());
 		}
 		if (request.test() != null) {
 			var testItem = request.test();
@@ -114,7 +115,8 @@ public class LessonRecordService {
 					testItem.title().trim(),
 					instantAt(lessonDate, LocalTime.of(14, 0)),
 					testItem.questionCount(),
-					testItem.retakeThresholdCount());
+					testItem.retakeThresholdCount(),
+					testItem.targetStudentIds());
 		}
 		if (request.video() != null) {
 			videoLessonService.createVideoForLessonRecord(
@@ -122,7 +124,8 @@ public class LessonRecordService {
 					lessonRecordId,
 					request.video().youtubeUrl(),
 					request.video().title().trim(),
-					instantAt(lessonDate, LocalTime.of(9, 0)));
+					instantAt(lessonDate, LocalTime.of(9, 0)),
+					request.video().targetStudentIds());
 		}
 		if (request.clinic() != null) {
 			var clinic = request.clinic();
@@ -132,7 +135,8 @@ public class LessonRecordService {
 					clinic.clinicDate(),
 					clinic.startTime(),
 					clinic.assistantId(),
-					clinic.resolvedMaxCapacity());
+					clinic.resolvedMaxCapacity(),
+					clinic.targetStudentIds());
 		}
 
 		return toDetailRow(lessonRecordRepository.findById(lessonRecordId).orElseThrow());

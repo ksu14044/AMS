@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.ams.common.BusinessException;
 import com.example.ams.common.ClinicBookingPolicy;
 import com.example.ams.common.ErrorCode;
+import com.example.ams.domain.clazz.AssignmentEntityType;
 import com.example.ams.domain.clazz.Clazz;
 import com.example.ams.domain.clazz.ClinicReservation;
 import com.example.ams.domain.clazz.ClinicWeek;
@@ -39,6 +40,7 @@ public class NotificationService {
 	private final ClinicWeekRepository clinicWeekRepository;
 	private final ClinicSlotRepository clinicSlotRepository;
 	private final ClinicReservationRepository clinicReservationRepository;
+	private final AssignmentTargetService assignmentTargetService;
 	private final CurrentUserService currentUserService;
 
 	public NotificationService(
@@ -50,6 +52,7 @@ public class NotificationService {
 			ClinicWeekRepository clinicWeekRepository,
 			ClinicSlotRepository clinicSlotRepository,
 			ClinicReservationRepository clinicReservationRepository,
+			AssignmentTargetService assignmentTargetService,
 			CurrentUserService currentUserService) {
 		this.notificationRepository = notificationRepository;
 		this.enrollmentRepository = enrollmentRepository;
@@ -59,6 +62,7 @@ public class NotificationService {
 		this.clinicWeekRepository = clinicWeekRepository;
 		this.clinicSlotRepository = clinicSlotRepository;
 		this.clinicReservationRepository = clinicReservationRepository;
+		this.assignmentTargetService = assignmentTargetService;
 		this.currentUserService = currentUserService;
 	}
 
@@ -108,8 +112,14 @@ public class NotificationService {
 	public void notifyVideoLessonCreated(long classId, long videoId, String title) {
 		Clazz clazz = requireClass(classId);
 		String label = NotificationMessages.classLabel(clazz.subject(), clazz.name());
-		notifyClassStudents(
+		List<Long> targets = assignmentTargetService.resolveTargetStudentIds(
+				AssignmentEntityType.VIDEO, videoId, classId);
+		if (targets.isEmpty()) {
+			return;
+		}
+		notifyStudents(
 				clazz,
+				targets,
 				NotificationType.VIDEO_LESSON,
 				label + " 영상 수업 업로드: " + title,
 				title,
@@ -121,8 +131,10 @@ public class NotificationService {
 	public void notifyHomeworkCreated(long classId, long homeworkId, String title) {
 		Clazz clazz = requireClass(classId);
 		String label = NotificationMessages.classLabel(clazz.subject(), clazz.name());
-		notifyClassStudents(
+		notifyStudents(
 				clazz,
+				assignmentTargetService.resolveTargetStudentIds(
+						AssignmentEntityType.HOMEWORK, homeworkId, classId),
 				NotificationType.HOMEWORK_CREATED,
 				label + " 숙제 등록: " + title,
 				title,
@@ -134,8 +146,10 @@ public class NotificationService {
 	public void notifyTestCreated(long classId, long testId, String title) {
 		Clazz clazz = requireClass(classId);
 		String label = NotificationMessages.classLabel(clazz.subject(), clazz.name());
-		notifyClassStudents(
+		notifyStudents(
 				clazz,
+				assignmentTargetService.resolveTargetStudentIds(
+						AssignmentEntityType.TEST, testId, classId),
 				NotificationType.TEST_CREATED,
 				label + " 테스트 등록: " + title,
 				title,
@@ -287,8 +301,22 @@ public class NotificationService {
 			String body,
 			NotificationReferenceType referenceType,
 			long referenceId) {
-		for (var enrollment : enrollmentRepository.findByClassId(clazz.classId())) {
-			notifyStudent(clazz, enrollment.studentId(), type, title, body, referenceType, referenceId);
+		List<Long> studentIds = enrollmentRepository.findByClassId(clazz.classId()).stream()
+				.map(e -> e.studentId())
+				.toList();
+		notifyStudents(clazz, studentIds, type, title, body, referenceType, referenceId);
+	}
+
+	private void notifyStudents(
+			Clazz clazz,
+			List<Long> studentIds,
+			NotificationType type,
+			String title,
+			String body,
+			NotificationReferenceType referenceType,
+			long referenceId) {
+		for (long studentId : studentIds) {
+			notifyStudent(clazz, studentId, type, title, body, referenceType, referenceId);
 		}
 	}
 

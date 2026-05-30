@@ -4,6 +4,7 @@ import java.time.Instant;
 
 import com.example.ams.domain.clazz.AssignmentStatus;
 import com.example.ams.domain.clazz.Homework;
+import com.example.ams.service.AssignmentTargetService.TargetView;
 
 public record HomeworkResponse(
 		long homeworkId,
@@ -11,15 +12,17 @@ public record HomeworkResponse(
 		String title,
 		Integer questionCount,
 		AssignmentStatus status,
-		Instant createdAt) {
+		Instant createdAt,
+		AssignmentTargetResponse targets) {
 
-	public static HomeworkResponse from(Homework homework) {
+	public static HomeworkResponse from(Homework homework, TargetView targets) {
 		return new HomeworkResponse(
 				homework.homeworkId(),
 				homework.classId(),
 				homework.title(),
 				homework.questionCount(),
 				homework.status(),
-				homework.createdAt());
+				homework.createdAt(),
+				AssignmentTargetResponse.from(targets));
 	}
 }

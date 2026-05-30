@@ -16,9 +16,11 @@ import com.example.ams.api.dto.GradeHomeworkSubmissionRequest;
 import com.example.ams.api.dto.HomeworkAnswerKeyResponse;
 import com.example.ams.api.dto.HomeworkResponse;
 import com.example.ams.api.dto.HomeworkSubmissionResponse;
+import com.example.ams.api.dto.SaveAssignmentTargetRequest;
 import com.example.ams.api.dto.SaveHomeworkAnswerKeyRequest;
 import com.example.ams.api.dto.UpdateHomeworkSubmissionRequest;
 import com.example.ams.common.ApiResponse;
+import com.example.ams.domain.clazz.Homework;
 import com.example.ams.service.HomeworkService;
 
 import jakarta.validation.Valid;
@@ -36,7 +38,7 @@ public class ClassHomeworkController {
 	@GetMapping
 	public ApiResponse<List<HomeworkResponse>> list(@PathVariable long classId) {
 		List<HomeworkResponse> list = homeworkService.listHomeworks(classId).stream()
-				.map(HomeworkResponse::from)
+				.map(this::toResponse)
 				.toList();
 		return ApiResponse.ok(list);
 	}
@@ -45,8 +47,20 @@ public class ClassHomeworkController {
 	public ApiResponse<HomeworkResponse> create(
 			@PathVariable long classId,
 			@Valid @RequestBody CreateHomeworkRequest request) {
-		return ApiResponse.ok(HomeworkResponse.from(
-				homeworkService.createHomework(classId, request.title(), request.questionCount())));
+		Homework created = homeworkService.createHomework(
+				classId,
+				request.title(),
+				request.questionCount(),
+				request.targetStudentIds());
+		return ApiResponse.ok(toResponse(created));
+	}
+
+	@PutMapping("/{homeworkId}/targets")
+	public ApiResponse<HomeworkResponse> saveTargets(
+			@PathVariable long homeworkId,
+			@Valid @RequestBody SaveAssignmentTargetRequest request) {
+		Homework homework = homeworkService.saveTargets(homeworkId, request.studentIds());
+		return ApiResponse.ok(toResponse(homework));
 	}
 
 	@GetMapping("/{homeworkId}/answer-keys")
@@ -109,6 +123,10 @@ public class ClassHomeworkController {
 
 	@PatchMapping("/{homeworkId}/complete")
 	public ApiResponse<HomeworkResponse> complete(@PathVariable long homeworkId) {
-		return ApiResponse.ok(HomeworkResponse.from(homeworkService.markCompleted(homeworkId)));
+		return ApiResponse.ok(toResponse(homeworkService.markCompleted(homeworkId)));
+	}
+
+	private HomeworkResponse toResponse(Homework homework) {
+		return HomeworkResponse.from(homework, homeworkService.getTargets(homework.homeworkId()));
 	}
 }

@@ -17,7 +17,7 @@ public record MyAssistantClinicSlotResponse(
 		return new MyAssistantClinicSlotResponse(
 				item.classId(),
 				item.className(),
-				ClinicSlotResponse.from(item.slot()),
+				ClinicSlotResponse.from(item.slot(), item.targets()),
 				item.bookedCount(),
 				item.maxCapacity(),
 				item.full(),

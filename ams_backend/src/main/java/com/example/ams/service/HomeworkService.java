@@ -16,6 +16,7 @@ import com.example.ams.common.ErrorCode;
 import com.example.ams.common.HomeworkAnswersJson;
 import com.example.ams.domain.clazz.AssignmentStatus;
 import com.example.ams.domain.clazz.Clazz;
+import com.example.ams.domain.clazz.AssignmentEntityType;
 import com.example.ams.domain.clazz.Homework;
 import com.example.ams.domain.clazz.HomeworkAnswerKey;
 import com.example.ams.domain.clazz.HomeworkSubmission;
@@ -40,6 +41,7 @@ public class HomeworkService {
 	private final UserRepository userRepository;
 	private final ClassAccessService classAccessService;
 	private final CurrentUserService currentUserService;
+	private final AssignmentTargetService assignmentTargetService;
 	private final ApplicationEventPublisher eventPublisher;
 
 	public HomeworkService(
@@ -50,6 +52,7 @@ public class HomeworkService {
 			UserRepository userRepository,
 			ClassAccessService classAccessService,
 			CurrentUserService currentUserService,
+			AssignmentTargetService assignmentTargetService,
 			ApplicationEventPublisher eventPublisher) {
 		this.homeworkRepository = homeworkRepository;
 		this.answerKeyRepository = answerKeyRepository;
@@ -58,12 +61,27 @@ public class HomeworkService {
 		this.userRepository = userRepository;
 		this.classAccessService = classAccessService;
 		this.currentUserService = currentUserService;
+		this.assignmentTargetService = assignmentTargetService;
 		this.eventPublisher = eventPublisher;
 	}
 
 	public List<Homework> listHomeworks(long classId) {
 		classAccessService.requireReadableClass(classId);
-		return homeworkRepository.findByClassId(classId);
+		List<Homework> homeworks = homeworkRepository.findByClassId(classId);
+		if (currentUserService.requireRole() == UserRole.STUDENT) {
+			long me = currentUserService.requireUserId();
+			return homeworks.stream()
+					.filter(h -> assignmentTargetService.canStudentAccess(
+							AssignmentEntityType.HOMEWORK, h.homeworkId(), classId, me))
+					.toList();
+		}
+		return homeworks;
+	}
+
+	public AssignmentTargetService.TargetView getTargets(long homeworkId) {
+		Homework homework = getHomework(homeworkId);
+		return assignmentTargetService.getTargetView(
+				AssignmentEntityType.HOMEWORK, homeworkId, homework.classId());
 	}
 
 	public Homework getHomework(long homeworkId) {
@@ -76,9 +94,8 @@ public class HomeworkService {
 	public List<SubmissionRow> listSubmissionRows(long homeworkId) {
 		Homework homework = getHomework(homeworkId);
 		long classId = homework.classId();
-		List<Long> studentIds = enrollmentRepository.findByClassId(classId).stream()
-				.map(e -> e.studentId())
-				.toList();
+		List<Long> studentIds = assignmentTargetService.resolveTargetStudentIds(
+				AssignmentEntityType.HOMEWORK, homeworkId, classId);
 		Map<Long, HomeworkSubmission> byStudent = submissionRepository.findByHomeworkId(homeworkId).stream()
 				.collect(Collectors.toMap(HomeworkSubmission::studentId, s -> s));
 
@@ -99,10 +116,10 @@ public class HomeworkService {
 	}
 
 	@Transactional
-	public Homework createHomework(long classId, String title, Integer questionCount) {
+	public Homework createHomework(long classId, String title, Integer questionCount, List<Long> targetStudentIds) {
 		Clazz clazz = classAccessService.requireReadableClass(classId);
 		classAccessService.requireManageClassContent(clazz);
-		return insertHomework(classId, null, title, questionCount);
+		return insertHomework(classId, null, title, questionCount, targetStudentIds);
 	}
 
 	@Transactional
@@ -110,24 +127,54 @@ public class HomeworkService {
 			long classId,
 			long lessonRecordId,
 			String title,
-			Integer questionCount) {
+			Integer questionCount,
+			List<Long> targetStudentIds) {
 		Clazz clazz = classAccessService.requireReadableClass(classId);
 		classAccessService.requireEditClassContent(clazz);
-		return insertHomework(classId, lessonRecordId, title, questionCount);
+		return insertHomework(classId, lessonRecordId, title, questionCount, targetStudentIds);
 	}
 
-	private Homework insertHomework(long classId, Long lessonRecordId, String title, Integer questionCount) {
+	private Homework insertHomework(
+			long classId,
+			Long lessonRecordId,
+			String title,
+			Integer questionCount,
+			List<Long> targetStudentIds) {
 		Homework homework = homeworkRepository.insert(
 				classId,
 				lessonRecordId,
 				title,
 				questionCount,
 				AssignmentStatus.SCHEDULED);
-		for (var e : enrollmentRepository.findByClassId(classId)) {
-			submissionRepository.insertEmpty(homework.homeworkId(), e.studentId());
+		assignmentTargetService.applyOnCreate(
+				AssignmentEntityType.HOMEWORK,
+				homework.homeworkId(),
+				classId,
+				targetStudentIds);
+		for (long studentId : assignmentTargetService.resolveTargetStudentIds(
+				AssignmentEntityType.HOMEWORK, homework.homeworkId(), classId)) {
+			submissionRepository.insertEmpty(homework.homeworkId(), studentId);
 		}
 		eventPublisher.publishEvent(new HomeworkCreatedEvent(classId, homework.homeworkId(), title));
 		return homework;
+	}
+
+	@Transactional
+	public Homework saveTargets(long homeworkId, List<Long> studentIds) {
+		Homework homework = getHomework(homeworkId);
+		classAccessService.requireEditClassContent(
+				classAccessService.requireReadableClass(homework.classId()));
+		if (studentIds.isEmpty()) {
+			throw new BusinessException(ErrorCode.INVALID_REQUEST, "대상 학생을 1명 이상 선택하세요.");
+		}
+		assignmentTargetService.saveExplicitTargets(
+				AssignmentEntityType.HOMEWORK, homeworkId, homework.classId(), studentIds);
+		for (long studentId : studentIds) {
+			if (submissionRepository.findByHomeworkIdAndStudentId(homeworkId, studentId).isEmpty()) {
+				submissionRepository.insertEmpty(homeworkId, studentId);
+			}
+		}
+		return homeworkRepository.findById(homeworkId).orElseThrow();
 	}
 
 	public List<HomeworkAnswerKey> getAnswerKeys(long homeworkId) {

@@ -49,6 +49,7 @@ public class StudyRecordService {
 	private final TestScoreRepository testScoreRepository;
 	private final VideoLessonRepository videoLessonRepository;
 	private final VideoCertificationRepository videoCertificationRepository;
+	private final AssignmentTargetService assignmentTargetService;
 
 	public StudyRecordService(
 			ClassAccessService classAccessService,
@@ -61,7 +62,8 @@ public class StudyRecordService {
 			TestExamRepository testExamRepository,
 			TestScoreRepository testScoreRepository,
 			VideoLessonRepository videoLessonRepository,
-			VideoCertificationRepository videoCertificationRepository) {
+			VideoCertificationRepository videoCertificationRepository,
+			AssignmentTargetService assignmentTargetService) {
 		this.classAccessService = classAccessService;
 		this.currentUserService = currentUserService;
 		this.enrollmentRepository = enrollmentRepository;
@@ -73,6 +75,7 @@ public class StudyRecordService {
 		this.testScoreRepository = testScoreRepository;
 		this.videoLessonRepository = videoLessonRepository;
 		this.videoCertificationRepository = videoCertificationRepository;
+		this.assignmentTargetService = assignmentTargetService;
 	}
 
 	public StudyRecordResponse getMyRecord(long classId) {
@@ -234,12 +237,21 @@ public class StudyRecordService {
 	}
 
 	private StudyRecordMetricResponse computeVideo(long classId, long studentId) {
-		int total = videoLessonRepository.findByClassId(classId).size();
+		long total = videoLessonRepository.findByClassId(classId).stream()
+				.filter(v -> assignmentTargetService.requiresVideoCertification(
+						v.videoId(), classId, studentId))
+				.count();
 		if (total == 0) {
 			return new StudyRecordMetricResponse(0, 0, 0);
 		}
-		int certified = videoCertificationRepository.countByClassIdAndStudentId(classId, studentId);
-		return new StudyRecordMetricResponse(certified, total, percent(certified, total));
+		int certified = (int) videoLessonRepository.findByClassId(classId).stream()
+				.filter(v -> assignmentTargetService.requiresVideoCertification(
+						v.videoId(), classId, studentId))
+				.filter(v -> videoCertificationRepository
+						.findByVideoIdAndStudentId(v.videoId(), studentId)
+						.isPresent())
+				.count();
+		return new StudyRecordMetricResponse(certified, (int) total, percent(certified, (int) total));
 	}
 
 	private static int percent(int numerator, int denominator) {

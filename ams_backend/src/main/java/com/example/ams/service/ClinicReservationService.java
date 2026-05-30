@@ -17,6 +17,7 @@ import com.example.ams.common.ClinicBookingPolicy;
 import com.example.ams.common.ErrorCode;
 import com.example.ams.common.WeekStartDateValidator;
 import com.example.ams.domain.clazz.Clazz;
+import com.example.ams.domain.clazz.AssignmentEntityType;
 import com.example.ams.domain.clazz.ClinicReservation;
 import com.example.ams.domain.clazz.ClinicSlot;
 import com.example.ams.domain.clazz.ClinicWeek;
@@ -37,6 +38,7 @@ public class ClinicReservationService {
 	private final ClinicReservationRepository reservationRepository;
 	private final ClassEnrollmentRepository enrollmentRepository;
 	private final ClassAccessService classAccessService;
+	private final AssignmentTargetService assignmentTargetService;
 	private final CurrentUserService currentUserService;
 	private final ApplicationEventPublisher eventPublisher;
 
@@ -46,6 +48,7 @@ public class ClinicReservationService {
 			ClinicReservationRepository reservationRepository,
 			ClassEnrollmentRepository enrollmentRepository,
 			ClassAccessService classAccessService,
+			AssignmentTargetService assignmentTargetService,
 			CurrentUserService currentUserService,
 			ApplicationEventPublisher eventPublisher) {
 		this.weekRepository = weekRepository;
@@ -53,6 +56,7 @@ public class ClinicReservationService {
 		this.reservationRepository = reservationRepository;
 		this.enrollmentRepository = enrollmentRepository;
 		this.classAccessService = classAccessService;
+		this.assignmentTargetService = assignmentTargetService;
 		this.currentUserService = currentUserService;
 		this.eventPublisher = eventPublisher;
 	}
@@ -61,15 +65,20 @@ public class ClinicReservationService {
 		classAccessService.requireClinicReadableClass(classId);
 		LocalDate monday = WeekStartDateValidator.requireMonday(weekStart);
 		ClinicWeek week = weekRepository.ensureOpenWeek(classId, monday);
+		long currentStudentId = currentUserService.requireRole() == UserRole.STUDENT
+				? currentUserService.requireUserId()
+				: -1L;
 		List<ClinicSlot> slots = slotRepository.findByClassIdAndWeekStart(classId, monday);
+		if (currentStudentId > 0) {
+			slots = slots.stream()
+					.filter(slot -> assignmentTargetService.canStudentAccess(
+							AssignmentEntityType.CLINIC_SLOT, slot.slotId(), classId, currentStudentId))
+					.toList();
+		}
 		List<Long> slotIds = slots.stream().map(ClinicSlot::slotId).toList();
 		List<ClinicReservation> reservations = reservationRepository.findBySlotIds(slotIds);
 		Map<Long, List<ClinicReservation>> bySlot = reservations.stream()
 				.collect(Collectors.groupingBy(ClinicReservation::slotId));
-
-		long currentStudentId = currentUserService.requireRole() == UserRole.STUDENT
-				? currentUserService.requireUserId()
-				: -1L;
 
 		boolean bookingOpen = ClinicBookingPolicy.canStudentBook(week.status(), monday);
 		Set<String> myBookedTimeKeys = new HashSet<>();
@@ -109,7 +118,9 @@ public class ClinicReservationService {
 					booked >= slot.maxCapacity(),
 					myReservationId,
 					studentTimeConflict,
-					slotReservations));
+					slotReservations,
+					assignmentTargetService.getTargetView(
+							AssignmentEntityType.CLINIC_SLOT, slot.slotId(), classId)));
 		}
 
 		return new ClinicWeekView(
@@ -150,7 +161,9 @@ public class ClinicReservationService {
 					booked,
 					slot.maxCapacity(),
 					booked >= slot.maxCapacity(),
-					slotReservations));
+					slotReservations,
+					assignmentTargetService.getTargetView(
+							AssignmentEntityType.CLINIC_SLOT, slot.slotId(), slot.classId())));
 		}
 		return new MyAssistantClinicWeekView(monday, items);
 	}
@@ -162,6 +175,10 @@ public class ClinicReservationService {
 		classAccessService.requireReadableClass(classId);
 		if (!enrollmentRepository.existsByClassIdAndStudentId(classId, studentId)) {
 			throw new BusinessException(ErrorCode.FORBIDDEN);
+		}
+		if (!assignmentTargetService.canStudentAccess(
+				AssignmentEntityType.CLINIC_SLOT, slotId, classId, studentId)) {
+			throw new BusinessException(ErrorCode.FORBIDDEN, "클리닉 대상 학생만 예약할 수 있습니다.");
 		}
 
 		ClinicSlot slot = requireSlotInClass(classId, slotId);
@@ -269,7 +286,8 @@ public class ClinicReservationService {
 			boolean full,
 			Long myReservationId,
 			boolean studentTimeConflict,
-			List<ClinicReservation> reservations) {
+			List<ClinicReservation> reservations,
+			AssignmentTargetService.TargetView targets) {
 	}
 
 	public record MyAssistantClinicWeekView(LocalDate weekStart, List<AssistantClinicSlotItem> slots) {
@@ -282,7 +300,8 @@ public class ClinicReservationService {
 			int bookedCount,
 			int maxCapacity,
 			boolean full,
-			List<ClinicReservation> reservations) {
+			List<ClinicReservation> reservations,
+			AssignmentTargetService.TargetView targets) {
 	}
 
 	private static String timeKey(ClinicSlot slot) {

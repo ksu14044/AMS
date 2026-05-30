@@ -20,6 +20,7 @@ import com.example.ams.api.dto.TestExamResponse;
 import com.example.ams.api.dto.TestScoreResponse;
 import com.example.ams.api.dto.UpdateTestScoresRequest;
 import com.example.ams.common.ApiResponse;
+import com.example.ams.domain.clazz.TestExam;
 import com.example.ams.service.TestExamService;
 import com.example.ams.service.TestExamService.ScoreUpdate;
 
@@ -38,7 +39,7 @@ public class ClassTestController {
 	@GetMapping
 	public ApiResponse<List<TestExamResponse>> list(@PathVariable long classId) {
 		List<TestExamResponse> list = testExamService.listTests(classId).stream()
-				.map(TestExamResponse::from)
+				.map(this::toResponse)
 				.toList();
 		return ApiResponse.ok(list);
 	}
@@ -47,21 +48,21 @@ public class ClassTestController {
 	public ApiResponse<TestExamResponse> create(
 			@PathVariable long classId,
 			@Valid @RequestBody CreateTestRequest request) {
-		return ApiResponse.ok(TestExamResponse.from(
-				testExamService.createTest(
-						classId,
-						request.title(),
-						request.testAt(),
-						request.questionCount(),
-						request.retakeThresholdCount())));
+		TestExam created = testExamService.createTest(
+				classId,
+				request.title(),
+				request.testAt(),
+				request.questionCount(),
+				request.retakeThresholdCount(),
+				request.targetStudentIds());
+		return ApiResponse.ok(toResponse(created));
 	}
 
 	@PostMapping("/{testId}/retakes")
 	public ApiResponse<TestExamResponse> createRetake(
 			@PathVariable long testId,
 			@Valid @RequestBody CreateTestRetakeRequest request) {
-		return ApiResponse.ok(TestExamResponse.from(
-				testExamService.createRetake(testId, request.testAt())));
+		return ApiResponse.ok(toResponse(testExamService.createRetake(testId, request.testAt())));
 	}
 
 	@GetMapping("/{testId}/answer-keys")
@@ -83,7 +84,7 @@ public class ClassTestController {
 
 	@GetMapping("/{testId}/scores")
 	public ApiResponse<List<TestScoreResponse>> listScores(@PathVariable long testId) {
-		var test = testExamService.getTest(testId);
+		TestExam test = testExamService.getTest(testId);
 		List<TestScoreResponse> rows = testExamService.listScoreRows(testId).stream()
 				.map(row -> TestScoreResponse.from(row, test))
 				.toList();
@@ -97,7 +98,7 @@ public class ClassTestController {
 		List<ScoreUpdate> updates = request.scores().stream()
 				.map(s -> new ScoreUpdate(s.studentId(), s.rawScore(), s.grade()))
 				.toList();
-		return ApiResponse.ok(TestExamResponse.from(testExamService.saveScores(testId, updates)));
+		return ApiResponse.ok(toResponse(testExamService.saveScores(testId, updates)));
 	}
 
 	@PatchMapping("/{testId}/scores/{studentId}/grade")
@@ -105,9 +106,8 @@ public class ClassTestController {
 			@PathVariable long testId,
 			@PathVariable long studentId,
 			@Valid @RequestBody GradeHomeworkSubmissionRequest request) {
-		var test = testExamService.getTest(testId);
 		testExamService.gradeScore(testId, studentId, request.answers());
-		test = testExamService.getTest(testId);
+		TestExam test = testExamService.getTest(testId);
 		var row = testExamService.listScoreRows(testId).stream()
 				.filter(r -> r.studentId() == studentId)
 				.findFirst()
@@ -117,6 +117,10 @@ public class ClassTestController {
 
 	@PatchMapping("/{testId}/complete")
 	public ApiResponse<TestExamResponse> complete(@PathVariable long testId) {
-		return ApiResponse.ok(TestExamResponse.from(testExamService.completeTest(testId)));
+		return ApiResponse.ok(toResponse(testExamService.completeTest(testId)));
+	}
+
+	private TestExamResponse toResponse(TestExam test) {
+		return TestExamResponse.from(test, testExamService.getTargets(test.testId()));
 	}
 }

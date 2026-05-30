@@ -5,6 +5,7 @@ import java.time.LocalTime;
 
 import com.example.ams.domain.clazz.ClinicSlot;
 import com.example.ams.domain.clazz.DayOfWeek;
+import com.example.ams.service.AssignmentTargetService.TargetView;
 
 public record ClinicSlotResponse(
 		long slotId,
@@ -14,9 +15,10 @@ public record ClinicSlotResponse(
 		LocalTime startTime,
 		Long assistantId,
 		String assistantName,
-		int maxCapacity) {
+		int maxCapacity,
+		AssignmentTargetResponse targets) {
 
-	public static ClinicSlotResponse from(ClinicSlot slot) {
+	public static ClinicSlotResponse from(ClinicSlot slot, TargetView targets) {
 		return new ClinicSlotResponse(
 				slot.slotId(),
 				slot.classId(),
@@ -25,6 +27,7 @@ public record ClinicSlotResponse(
 				slot.startTime(),
 				slot.assistantId(),
 				slot.assistantName(),
-				slot.maxCapacity());
+				slot.maxCapacity(),
+				AssignmentTargetResponse.from(targets));
 	}
 }

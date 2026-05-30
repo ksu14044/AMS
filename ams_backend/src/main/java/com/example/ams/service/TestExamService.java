@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.ams.common.BusinessException;
 import com.example.ams.common.ErrorCode;
 import com.example.ams.common.HomeworkAnswersJson;
+import com.example.ams.domain.clazz.AssignmentEntityType;
 import com.example.ams.domain.clazz.AssignmentStatus;
 import com.example.ams.domain.clazz.Clazz;
 import com.example.ams.domain.clazz.TestAnswerKey;
@@ -42,6 +43,7 @@ public class TestExamService {
 	private final UserRepository userRepository;
 	private final ClassAccessService classAccessService;
 	private final CurrentUserService currentUserService;
+	private final AssignmentTargetService assignmentTargetService;
 	private final ApplicationEventPublisher eventPublisher;
 
 	public TestExamService(
@@ -52,6 +54,7 @@ public class TestExamService {
 			UserRepository userRepository,
 			ClassAccessService classAccessService,
 			CurrentUserService currentUserService,
+			AssignmentTargetService assignmentTargetService,
 			ApplicationEventPublisher eventPublisher) {
 		this.testRepository = testRepository;
 		this.scoreRepository = scoreRepository;
@@ -60,12 +63,37 @@ public class TestExamService {
 		this.userRepository = userRepository;
 		this.classAccessService = classAccessService;
 		this.currentUserService = currentUserService;
+		this.assignmentTargetService = assignmentTargetService;
 		this.eventPublisher = eventPublisher;
 	}
 
 	public List<TestExam> listTests(long classId) {
 		classAccessService.requireReadableClass(classId);
-		return testRepository.findByClassId(classId);
+		List<TestExam> tests = testRepository.findByClassId(classId);
+		if (currentUserService.requireRole() == UserRole.STUDENT) {
+			long me = currentUserService.requireUserId();
+			return tests.stream()
+					.filter(t -> {
+						if (t.isRetake()) {
+							return scoreRepository.findByTestIdAndStudentId(t.testId(), me).isPresent();
+						}
+						return assignmentTargetService.canStudentAccess(
+								AssignmentEntityType.TEST, t.testId(), classId, me);
+					})
+					.toList();
+		}
+		return tests;
+	}
+
+	public AssignmentTargetService.TargetView getTargets(long testId) {
+		TestExam test = getTest(testId);
+		if (test.isRetake()) {
+			List<Long> studentIds = scoreRepository.findByTestId(testId).stream()
+					.map(TestScore::studentId)
+					.toList();
+			return new AssignmentTargetService.TargetView(studentIds, false);
+		}
+		return assignmentTargetService.getTargetView(AssignmentEntityType.TEST, testId, test.classId());
 	}
 
 	public TestExam getTest(long testId) {
@@ -77,9 +105,8 @@ public class TestExamService {
 
 	public List<ScoreRow> listScoreRows(long testId) {
 		TestExam test = getTest(testId);
-		List<Long> studentIds = enrollmentRepository.findByClassId(test.classId()).stream()
-				.map(e -> e.studentId())
-				.toList();
+		List<Long> studentIds = assignmentTargetService.resolveTargetStudentIds(
+				AssignmentEntityType.TEST, testId, test.classId());
 		Map<Long, TestScore> byStudent = scoreRepository.findByTestId(testId).stream()
 				.collect(Collectors.toMap(TestScore::studentId, s -> s));
 
@@ -109,10 +136,11 @@ public class TestExamService {
 			String title,
 			Instant testAt,
 			Integer questionCount,
-			Integer retakeThresholdCount) {
+			Integer retakeThresholdCount,
+			List<Long> targetStudentIds) {
 		Clazz clazz = classAccessService.requireReadableClass(classId);
 		classAccessService.requireManageClassContent(clazz);
-		return insertTest(classId, null, title, testAt, questionCount, retakeThresholdCount, null, 0);
+		return insertTest(classId, null, title, testAt, questionCount, retakeThresholdCount, null, 0, targetStudentIds);
 	}
 
 	@Transactional
@@ -122,10 +150,20 @@ public class TestExamService {
 			String title,
 			Instant testAt,
 			Integer questionCount,
-			Integer retakeThresholdCount) {
+			Integer retakeThresholdCount,
+			List<Long> targetStudentIds) {
 		Clazz clazz = classAccessService.requireReadableClass(classId);
 		classAccessService.requireEditClassContent(clazz);
-		return insertTest(classId, lessonRecordId, title, testAt, questionCount, retakeThresholdCount, null, 0);
+		return insertTest(
+				classId,
+				lessonRecordId,
+				title,
+				testAt,
+				questionCount,
+				retakeThresholdCount,
+				null,
+				0,
+				targetStudentIds);
 	}
 
 	private TestExam insertTest(
@@ -136,7 +174,8 @@ public class TestExamService {
 			Integer questionCount,
 			Integer retakeThresholdCount,
 			Long parentTestId,
-			int retakeAttemptNo) {
+			int retakeAttemptNo,
+			List<Long> targetStudentIds) {
 		TestExam test = testRepository.insert(
 				classId,
 				lessonRecordId,
@@ -148,8 +187,11 @@ public class TestExamService {
 				parentTestId,
 				retakeAttemptNo);
 		if (!test.isRetake()) {
-			for (var e : enrollmentRepository.findByClassId(classId)) {
-				scoreRepository.insertEmpty(test.testId(), e.studentId());
+			assignmentTargetService.applyOnCreate(
+					AssignmentEntityType.TEST, test.testId(), classId, targetStudentIds);
+			for (long studentId : assignmentTargetService.resolveTargetStudentIds(
+					AssignmentEntityType.TEST, test.testId(), classId)) {
+				scoreRepository.insertEmpty(test.testId(), studentId);
 			}
 		}
 		eventPublisher.publishEvent(new TestExamCreatedEvent(classId, test.testId(), title));

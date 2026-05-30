@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.ams.common.BusinessException;
 import com.example.ams.common.ErrorCode;
 import com.example.ams.common.WeekStartDateValidator;
+import com.example.ams.domain.clazz.AssignmentEntityType;
 import com.example.ams.domain.clazz.ClinicReservation;
 import com.example.ams.domain.clazz.ClinicSlot;
 import com.example.ams.domain.clazz.Clazz;
@@ -32,6 +33,7 @@ public class ClinicSlotService {
 	private final ClinicReservationRepository clinicReservationRepository;
 	private final UserRepository userRepository;
 	private final ClassAccessService classAccessService;
+	private final AssignmentTargetService assignmentTargetService;
 	private final ApplicationEventPublisher eventPublisher;
 
 	public ClinicSlotService(
@@ -40,12 +42,14 @@ public class ClinicSlotService {
 			ClinicReservationRepository clinicReservationRepository,
 			UserRepository userRepository,
 			ClassAccessService classAccessService,
+			AssignmentTargetService assignmentTargetService,
 			ApplicationEventPublisher eventPublisher) {
 		this.clinicSlotRepository = clinicSlotRepository;
 		this.clinicWeekRepository = clinicWeekRepository;
 		this.clinicReservationRepository = clinicReservationRepository;
 		this.userRepository = userRepository;
 		this.classAccessService = classAccessService;
+		this.assignmentTargetService = assignmentTargetService;
 		this.eventPublisher = eventPublisher;
 	}
 
@@ -68,10 +72,11 @@ public class ClinicSlotService {
 			DayOfWeek dayOfWeek,
 			LocalTime startTime,
 			Long assistantId,
-			int maxCapacity) {
+			int maxCapacity,
+			List<Long> targetStudentIds) {
 		Clazz clazz = classAccessService.requireReadableClass(classId);
 		classAccessService.requireManageClassContent(clazz);
-		return insertSlot(classId, weekStart, dayOfWeek, startTime, assistantId, maxCapacity, null);
+		return insertSlot(classId, weekStart, dayOfWeek, startTime, assistantId, maxCapacity, null, targetStudentIds);
 	}
 
 	@Transactional
@@ -81,13 +86,22 @@ public class ClinicSlotService {
 			LocalDate clinicDate,
 			LocalTime startTime,
 			Long assistantId,
-			int maxCapacity) {
+			int maxCapacity,
+			List<Long> targetStudentIds) {
 		Clazz clazz = classAccessService.requireReadableClass(classId);
 		classAccessService.requireEditClassContent(clazz);
 		DayOfWeek dayOfWeek = toDomainDayOfWeek(clinicDate);
 		LocalDate monday = clinicDate.with(TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
 		clinicWeekRepository.ensureOpenWeek(classId, monday);
-		return insertSlot(classId, monday, dayOfWeek, startTime, assistantId, maxCapacity, lessonRecordId);
+		return insertSlot(classId, monday, dayOfWeek, startTime, assistantId, maxCapacity, lessonRecordId, targetStudentIds);
+	}
+
+	public AssignmentTargetService.TargetView getTargets(long slotId) {
+		ClinicSlot slot = clinicSlotRepository.findById(slotId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.CLINIC_SLOT_NOT_FOUND));
+		classAccessService.requireReadableClass(slot.classId());
+		return assignmentTargetService.getTargetView(
+				AssignmentEntityType.CLINIC_SLOT, slotId, slot.classId());
 	}
 
 	private DayOfWeek toDomainDayOfWeek(LocalDate date) {
@@ -101,13 +115,14 @@ public class ClinicSlotService {
 			LocalTime startTime,
 			Long assistantId,
 			int maxCapacity,
-			Long lessonRecordId) {
+			Long lessonRecordId,
+			List<Long> targetStudentIds) {
 		Clazz clazz = classAccessService.requireReadableClass(classId);
 		validateCapacity(maxCapacity);
 		validateAssistant(clazz.academyId(), assistantId);
 		LocalDate monday = WeekStartDateValidator.requireMonday(weekStart);
 		try {
-			return clinicSlotRepository.insert(
+			ClinicSlot slot = clinicSlotRepository.insert(
 					classId,
 					monday,
 					dayOfWeek,
@@ -115,6 +130,9 @@ public class ClinicSlotService {
 					assistantId,
 					maxCapacity,
 					lessonRecordId);
+			assignmentTargetService.applyOnCreate(
+					AssignmentEntityType.CLINIC_SLOT, slot.slotId(), classId, targetStudentIds);
+			return slot;
 		} catch (DuplicateKeyException ex) {
 			throw duplicateSlotException();
 		}

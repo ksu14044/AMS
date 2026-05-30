@@ -2,6 +2,7 @@ package com.example.ams.api.dto;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 
 import com.example.ams.domain.clazz.DayOfWeek;
 
@@ -14,5 +15,6 @@ public record CreateClinicSlotRequest(
 		@NotNull DayOfWeek dayOfWeek,
 		@NotNull LocalTime startTime,
 		@NotNull Long assistantId,
-		@Min(1) @Max(20) Integer maxCapacity) {
+		@Min(1) @Max(20) Integer maxCapacity,
+		List<Long> targetStudentIds) {
 }

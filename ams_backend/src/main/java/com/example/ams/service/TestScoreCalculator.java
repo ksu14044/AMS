@@ -4,9 +4,10 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
- * [DECISIONS.md] §9 percentile_rank · upper_rank_pct
+ * 테스트 점수 저장 시 반 평균·석차 계산.
  */
 public final class TestScoreCalculator {
 
@@ -16,11 +17,7 @@ public final class TestScoreCalculator {
 	public record ScoreInput(long studentId, BigDecimal rawScore) {
 	}
 
-	public record ScoreOutput(
-			BigDecimal classAverage,
-			BigDecimal classAvgPerStudent,
-			Integer upperRankPct,
-			Integer percentileRank) {
+	public record ScoreOutput(BigDecimal classAverage, BigDecimal classAvgPerStudent, Integer rank) {
 	}
 
 	public static List<ScoreOutput> compute(List<ScoreInput> inputs) {
@@ -39,23 +36,17 @@ public final class TestScoreCalculator {
 			classAverage = sum.divide(BigDecimal.valueOf(withScore.size()), 2, RoundingMode.HALF_UP);
 		}
 
+		Map<Long, Integer> ranks = TestRankCalculator.computeRanks(withScore.stream()
+				.map(i -> new TestRankCalculator.RankInput(i.studentId(), i.rawScore()))
+				.toList());
+
 		List<ScoreOutput> results = new ArrayList<>();
 		for (ScoreInput input : inputs) {
 			if (input.rawScore() == null) {
-				results.add(new ScoreOutput(classAverage, classAverage, null, 0));
+				results.add(new ScoreOutput(classAverage, classAverage, null));
 				continue;
 			}
-			int lowerCount = 0;
-			for (ScoreInput other : withScore) {
-				if (other.rawScore().compareTo(input.rawScore()) < 0) {
-					lowerCount++;
-				}
-			}
-			int percentile = withScore.size() <= 1
-					? 100
-					: (int) Math.round((lowerCount * 100.0) / (withScore.size() - 1));
-			int upperRank = 100 - percentile;
-			results.add(new ScoreOutput(classAverage, classAverage, upperRank, percentile));
+			results.add(new ScoreOutput(classAverage, classAverage, ranks.get(input.studentId())));
 		}
 		return results;
 	}

@@ -107,11 +107,14 @@ public class LessonRecordService {
 					request.homework().questionCount());
 		}
 		if (request.test() != null) {
+			var testItem = request.test();
 			testExamService.createTestForLessonRecord(
 					classId,
 					lessonRecordId,
-					request.test().title().trim(),
-					instantAt(lessonDate, LocalTime.of(14, 0)));
+					testItem.title().trim(),
+					instantAt(lessonDate, LocalTime.of(14, 0)),
+					testItem.questionCount(),
+					testItem.retakeThresholdCount());
 		}
 		if (request.video() != null) {
 			videoLessonService.createVideoForLessonRecord(

@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
@@ -179,30 +180,38 @@ public class StudyRecordService {
 		List<TestExam> completed = testExamRepository.findByClassId(classId).stream()
 				.filter(t -> t.status() == AssignmentStatus.COMPLETED)
 				.toList();
-		int closedCount = completed.size();
-		if (closedCount == 0) {
+		if (completed.isEmpty()) {
 			return new StudyRecordTestMetricResponse(0, 0, 0, null);
 		}
-		int sumPercentile = 0;
-		int attemptedCount = 0;
+
+		Map<Long, TestExam> latestByRoot = new java.util.HashMap<>();
 		for (TestExam test : completed) {
+			long rootId = test.rootTestId();
+			TestExam existing = latestByRoot.get(rootId);
+			if (existing == null || test.retakeAttemptNo() > existing.retakeAttemptNo()) {
+				latestByRoot.put(rootId, test);
+			}
+		}
+
+		int sumScore = 0;
+		int scoredCount = 0;
+		int attemptedCount = 0;
+		for (TestExam test : latestByRoot.values()) {
 			Optional<TestScore> scoreOpt = testScoreRepository.findByTestIdAndStudentId(test.testId(), studentId);
 			if (scoreOpt.map(TestScore::rawScore).isPresent()) {
 				attemptedCount++;
+				int pct = StudyRecordGrades.rawScorePercent(scoreOpt.get().rawScore());
+				sumScore += pct;
+				scoredCount++;
 			}
-			int percentile = scoreOpt
-					.map(TestScore::percentileRank)
-					.filter(p -> p != null)
-					.orElse(0);
-			sumPercentile += percentile;
 		}
-		int avg = Math.round((float) sumPercentile / closedCount);
+		int avg = scoredCount > 0 ? Math.round((float) sumScore / scoredCount) : 0;
 		String latestSummary = completed.stream()
 				.max(Comparator.comparing(TestExam::testAt))
 				.flatMap(test -> testScoreRepository.findByTestIdAndStudentId(test.testId(), studentId))
 				.map(this::formatLatestTestSummary)
 				.orElse(null);
-		return new StudyRecordTestMetricResponse(avg, attemptedCount, closedCount, latestSummary);
+		return new StudyRecordTestMetricResponse(avg, attemptedCount, latestByRoot.size(), latestSummary);
 	}
 
 	private String formatLatestTestSummary(TestScore score) {
@@ -214,8 +223,8 @@ public class StudyRecordService {
 		if (score.classAvg() != null) {
 			sb.append(" / 반평균 ").append(formatScore(score.classAvg())).append("점");
 		}
-		if (score.upperRankPct() != null) {
-			sb.append(" · 상위 ").append(score.upperRankPct()).append("%");
+		if (score.rank() != null) {
+			sb.append(" · ").append(score.rank()).append("등");
 		}
 		return sb.toString();
 	}

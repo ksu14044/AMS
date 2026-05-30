@@ -1,16 +1,16 @@
 # AMS 진행 현황 (라이브)
 
-> **마지막 갱신:** 2026-05-30 (Phase 12-2 완료 · 12-3 착수)  
+> **마지막 갱신:** 2026-05-30 (Phase 12-3 완료 · 12-4 착수)  
 > Phase 경계: [PHASE-SCOPE.md](./PHASE-SCOPE.md) · 기획: [DECISIONS §10~§19](../planning/DECISIONS.md)
 
 ## 한눈에 보기
 
 | 항목 | 상태 |
 |---|---|
-| **현재 Phase** | **12-3** 석차·재시험 🔲 |
-| **다음 Phase** | 12-4~12-9 |
+| **현재 Phase** | **12-4** 대상 학생·영상 🔲 |
+| **다음 Phase** | 12-5~12-9 |
 | **최종 Phase** | **11 운영** |
-| **전체 진행** | Phase 0~10 ✅ / **12-1~12-2 ✅** / 12-3~9·11 🔲 |
+| **전체 진행** | Phase 0~10 ✅ / **12-1~12-3 ✅** / 12-4~9·11 🔲 |
 
 ## 실행 순서 (2026-05-30 확정)
 
@@ -86,7 +86,7 @@ Phase 0~10 ✅  →  10.2 (BE, 선택)  →  12 v3.0  →  11 운영 (최종)
 |----------|------|------|
 | **12-1** 수업기록 | ✅ | 게시판 UI · 통합 등록 · 클리닉 달력 |
 | **12-2** 정오표·채점 | ✅ | V23 · answer-keys · grade API · UI |
-| 12-3 석차·재시험 | 🔲 | |
+| **12-3** 석차·재시험 | ✅ | V24 · rank · retake API · UI |
 | 12-4~12-9 | 🔲 | |
 
 ### 12-1 완료 ✅
@@ -102,6 +102,18 @@ Phase 0~10 ✅  →  10.2 (BE, 선택)  →  12 v3.0  →  11 운영 (최종)
 - `GET/PUT .../homeworks/{id}/answer-keys` · `PATCH .../submissions/{studentId}/grade`
 - `HomeworkScoreCalculator` — `ceil(100÷문항수×맞은 수, 소수 1자리)`
 - 숙제 확인 탭 — 정답지·문항별 답안·자동 점수 (`canEditContent`)
+
+### 12-3 완료 ✅
+
+- `V24__test_rank_retake.sql` — `question_count`, `retake_threshold_count`, `parent_test_id`, `retake_attempt_no`, `test_score.rank`
+- `TestRankCalculator` — 동점 공동·건너뛰기 (100·100·99 → 1·1·3)
+- `TestRetakeEvaluator` · `POST .../tests/{id}/retakes` — 최대 3회 · 본·재시험 석차 독립
+- `TestScoreCalculator` · `StudyRecordService` — root별 최종 시험 `raw_score` 산술 평균 (percentile deprecated)
+- 테스트 확인 탭 — 석차 표시 · 재시험 생성 모달 (`canEditContent`)
+- 수업기록 통합 등록 — 테스트 문항 수·합격 기준(맞은 문항 수) 입력
+- `V25__test_answer_key_grading.sql` — `test_answer_key`, `test_score.answers/correct_count`
+- `GET/PUT .../tests/{id}/answer-keys` · `PATCH .../scores/{studentId}/grade` · `PATCH .../complete`
+- 테스트 확인 UI — 정답지·학생별 답안·자동 점수 · 시험 완료 시 석차 계산
 
 ---
 
@@ -121,7 +133,7 @@ Phase 0~10 ✅  →  10.2 (BE, 선택)  →  12 v3.0  →  11 운영 (최종)
 
 ## 다음 할 일
 
-1. **12-3** — 테스트 석차 · 재시험
+1. **12-4** — 대상 학생(`assignment_target`) · 영상 기본 미선택
 2. ~~Phase 11~~ — 12 완료 후
 
 ---
@@ -135,7 +147,7 @@ Phase 0~10 ✅  →  10.2 (BE, 선택)  →  12 v3.0  →  11 운영 (최종)
 | 9 | UI | ✅ | |
 | 10 | 디자인 | ✅ | 10.1 포함 |
 | 10.2 | BE 정합 | 🔲 | 선택 |
-| **12** | **v3.0** | 🟡 | **12-1~12-2 ✅** |
+| **12** | **v3.0** | 🟡 | **12-1~12-3 ✅** |
 | **11** | **운영** | 🔲 | **최종** |
 
 ---

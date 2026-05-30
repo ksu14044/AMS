@@ -239,7 +239,7 @@ export default function ClassDetailPage() {
       {activeTab === 'test' && (
         <ClassTestSection
           classId={classId}
-          canManage={detail.canManageContent}
+          canManage={detail.canEditContent}
           verifyOnly
           onError={setError}
         />

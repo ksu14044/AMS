@@ -25,7 +25,11 @@ public class TestExamRepository {
 			AssignmentStatus.valueOf(rs.getString("status")),
 			rs.getBigDecimal("class_average"),
 			rs.getTimestamp("completed_at") != null ? rs.getTimestamp("completed_at").toInstant() : null,
-			rs.getTimestamp("created_at").toInstant());
+			rs.getTimestamp("created_at").toInstant(),
+			rs.getObject("question_count") != null ? rs.getInt("question_count") : null,
+			rs.getObject("retake_threshold_count") != null ? rs.getInt("retake_threshold_count") : null,
+			rs.getObject("parent_test_id") != null ? rs.getLong("parent_test_id") : null,
+			rs.getInt("retake_attempt_no"));
 
 	private final JdbcTemplate jdbcTemplate;
 
@@ -39,13 +43,24 @@ public class TestExamRepository {
 
 	public List<TestExam> findByClassId(long classId) {
 		return jdbcTemplate.query(
-				"SELECT * FROM test WHERE class_id = ? ORDER BY test_at DESC",
+				"SELECT * FROM test WHERE class_id = ? ORDER BY test_at DESC, test_id DESC",
 				ROW_MAPPER,
 				classId);
 	}
 
-	public TestExam insert(long classId, String title, Instant testAt, AssignmentStatus status) {
-		return insert(classId, null, title, testAt, status);
+	public List<TestExam> findRetakesByParentTestId(long parentTestId) {
+		return jdbcTemplate.query(
+				"SELECT * FROM test WHERE parent_test_id = ? ORDER BY retake_attempt_no",
+				ROW_MAPPER,
+				parentTestId);
+	}
+
+	public int countRetakes(long rootTestId) {
+		Integer count = jdbcTemplate.queryForObject(
+				"SELECT COUNT(*) FROM test WHERE parent_test_id = ?",
+				Integer.class,
+				rootTestId);
+		return count != null ? count : 0;
 	}
 
 	public TestExam insert(
@@ -53,8 +68,17 @@ public class TestExamRepository {
 			Long lessonRecordId,
 			String title,
 			Instant testAt,
-			AssignmentStatus status) {
-		String sql = "INSERT INTO test (class_id, lesson_record_id, title, test_at, status) VALUES (?, ?, ?, ?, ?)";
+			AssignmentStatus status,
+			Integer questionCount,
+			Integer retakeThresholdCount,
+			Long parentTestId,
+			int retakeAttemptNo) {
+		String sql = """
+				INSERT INTO test (
+				    class_id, lesson_record_id, title, test_at, status,
+				    question_count, retake_threshold_count, parent_test_id, retake_attempt_no
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+				""";
 		KeyHolder keyHolder = new GeneratedKeyHolder();
 		jdbcTemplate.update(connection -> {
 			var ps = connection.prepareStatement(sql, new String[] { "test_id" });
@@ -67,6 +91,22 @@ public class TestExamRepository {
 			ps.setString(3, title);
 			ps.setTimestamp(4, java.sql.Timestamp.from(testAt));
 			ps.setString(5, status.name());
+			if (questionCount != null) {
+				ps.setInt(6, questionCount);
+			} else {
+				ps.setNull(6, java.sql.Types.INTEGER);
+			}
+			if (retakeThresholdCount != null) {
+				ps.setInt(7, retakeThresholdCount);
+			} else {
+				ps.setNull(7, java.sql.Types.INTEGER);
+			}
+			if (parentTestId != null) {
+				ps.setLong(8, parentTestId);
+			} else {
+				ps.setNull(8, java.sql.Types.BIGINT);
+			}
+			ps.setInt(9, retakeAttemptNo);
 			return ps;
 		}, keyHolder);
 		return findById(keyHolder.getKey().longValue()).orElseThrow();
@@ -92,6 +132,14 @@ public class TestExamRepository {
 				classAverage,
 				java.sql.Timestamp.from(completedAt),
 				testId);
+	}
+
+	public void updateQuestionCount(long testId, int questionCount) {
+		jdbcTemplate.update("UPDATE test SET question_count = ? WHERE test_id = ?", questionCount, testId);
+	}
+
+	public void updateClassAverage(long testId, BigDecimal classAverage) {
+		jdbcTemplate.update("UPDATE test SET class_average = ? WHERE test_id = ?", classAverage, testId);
 	}
 
 	public Optional<TestExam> findPreviousCompleted(long classId, Instant beforeTestAt) {

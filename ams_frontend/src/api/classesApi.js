@@ -211,10 +211,39 @@ export function fetchTestScores(classId, testId) {
   return apiRequest(`/classes/${classId}/tests/${testId}/scores`)
 }
 
+export function fetchTestAnswerKeys(classId, testId) {
+  return apiRequest(`/classes/${classId}/tests/${testId}/answer-keys`)
+}
+
+export function saveTestAnswerKeys(classId, testId, payload) {
+  return apiRequest(`/classes/${classId}/tests/${testId}/answer-keys`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function gradeTestScore(classId, testId, studentId, payload) {
+  return apiRequest(`/classes/${classId}/tests/${testId}/scores/${studentId}/grade`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function completeTest(classId, testId) {
+  return apiRequest(`/classes/${classId}/tests/${testId}/complete`, { method: 'PATCH' })
+}
+
 export function saveTestScores(classId, testId, scores) {
   return apiRequest(`/classes/${classId}/tests/${testId}/scores`, {
     method: 'PATCH',
     body: JSON.stringify({ scores }),
+  })
+}
+
+export function createTestRetake(classId, testId, payload) {
+  return apiRequest(`/classes/${classId}/tests/${testId}/retakes`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
   })
 }
 

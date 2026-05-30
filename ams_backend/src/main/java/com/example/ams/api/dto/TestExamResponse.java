@@ -13,7 +13,12 @@ public record TestExamResponse(
 		Instant testAt,
 		AssignmentStatus status,
 		BigDecimal classAverage,
-		Instant completedAt) {
+		Instant completedAt,
+		Integer questionCount,
+		Integer retakeThresholdCount,
+		Long parentTestId,
+		int retakeAttemptNo,
+		long rootTestId) {
 
 	public static TestExamResponse from(TestExam test) {
 		return new TestExamResponse(
@@ -23,6 +28,11 @@ public record TestExamResponse(
 				test.testAt(),
 				test.status(),
 				test.classAverage(),
-				test.completedAt());
+				test.completedAt(),
+				test.questionCount(),
+				test.retakeThresholdCount(),
+				test.parentTestId(),
+				test.retakeAttemptNo(),
+				test.rootTestId());
 	}
 }

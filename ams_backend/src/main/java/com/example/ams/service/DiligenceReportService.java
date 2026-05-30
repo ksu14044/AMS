@@ -249,8 +249,6 @@ public class DiligenceReportService {
 			Optional<TestScore> scoreOpt = testScoreRepository.findByTestIdAndStudentId(testId, studentId);
 			BigDecimal raw = scoreOpt.map(TestScore::rawScore).orElse(null);
 			BigDecimal classAvg = scoreOpt.map(TestScore::classAvg).orElse(null);
-			Integer upperRank = scoreOpt.map(TestScore::upperRankPct).orElse(null);
-			Integer percentile = scoreOpt.map(TestScore::percentileRank).orElse(null);
 			int testScorePercent = StudyRecordGrades.rawScorePercent(raw);
 			String testGrade = raw != null ? StudyRecordGrades.letterGrade(testScorePercent) : null;
 
@@ -280,8 +278,8 @@ public class DiligenceReportService {
 					StudyRecordGrades.letterGradeOrNull(clinicRate),
 					raw,
 					classAvg,
-					upperRank,
-					percentile,
+					null,
+					null,
 					testGrade,
 					metrics.videoCertified(),
 					metrics.videoTotal(),

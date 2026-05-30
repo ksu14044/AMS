@@ -1,9 +1,14 @@
 package com.example.ams.api.dto;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.List;
 
+import com.example.ams.domain.clazz.AssignmentStatus;
+import com.example.ams.domain.clazz.TestExam;
 import com.example.ams.domain.clazz.TestScore;
 import com.example.ams.service.TestExamService.ScoreRow;
+import com.example.ams.service.TestRetakeEvaluator;
 
 public record TestScoreResponse(
 		long studentId,
@@ -11,10 +16,13 @@ public record TestScoreResponse(
 		BigDecimal rawScore,
 		String grade,
 		BigDecimal classAvg,
-		Integer upperRankPct,
-		Integer percentileRank) {
+		Integer rank,
+		List<String> answers,
+		Integer correctCount,
+		Instant gradedAt,
+		Boolean needsRetake) {
 
-	public static TestScoreResponse from(ScoreRow row) {
+	public static TestScoreResponse from(ScoreRow row, TestExam test) {
 		TestScore s = row.score();
 		return new TestScoreResponse(
 				row.studentId(),
@@ -22,7 +30,23 @@ public record TestScoreResponse(
 				s.rawScore(),
 				s.grade(),
 				s.classAvg(),
-				s.upperRankPct(),
-				s.percentileRank());
+				s.rank(),
+				s.answers(),
+				s.correctCount(),
+				s.gradedAt(),
+				resolveNeedsRetake(test, s));
+	}
+
+	private static Boolean resolveNeedsRetake(TestExam test, TestScore score) {
+		if (test.status() != AssignmentStatus.COMPLETED) {
+			return null;
+		}
+		if (test.questionCount() == null || test.retakeThresholdCount() == null || score.rawScore() == null) {
+			return null;
+		}
+		return TestRetakeEvaluator.needsRetake(
+				score.rawScore(),
+				test.questionCount(),
+				test.retakeThresholdCount());
 	}
 }

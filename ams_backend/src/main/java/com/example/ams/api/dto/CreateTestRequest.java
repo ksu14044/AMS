@@ -8,5 +8,7 @@ import jakarta.validation.constraints.Size;
 
 public record CreateTestRequest(
 		@NotBlank @Size(max = 200) String title,
-		@NotNull Instant testAt) {
+		@NotNull Instant testAt,
+		Integer questionCount,
+		Integer retakeThresholdCount) {
 }

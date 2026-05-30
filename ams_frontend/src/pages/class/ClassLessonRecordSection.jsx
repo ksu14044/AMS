@@ -24,6 +24,8 @@ const EMPTY_CREATE = {
   homeworkQuestionCount: '',
   includeTest: false,
   testTitle: '',
+  testQuestionCount: '',
+  testRetakeThresholdCount: '',
   includeVideo: false,
   videoTitle: '',
   youtubeUrl: '',
@@ -205,6 +207,7 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
     if (createForm.includeHomework && !createForm.homeworkTitle.trim()) return
     if (createForm.includeHomework && !createForm.homeworkQuestionCount) return
     if (createForm.includeTest && !createForm.testTitle.trim()) return
+    if (createForm.includeTest && (!createForm.testQuestionCount || !createForm.testRetakeThresholdCount)) return
     if (createForm.includeVideo && (!createForm.videoTitle.trim() || !createForm.youtubeUrl.trim())) {
       return
     }
@@ -223,7 +226,11 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
       }
     }
     if (createForm.includeTest) {
-      payload.test = { title: createForm.testTitle.trim() }
+      payload.test = {
+        title: createForm.testTitle.trim(),
+        questionCount: Number(createForm.testQuestionCount),
+        retakeThresholdCount: Number(createForm.testRetakeThresholdCount),
+      }
     }
     if (createForm.includeVideo) {
       payload.video = {
@@ -388,6 +395,33 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
                       onChange={(e) => setCreateForm({ ...createForm, testTitle: e.target.value })}
                       maxLength={200}
                       placeholder="예: 3단원 형성평가"
+                      required
+                    />
+                  </label>
+                  <label className="ams-field ams-field--compact">
+                    <span className="ams-field__label">문항 수</span>
+                    <input
+                      className="ams-field__input"
+                      type="number"
+                      min={1}
+                      value={createForm.testQuestionCount}
+                      onChange={(e) =>
+                        setCreateForm({ ...createForm, testQuestionCount: e.target.value })
+                      }
+                      required
+                    />
+                  </label>
+                  <label className="ams-field ams-field--compact">
+                    <span className="ams-field__label">합격 기준 (맞은 문항 수)</span>
+                    <input
+                      className="ams-field__input"
+                      type="number"
+                      min={1}
+                      value={createForm.testRetakeThresholdCount}
+                      onChange={(e) =>
+                        setCreateForm({ ...createForm, testRetakeThresholdCount: e.target.value })
+                      }
+                      placeholder="이 미만이면 재시험"
                       required
                     />
                   </label>

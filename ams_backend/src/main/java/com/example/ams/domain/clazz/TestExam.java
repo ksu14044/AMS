@@ -11,5 +11,17 @@ public record TestExam(
 		AssignmentStatus status,
 		BigDecimal classAverage,
 		Instant completedAt,
-		Instant createdAt) {
+		Instant createdAt,
+		Integer questionCount,
+		Integer retakeThresholdCount,
+		Long parentTestId,
+		int retakeAttemptNo) {
+
+	public boolean isRetake() {
+		return parentTestId != null;
+	}
+
+	public long rootTestId() {
+		return parentTestId != null ? parentTestId : testId;
+	}
 }

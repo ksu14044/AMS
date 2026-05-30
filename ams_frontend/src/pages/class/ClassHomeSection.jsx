@@ -231,7 +231,9 @@ export default function ClassHomeSection({ classId, notices, onGoTab, onError })
               <li key={h.homeworkId}>
                 <span className="ams-class-home__tag">{STATUS_LABEL[h.status]}</span>
                 {h.title}
-                <span className="ams-class-home__meta"> ~{formatDue(h.dueAt)}</span>
+                {h.questionCount ? (
+                  <span className="ams-class-home__meta"> · {h.questionCount}문항</span>
+                ) : null}
                 {homeworkSubmit?.homeworkId === h.homeworkId && homeworkSubmit.submitted && (
                   <span className="ams-class-home__badge">제출 완료</span>
                 )}

@@ -178,6 +178,24 @@ export function completeHomework(classId, homeworkId) {
   return apiRequest(`/classes/${classId}/homeworks/${homeworkId}/complete`, { method: 'PATCH' })
 }
 
+export function fetchHomeworkAnswerKeys(classId, homeworkId) {
+  return apiRequest(`/classes/${classId}/homeworks/${homeworkId}/answer-keys`)
+}
+
+export function saveHomeworkAnswerKeys(classId, homeworkId, payload) {
+  return apiRequest(`/classes/${classId}/homeworks/${homeworkId}/answer-keys`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function gradeHomeworkSubmission(classId, homeworkId, studentId, payload) {
+  return apiRequest(`/classes/${classId}/homeworks/${homeworkId}/submissions/${studentId}/grade`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
 export function fetchTests(classId) {
   return apiRequest(`/classes/${classId}/tests`)
 }

@@ -104,7 +104,7 @@ public class LessonRecordService {
 					classId,
 					lessonRecordId,
 					request.homework().title().trim(),
-					instantAt(lessonDate, LocalTime.of(18, 0)));
+					request.homework().questionCount());
 		}
 		if (request.test() != null) {
 			testExamService.createTestForLessonRecord(

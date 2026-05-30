@@ -21,6 +21,7 @@ const EMPTY_CREATE = {
   summary: '',
   includeHomework: false,
   homeworkTitle: '',
+  homeworkQuestionCount: '',
   includeTest: false,
   testTitle: '',
   includeVideo: false,
@@ -202,6 +203,7 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
     e.preventDefault()
     if (!createForm.lessonDate || !createForm.summary.trim()) return
     if (createForm.includeHomework && !createForm.homeworkTitle.trim()) return
+    if (createForm.includeHomework && !createForm.homeworkQuestionCount) return
     if (createForm.includeTest && !createForm.testTitle.trim()) return
     if (createForm.includeVideo && (!createForm.videoTitle.trim() || !createForm.youtubeUrl.trim())) {
       return
@@ -215,7 +217,10 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
       summary: createForm.summary.trim(),
     }
     if (createForm.includeHomework) {
-      payload.homework = { title: createForm.homeworkTitle.trim() }
+      payload.homework = {
+        title: createForm.homeworkTitle.trim(),
+        questionCount: Number(createForm.homeworkQuestionCount),
+      }
     }
     if (createForm.includeTest) {
       payload.test = { title: createForm.testTitle.trim() }
@@ -350,6 +355,20 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
                       }
                       maxLength={200}
                       placeholder="예: 3단원 워크북 p.42~45"
+                      required
+                    />
+                  </label>
+                  <label className="ams-field ams-field--compact">
+                    <span className="ams-field__label">문항 수</span>
+                    <input
+                      className="ams-field__input"
+                      type="number"
+                      min={1}
+                      value={createForm.homeworkQuestionCount}
+                      onChange={(e) =>
+                        setCreateForm({ ...createForm, homeworkQuestionCount: e.target.value })
+                      }
+                      placeholder="예: 20"
                       required
                     />
                   </label>

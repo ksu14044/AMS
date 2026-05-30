@@ -50,7 +50,7 @@ public class StudyRecordPeriodCalculator {
 			if (homework.status() != AssignmentStatus.COMPLETED) {
 				continue;
 			}
-			if (!isInPeriod(homework.dueAt(), periodStart, periodEnd)) {
+			if (!isInPeriod(homework.createdAt(), periodStart, periodEnd)) {
 				continue;
 			}
 			homeworkTotal++;

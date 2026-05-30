@@ -6,7 +6,7 @@ public record Homework(
 		long homeworkId,
 		long classId,
 		String title,
-		Instant dueAt,
+		Integer questionCount,
 		AssignmentStatus status,
 		Instant createdAt) {
 }

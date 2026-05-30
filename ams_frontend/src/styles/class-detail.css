@@ -444,6 +444,215 @@
   width: 56px;
 }
 
+.ams-submission-table__answer {
+  width: 56px;
+  min-width: 48px;
+}
+
+.ams-submission-table__grade-btn {
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.ams-submission-table--homework th,
+.ams-submission-table--homework td {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.ams-submission-table--homework td:first-child {
+  text-align: left;
+}
+
+.ams-homework-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.ams-homework-toolbar__badge {
+  margin-left: 6px;
+  padding: 2px 6px;
+  border-radius: var(--ams-radius-sm);
+  background: var(--ams-color-primary-light);
+  color: var(--ams-color-primary);
+  font-size: 0.6875rem;
+  font-weight: var(--ams-font-weight-medium);
+}
+
+.ams-homework-row-btn {
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.ams-homework-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--ams-space-4);
+}
+
+.ams-homework-modal {
+  background: var(--ams-color-white);
+  border-radius: var(--ams-radius-lg);
+  padding: var(--ams-space-card);
+  max-width: 480px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-3);
+}
+
+.ams-homework-modal--wide {
+  max-width: 640px;
+}
+
+.ams-homework-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ams-space-2);
+}
+
+.ams-homework-modal__title {
+  margin: 0;
+  font-size: var(--ams-font-size-lg);
+  font-weight: var(--ams-font-weight-bold);
+}
+
+.ams-homework-modal__close {
+  border: none;
+  background: transparent;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--ams-color-text-secondary);
+  padding: 4px 8px;
+}
+
+.ams-homework-modal__meta {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--ams-color-text-secondary);
+}
+
+.ams-homework-modal__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-3);
+}
+
+.ams-homework-modal__count {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+}
+
+.ams-homework-modal__count input {
+  width: 80px;
+}
+
+.ams-homework-modal__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.ams-homework-modal__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.75rem;
+}
+
+.ams-homework-modal__field input {
+  width: 100%;
+}
+
+.ams-homework-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.ams-homework-grade-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.ams-homework-grade-table th,
+.ams-homework-grade-table td {
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.ams-homework-grade-table th {
+  background: var(--ams-color-surface);
+  font-size: 0.75rem;
+}
+
+.ams-homework-grade-table__correct {
+  color: var(--ams-color-primary);
+  font-weight: var(--ams-font-weight-medium);
+}
+
+.ams-homework-grade-table__input {
+  width: 100%;
+  min-width: 120px;
+}
+
+.ams-homework-answer-key {
+  margin: 16px 0;
+  padding: 12px;
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-md);
+  background: var(--ams-color-surface);
+}
+
+.ams-homework-answer-key__count {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 0.875rem;
+}
+
+.ams-homework-answer-key__count input {
+  width: 72px;
+}
+
+.ams-homework-answer-key__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.ams-homework-answer-key__item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.75rem;
+}
+
+.ams-homework-answer-key__item input {
+  width: 100%;
+}
+
 .ams-video-form {
   display: flex;
   flex-wrap: wrap;

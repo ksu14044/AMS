@@ -231,20 +231,7 @@ public class NotificationService {
 
 	@Transactional
 	public void sendHomeworkD1Reminders() {
-		LocalDate tomorrow = LocalDate.now(NotificationMessages.SEOUL).plusDays(1);
-		Instant start = NotificationMessages.seoulDayStart(tomorrow).toInstant();
-		Instant end = NotificationMessages.seoulDayStart(tomorrow.plusDays(1)).toInstant();
-		for (Homework homework : homeworkRepository.findScheduledDueBetween(start, end)) {
-			Clazz clazz = requireClass(homework.classId());
-			String label = NotificationMessages.classLabel(clazz.subject(), clazz.name());
-			notifyClassStudentsIfAbsent(
-					clazz,
-					NotificationType.HOMEWORK_D1,
-					label + " 숙제 내일 마감: " + homework.title(),
-					homework.title(),
-					NotificationReferenceType.HOMEWORK,
-					homework.homeworkId());
-		}
+		// v3.0: due_at 제거 — D-1 숙제 알림 폐기 (Phase 12-6에서 스케줄 제거)
 	}
 
 	@Transactional

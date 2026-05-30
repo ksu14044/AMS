@@ -2,6 +2,7 @@ package com.example.ams.api.dto;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 
 import com.example.ams.domain.clazz.HomeworkSubmission;
 import com.example.ams.service.HomeworkService.SubmissionRow;
@@ -13,7 +14,10 @@ public record HomeworkSubmissionResponse(
 		Instant submittedAt,
 		BigDecimal score,
 		String grade,
-		String memo) {
+		String memo,
+		List<String> answers,
+		Integer correctCount,
+		Instant completedAt) {
 
 	public static HomeworkSubmissionResponse from(SubmissionRow row) {
 		HomeworkSubmission s = row.submission();
@@ -24,6 +28,9 @@ public record HomeworkSubmissionResponse(
 				s.submittedAt(),
 				s.score(),
 				s.grade(),
-				s.memo());
+				s.memo(),
+				s.answers(),
+				s.correctCount(),
+				s.completedAt());
 	}
 }

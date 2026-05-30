@@ -230,7 +230,7 @@ export default function ClassDetailPage() {
       {activeTab === 'homework' && (
         <ClassHomeworkSection
           classId={classId}
-          canManage={detail.canManageContent}
+          canManage={detail.canEditContent}
           verifyOnly
           onError={setError}
         />

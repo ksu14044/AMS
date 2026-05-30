@@ -1,6 +1,5 @@
 package com.example.ams.repository;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,7 +19,7 @@ public class HomeworkRepository {
 			rs.getLong("homework_id"),
 			rs.getLong("class_id"),
 			rs.getString("title"),
-			rs.getTimestamp("due_at").toInstant(),
+			rs.getObject("question_count") != null ? rs.getInt("question_count") : null,
 			AssignmentStatus.valueOf(rs.getString("status")),
 			rs.getTimestamp("created_at").toInstant());
 
@@ -38,22 +37,22 @@ public class HomeworkRepository {
 
 	public List<Homework> findByClassId(long classId) {
 		return jdbcTemplate.query(
-				"SELECT * FROM homework WHERE class_id = ? ORDER BY due_at DESC",
+				"SELECT * FROM homework WHERE class_id = ? ORDER BY created_at DESC",
 				ROW_MAPPER,
 				classId);
 	}
 
-	public Homework insert(long classId, String title, Instant dueAt, AssignmentStatus status) {
-		return insert(classId, null, title, dueAt, status);
+	public Homework insert(long classId, String title, Integer questionCount, AssignmentStatus status) {
+		return insert(classId, null, title, questionCount, status);
 	}
 
 	public Homework insert(
 			long classId,
 			Long lessonRecordId,
 			String title,
-			Instant dueAt,
+			Integer questionCount,
 			AssignmentStatus status) {
-		String sql = "INSERT INTO homework (class_id, lesson_record_id, title, due_at, status) VALUES (?, ?, ?, ?, ?)";
+		String sql = "INSERT INTO homework (class_id, lesson_record_id, title, question_count, status) VALUES (?, ?, ?, ?, ?)";
 		KeyHolder keyHolder = new GeneratedKeyHolder();
 		jdbcTemplate.update(connection -> {
 			var ps = connection.prepareStatement(sql, new String[] { "homework_id" });
@@ -64,11 +63,19 @@ public class HomeworkRepository {
 				ps.setNull(2, java.sql.Types.BIGINT);
 			}
 			ps.setString(3, title);
-			ps.setTimestamp(4, java.sql.Timestamp.from(dueAt));
+			if (questionCount != null) {
+				ps.setInt(4, questionCount);
+			} else {
+				ps.setNull(4, java.sql.Types.INTEGER);
+			}
 			ps.setString(5, status.name());
 			return ps;
 		}, keyHolder);
 		return findById(keyHolder.getKey().longValue()).orElseThrow();
+	}
+
+	public void updateQuestionCount(long homeworkId, int questionCount) {
+		jdbcTemplate.update("UPDATE homework SET question_count = ? WHERE homework_id = ?", questionCount, homeworkId);
 	}
 
 	public void updateStatus(long homeworkId, AssignmentStatus status) {
@@ -83,17 +90,5 @@ public class HomeworkRepository {
 	}
 
 	public record HomeworkSummary(long homeworkId, String title) {
-	}
-
-	public List<Homework> findScheduledDueBetween(java.time.Instant startInclusive, java.time.Instant endExclusive) {
-		return jdbcTemplate.query(
-				"""
-						SELECT * FROM homework
-						WHERE status = 'SCHEDULED' AND due_at >= ? AND due_at < ?
-						ORDER BY due_at ASC
-						""",
-				ROW_MAPPER,
-				java.sql.Timestamp.from(startInclusive),
-				java.sql.Timestamp.from(endExclusive));
 	}
 }

@@ -11,20 +11,11 @@ import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
+import com.example.ams.common.HomeworkAnswersJson;
 import com.example.ams.domain.clazz.HomeworkSubmission;
 
 @Repository
 public class HomeworkSubmissionRepository {
-
-	private static final RowMapper<HomeworkSubmission> ROW_MAPPER = (rs, rowNum) -> new HomeworkSubmission(
-			rs.getLong("submission_id"),
-			rs.getLong("homework_id"),
-			rs.getLong("student_id"),
-			rs.getBoolean("submitted"),
-			rs.getTimestamp("submitted_at") != null ? rs.getTimestamp("submitted_at").toInstant() : null,
-			rs.getBigDecimal("score"),
-			rs.getString("grade"),
-			rs.getString("memo"));
 
 	private final JdbcTemplate jdbcTemplate;
 
@@ -32,17 +23,48 @@ public class HomeworkSubmissionRepository {
 		this.jdbcTemplate = jdbcTemplate;
 	}
 
+	private HomeworkSubmission mapRow(java.sql.ResultSet rs, int rowNum) throws java.sql.SQLException {
+		String answersJson = rs.getString("answers");
+		Integer questionCount = rs.getObject("question_count") != null
+				? rs.getInt("question_count")
+				: null;
+		int count = questionCount != null ? questionCount : 0;
+		return new HomeworkSubmission(
+				rs.getLong("submission_id"),
+				rs.getLong("homework_id"),
+				rs.getLong("student_id"),
+				rs.getBoolean("submitted"),
+				rs.getTimestamp("submitted_at") != null ? rs.getTimestamp("submitted_at").toInstant() : null,
+				rs.getBigDecimal("score"),
+				rs.getString("grade"),
+				rs.getString("memo"),
+				HomeworkAnswersJson.fromJson(answersJson, count),
+				rs.getObject("correct_count") != null ? rs.getInt("correct_count") : null,
+				rs.getTimestamp("completed_at") != null ? rs.getTimestamp("completed_at").toInstant() : null);
+	}
+
 	public List<HomeworkSubmission> findByHomeworkId(long homeworkId) {
 		return jdbcTemplate.query(
-				"SELECT * FROM homework_submission WHERE homework_id = ? ORDER BY student_id",
-				ROW_MAPPER,
+				"""
+						SELECT s.*, h.question_count
+						FROM homework_submission s
+						INNER JOIN homework h ON s.homework_id = h.homework_id
+						WHERE s.homework_id = ?
+						ORDER BY s.student_id
+						""",
+				this::mapRow,
 				homeworkId);
 	}
 
 	public Optional<HomeworkSubmission> findByHomeworkIdAndStudentId(long homeworkId, long studentId) {
 		return jdbcTemplate.query(
-				"SELECT * FROM homework_submission WHERE homework_id = ? AND student_id = ?",
-				ROW_MAPPER,
+				"""
+						SELECT s.*, h.question_count
+						FROM homework_submission s
+						INNER JOIN homework h ON s.homework_id = h.homework_id
+						WHERE s.homework_id = ? AND s.student_id = ?
+						""",
+				this::mapRow,
 				homeworkId,
 				studentId).stream().findFirst();
 	}
@@ -61,12 +83,17 @@ public class HomeworkSubmissionRepository {
 
 	public Optional<HomeworkSubmission> findById(long submissionId) {
 		return jdbcTemplate.query(
-				"SELECT * FROM homework_submission WHERE submission_id = ?",
-				ROW_MAPPER,
+				"""
+						SELECT s.*, h.question_count
+						FROM homework_submission s
+						INNER JOIN homework h ON s.homework_id = h.homework_id
+						WHERE s.submission_id = ?
+						""",
+				this::mapRow,
 				submissionId).stream().findFirst();
 	}
 
-	public HomeworkSubmission upsert(
+	public HomeworkSubmission upsertLegacy(
 			long homeworkId,
 			long studentId,
 			boolean submitted,
@@ -74,8 +101,7 @@ public class HomeworkSubmissionRepository {
 			BigDecimal score,
 			String grade,
 			String memo) {
-		Optional<HomeworkSubmission> existing = findByHomeworkIdAndStudentId(homeworkId, studentId);
-		if (existing.isEmpty()) {
+		if (findByHomeworkIdAndStudentId(homeworkId, studentId).isEmpty()) {
 			insertEmpty(homeworkId, studentId);
 		}
 		jdbcTemplate.update(
@@ -89,6 +115,32 @@ public class HomeworkSubmissionRepository {
 				score,
 				grade,
 				memo,
+				homeworkId,
+				studentId);
+		return findByHomeworkIdAndStudentId(homeworkId, studentId).orElseThrow();
+	}
+
+	public HomeworkSubmission upsertGraded(
+			long homeworkId,
+			long studentId,
+			List<String> answers,
+			int correctCount,
+			BigDecimal score,
+			Instant completedAt) {
+		if (findByHomeworkIdAndStudentId(homeworkId, studentId).isEmpty()) {
+			insertEmpty(homeworkId, studentId);
+		}
+		jdbcTemplate.update(
+				"""
+						UPDATE homework_submission
+						SET answers = ?, correct_count = ?, score = ?, submitted = ?, completed_at = ?
+						WHERE homework_id = ? AND student_id = ?
+						""",
+				HomeworkAnswersJson.toJson(answers),
+				correctCount,
+				score,
+				score != null,
+				completedAt != null ? java.sql.Timestamp.from(completedAt) : null,
 				homeworkId,
 				studentId);
 		return findByHomeworkIdAndStudentId(homeworkId, studentId).orElseThrow();

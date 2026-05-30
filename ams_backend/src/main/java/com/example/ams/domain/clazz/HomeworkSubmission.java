@@ -2,6 +2,7 @@ package com.example.ams.domain.clazz;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 
 public record HomeworkSubmission(
 		long submissionId,
@@ -11,5 +12,8 @@ public record HomeworkSubmission(
 		Instant submittedAt,
 		BigDecimal score,
 		String grade,
-		String memo) {
+		String memo,
+		List<String> answers,
+		Integer correctCount,
+		Instant completedAt) {
 }

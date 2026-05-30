@@ -84,11 +84,10 @@ async function loadTeacherAgenda(classes) {
         })
       }
       for (const hw of homeworks) {
-        if (hw.status === 'SCHEDULED' && isDueWithinDays(hw.dueAt)) {
-          const due = new Date(hw.dueAt)
+        if (hw.status === 'SCHEDULED') {
           events.push({
-            sortKey: `${due.getDay()}-${due.toISOString()}`,
-            label: `${formatShortDue(hw.dueAt)} 숙제 마감 — ${hw.title} (${c.name})`,
+            sortKey: `hw-${hw.homeworkId}`,
+            label: `미완료 숙제 — ${hw.title} (${c.name})`,
           })
         }
       }

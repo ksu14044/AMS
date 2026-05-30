@@ -1,16 +1,16 @@
 # AMS 진행 현황 (라이브)
 
-> **마지막 갱신:** 2026-05-30 (Phase 12-1 수업기록 구현)  
+> **마지막 갱신:** 2026-05-30 (Phase 12-2 완료 · 12-3 착수)  
 > Phase 경계: [PHASE-SCOPE.md](./PHASE-SCOPE.md) · 기획: [DECISIONS §10~§19](../planning/DECISIONS.md)
 
 ## 한눈에 보기
 
 | 항목 | 상태 |
 |---|---|
-| **현재 Phase** | **12-1** 수업기록 🟡 |
-| **다음 Phase** | 12-2 정오표·채점 |
+| **현재 Phase** | **12-3** 석차·재시험 🔲 |
+| **다음 Phase** | 12-4~12-9 |
 | **최종 Phase** | **11 운영** |
-| **전체 진행** | Phase 0~10 ✅ / **12-1 진행** / 12-2~9·11 🔲 |
+| **전체 진행** | Phase 0~10 ✅ / **12-1~12-2 ✅** / 12-3~9·11 🔲 |
 
 ## 실행 순서 (2026-05-30 확정)
 
@@ -84,17 +84,24 @@ Phase 0~10 ✅  →  10.2 (BE, 선택)  →  12 v3.0  →  11 운영 (최종)
 
 | 슬라이스 | 상태 | 비고 |
 |----------|------|------|
-| **12-1** 수업기록 | 🟡 | V21 · API · UI 탭 |
-| 12-2 정오표·채점 | 🔲 | |
+| **12-1** 수업기록 | ✅ | 게시판 UI · 통합 등록 · 클리닉 달력 |
+| **12-2** 정오표·채점 | ✅ | V23 · answer-keys · grade API · UI |
 | 12-3 석차·재시험 | 🔲 | |
 | 12-4~12-9 | 🔲 | |
 
-### 12-1 완료 항목
+### 12-1 완료 ✅
 
-- `V21__lesson_record.sql` — `lesson_record` + FK (nullable)
-- `GET/POST/PATCH /classes/{id}/lesson-records`
-- `ClassLessonRecordSection` · 반 상세 **수업기록** 탭
-- `ClassDetailResponse.canEditContent` (담임·조교·관리자)
+- `V21__lesson_record.sql` · `GET/POST/PATCH /lesson-records`
+- 수업기록 게시판 UI · 통합 등록 (숙제·테스트·영상·클리닉)
+- 숙제·테스트 탭 확인용 · wide 레이아웃
+- `V22` 클리닉 토·일 허용
+
+### 12-2 완료 ✅
+
+- `V23__homework_test_v3.sql` — `question_count`, `homework_answer_key`, `due_at` 제거
+- `GET/PUT .../homeworks/{id}/answer-keys` · `PATCH .../submissions/{studentId}/grade`
+- `HomeworkScoreCalculator` — `ceil(100÷문항수×맞은 수, 소수 1자리)`
+- 숙제 확인 탭 — 정답지·문항별 답안·자동 점수 (`canEditContent`)
 
 ---
 
@@ -114,9 +121,8 @@ Phase 0~10 ✅  →  10.2 (BE, 선택)  →  12 v3.0  →  11 운영 (최종)
 
 ## 다음 할 일
 
-1. **Phase 12-2** — 정오표·문항 수·`due_at` 제거
-2. **12-1 마무리** — 숙제·테스트 등록 시 `lesson_record_id` 연동
-3. ~~Phase 11~~ — 12 완료 후
+1. **12-3** — 테스트 석차 · 재시험
+2. ~~Phase 11~~ — 12 완료 후
 
 ---
 
@@ -129,7 +135,7 @@ Phase 0~10 ✅  →  10.2 (BE, 선택)  →  12 v3.0  →  11 운영 (최종)
 | 9 | UI | ✅ | |
 | 10 | 디자인 | ✅ | 10.1 포함 |
 | 10.2 | BE 정합 | 🔲 | 선택 |
-| **12** | **v3.0** | 🟡 | **12-1 진행** |
+| **12** | **v3.0** | 🟡 | **12-1~12-2 ✅** |
 | **11** | **운영** | 🔲 | **최종** |
 
 ---

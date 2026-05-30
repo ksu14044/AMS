@@ -1,35 +1,209 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   completeHomework,
   createHomework,
+  fetchHomeworkAnswerKeys,
   fetchHomeworkSubmissions,
   fetchHomeworks,
-  toInstant,
-  updateHomeworkSubmission,
+  gradeHomeworkSubmission,
+  saveHomeworkAnswerKeys,
 } from '../../api/classesApi'
 
 const STATUS_LABEL = { SCHEDULED: '예정', COMPLETED: '완료' }
 
-function draftFromRow(row) {
-  return {
-    submitted: row.submitted,
-    score: row.score ?? '',
-    grade: row.grade ?? '',
+function emptyAnswers(count) {
+  return Array.from({ length: Math.max(count, 0) }, () => '')
+}
+
+function answersFromKeyResponse(data) {
+  const count = data?.questionCount ?? 0
+  const items = data?.items ?? []
+  const answers = emptyAnswers(count)
+  for (const item of items) {
+    const idx = item.questionNo - 1
+    if (idx >= 0 && idx < answers.length) {
+      answers[idx] = item.correctAnswer ?? ''
+    }
   }
+  return answers
 }
 
-function parseDraftScore(value) {
-  if (value === '' || value == null) return null
-  const n = Number(value)
-  return Number.isNaN(n) ? null : n
+function answersFromRow(row, count) {
+  if (Array.isArray(row?.answers) && row.answers.length > 0) {
+    const normalized = emptyAnswers(count)
+    for (let i = 0; i < count; i++) {
+      normalized[i] = row.answers[i] ?? ''
+    }
+    return normalized
+  }
+  return emptyAnswers(count)
 }
 
-function isDraftDirty(row, draft) {
-  if (!row || !draft) return false
+function answersEqual(a, b) {
+  if (!a || !b || a.length !== b.length) return false
+  return a.every((value, index) => (value ?? '') === (b[index] ?? ''))
+}
+
+function HomeworkModalBackdrop({ wide, label, onClose, children }) {
   return (
-    row.submitted !== draft.submitted ||
-    row.score !== parseDraftScore(draft.score) ||
-    (row.grade ?? null) !== (draft.grade || null)
+    <div className="ams-homework-modal-backdrop" onClick={onClose}>
+      <div
+        className={`ams-homework-modal${wide ? ' ams-homework-modal--wide' : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={label}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function AnswerKeyModal({
+  homeworkTitle,
+  questionCount,
+  answerKeyDraft,
+  submitting,
+  answerKeyDirty,
+  onQuestionCountChange,
+  onAnswerChange,
+  onSave,
+  onClose,
+}) {
+  return (
+    <HomeworkModalBackdrop label="정답지 설정" onClose={onClose}>
+      <header className="ams-homework-modal__header">
+        <h4 className="ams-homework-modal__title">정답지 설정</h4>
+        <button type="button" className="ams-homework-modal__close" onClick={onClose} aria-label="닫기">
+          ×
+        </button>
+      </header>
+      <p className="ams-homework-modal__meta">{homeworkTitle}</p>
+
+      <form className="ams-homework-modal__body" onSubmit={onSave}>
+        <label className="ams-homework-modal__count">
+          문항 수
+          <input
+            type="number"
+            min={1}
+            value={questionCount || ''}
+            disabled={submitting}
+            onChange={(e) => onQuestionCountChange(e.target.value)}
+          />
+        </label>
+
+        {questionCount > 0 && (
+          <div className="ams-homework-modal__grid">
+            {Array.from({ length: questionCount }, (_, i) => (
+              <label key={i} className="ams-homework-modal__field">
+                <span>{i + 1}번 정답</span>
+                <input
+                  type="text"
+                  maxLength={500}
+                  value={answerKeyDraft.answers[i] ?? ''}
+                  disabled={submitting}
+                  onChange={(e) => onAnswerChange(i, e.target.value)}
+                />
+              </label>
+            ))}
+          </div>
+        )}
+
+        <footer className="ams-homework-modal__footer">
+          <button type="button" className="ams-btn ams-btn--ghost" disabled={submitting} onClick={onClose}>
+            취소
+          </button>
+          <button
+            type="submit"
+            className="ams-btn ams-btn--primary"
+            disabled={submitting || !answerKeyDirty || questionCount <= 0}
+          >
+            {submitting ? '저장 중…' : '정답지 저장'}
+          </button>
+        </footer>
+      </form>
+    </HomeworkModalBackdrop>
+  )
+}
+
+function GradeModal({
+  studentName,
+  homeworkTitle,
+  questionCount,
+  correctAnswers,
+  draft,
+  canManage,
+  grading,
+  dirty,
+  onDraftChange,
+  onGrade,
+  onClose,
+}) {
+  return (
+    <HomeworkModalBackdrop wide label={`${studentName} 답안`} onClose={onClose}>
+      <header className="ams-homework-modal__header">
+        <h4 className="ams-homework-modal__title">{canManage ? '답안 입력·채점' : '내 답안'}</h4>
+        <button type="button" className="ams-homework-modal__close" onClick={onClose} aria-label="닫기">
+          ×
+        </button>
+      </header>
+      <p className="ams-homework-modal__meta">
+        {studentName} · {homeworkTitle}
+      </p>
+
+      <div className="ams-homework-modal__body">
+        <table className="ams-homework-grade-table">
+          <thead>
+            <tr>
+              <th>문항</th>
+              {canManage && correctAnswers.length > 0 && <th>정답</th>}
+              <th>{canManage ? '학생 답안' : '답안'}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: questionCount }, (_, i) => (
+              <tr key={i}>
+                <td>{i + 1}번</td>
+                {canManage && correctAnswers.length > 0 && (
+                  <td className="ams-homework-grade-table__correct">{correctAnswers[i] || '—'}</td>
+                )}
+                <td>
+                  {canManage ? (
+                    <input
+                      type="text"
+                      className="ams-homework-grade-table__input"
+                      maxLength={500}
+                      value={draft[i] ?? ''}
+                      disabled={grading}
+                      onChange={(e) => onDraftChange(i, e.target.value)}
+                    />
+                  ) : (
+                    <span>{draft[i]?.trim() ? draft[i] : '—'}</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <footer className="ams-homework-modal__footer">
+        <button type="button" className="ams-btn ams-btn--ghost" disabled={grading} onClick={onClose}>
+          {canManage ? '취소' : '닫기'}
+        </button>
+        {canManage && (
+          <button
+            type="button"
+            className="ams-btn ams-btn--primary"
+            disabled={grading || !dirty}
+            onClick={onGrade}
+          >
+            {grading ? '채점 중…' : '채점'}
+          </button>
+        )}
+      </footer>
+    </HomeworkModalBackdrop>
   )
 }
 
@@ -37,10 +211,34 @@ export default function ClassHomeworkSection({ classId, canManage, verifyOnly = 
   const [homeworks, setHomeworks] = useState([])
   const [selectedId, setSelectedId] = useState('')
   const [submissions, setSubmissions] = useState([])
-  const [submissionDraft, setSubmissionDraft] = useState({})
+  const [questionCount, setQuestionCount] = useState(0)
+  const [answerKeyDraft, setAnswerKeyDraft] = useState({ questionCount: 0, answers: [] })
+  const [savedAnswerKey, setSavedAnswerKey] = useState({ questionCount: 0, answers: [] })
+  const [studentAnswerDraft, setStudentAnswerDraft] = useState({})
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [form, setForm] = useState({ title: '', dueDate: '', dueTime: '18:00' })
+  const [grading, setGrading] = useState(false)
+  const [modal, setModal] = useState(null)
+  const [gradeModalDraft, setGradeModalDraft] = useState([])
+  const [form, setForm] = useState({ title: '', questionCount: '' })
+
+  const selectedHomework = useMemo(
+    () => homeworks.find((h) => String(h.homeworkId) === selectedId),
+    [homeworks, selectedId],
+  )
+
+  const hasAnswerKey = savedAnswerKey.answers.some((a) => a.trim() !== '')
+
+  const gradingStudent = useMemo(() => {
+    if (modal?.type !== 'grade') return null
+    return submissions.find((s) => s.studentId === modal.studentId) ?? null
+  }, [modal, submissions])
+
+  const gradeModalDirty = useMemo(() => {
+    if (!gradingStudent) return false
+    const saved = answersFromRow(gradingStudent, questionCount)
+    return !answersEqual(saved, gradeModalDraft)
+  }, [gradingStudent, questionCount, gradeModalDraft])
 
   const loadHomeworks = useCallback(async () => {
     const list = await fetchHomeworks(classId)
@@ -50,20 +248,36 @@ export default function ClassHomeworkSection({ classId, canManage, verifyOnly = 
     }
   }, [classId, selectedId])
 
+  const loadAnswerKeys = useCallback(async () => {
+    if (!selectedId) {
+      setQuestionCount(0)
+      setAnswerKeyDraft({ questionCount: 0, answers: [] })
+      setSavedAnswerKey({ questionCount: 0, answers: [] })
+      return
+    }
+    const data = await fetchHomeworkAnswerKeys(classId, selectedId)
+    const count = data.questionCount || selectedHomework?.questionCount || 0
+    const answers = answersFromKeyResponse(data)
+    setQuestionCount(count)
+    setAnswerKeyDraft({ questionCount: count, answers: [...answers] })
+    setSavedAnswerKey({ questionCount: count, answers: [...answers] })
+  }, [classId, selectedId, selectedHomework?.questionCount])
+
   const loadSubmissions = useCallback(async () => {
     if (!selectedId) {
       setSubmissions([])
-      setSubmissionDraft({})
+      setStudentAnswerDraft({})
       return
     }
     const rows = await fetchHomeworkSubmissions(classId, selectedId)
     setSubmissions(rows)
+    const count = questionCount || selectedHomework?.questionCount || 0
     const draft = {}
     for (const row of rows) {
-      draft[row.studentId] = draftFromRow(row)
+      draft[row.studentId] = answersFromRow(row, count)
     }
-    setSubmissionDraft(draft)
-  }, [classId, selectedId])
+    setStudentAnswerDraft(draft)
+  }, [classId, selectedId, questionCount, selectedHomework?.questionCount])
 
   useEffect(() => {
     ;(async () => {
@@ -80,20 +294,134 @@ export default function ClassHomeworkSection({ classId, canManage, verifyOnly = 
   }, [loadHomeworks, onError])
 
   useEffect(() => {
+    ;(async () => {
+      onError('')
+      try {
+        await loadAnswerKeys()
+      } catch (err) {
+        onError(err.message)
+      }
+    })()
+  }, [loadAnswerKeys, onError])
+
+  useEffect(() => {
     loadSubmissions().catch((err) => onError(err.message))
   }, [loadSubmissions, onError])
 
+  useEffect(() => {
+    setModal(null)
+    setGradeModalDraft([])
+  }, [selectedId])
+
+  function resetAnswerKeyDraft() {
+    setQuestionCount(savedAnswerKey.questionCount)
+    setAnswerKeyDraft({
+      questionCount: savedAnswerKey.questionCount,
+      answers: [...savedAnswerKey.answers],
+    })
+  }
+
+  function openAnswerKeyModal() {
+    resetAnswerKeyDraft()
+    setModal({ type: 'answer-key' })
+  }
+
+  function closeAnswerKeyModal() {
+    resetAnswerKeyDraft()
+    setModal(null)
+  }
+
+  function openGradeModal(studentId) {
+    const answers = studentAnswerDraft[studentId] ?? emptyAnswers(questionCount)
+    setGradeModalDraft([...answers])
+    setModal({ type: 'grade', studentId })
+  }
+
+  function closeGradeModal() {
+    setModal(null)
+    setGradeModalDraft([])
+  }
+
+  function handleQuestionCountChange(value) {
+    const count = Math.max(0, Number(value) || 0)
+    setQuestionCount(count)
+    setAnswerKeyDraft((prev) => ({
+      questionCount: count,
+      answers: emptyAnswers(count).map((_, i) => prev.answers[i] ?? ''),
+    }))
+  }
+
+  function handleAnswerKeyChange(index, value) {
+    setAnswerKeyDraft((prev) => {
+      const answers = [...prev.answers]
+      answers[index] = value
+      return { ...prev, answers }
+    })
+  }
+
+  async function handleSaveAnswerKey(e) {
+    e.preventDefault()
+    if (questionCount <= 0) {
+      onError('문항 수를 1 이상 입력하세요.')
+      return
+    }
+    setSubmitting(true)
+    onError('')
+    try {
+      const saved = await saveHomeworkAnswerKeys(classId, selectedId, {
+        questionCount,
+        answers: answerKeyDraft.answers,
+      })
+      const answers = answersFromKeyResponse(saved)
+      setQuestionCount(saved.questionCount)
+      setAnswerKeyDraft({ questionCount: saved.questionCount, answers: [...answers] })
+      setSavedAnswerKey({ questionCount: saved.questionCount, answers: [...answers] })
+      await loadHomeworks()
+      await loadSubmissions()
+      setModal(null)
+    } catch (err) {
+      onError(err.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleGradeFromModal() {
+    if (!gradingStudent || !hasAnswerKey) return
+    const studentId = gradingStudent.studentId
+    const saved = answersFromRow(gradingStudent, questionCount)
+    if (answersEqual(saved, gradeModalDraft)) return
+
+    setGrading(true)
+    onError('')
+    try {
+      const updated = await gradeHomeworkSubmission(classId, selectedId, studentId, {
+        answers: gradeModalDraft,
+      })
+      setSubmissions((prev) => prev.map((s) => (s.studentId === studentId ? updated : s)))
+      setStudentAnswerDraft((prev) => ({
+        ...prev,
+        [studentId]: answersFromRow(updated, questionCount),
+      }))
+      closeGradeModal()
+    } catch (err) {
+      onError(err.message)
+    } finally {
+      setGrading(false)
+    }
+  }
+
   async function handleCreate(e) {
     e.preventDefault()
-    if (!form.title.trim() || !form.dueDate) return
+    if (!form.title.trim()) return
     setSubmitting(true)
     onError('')
     try {
       const created = await createHomework(classId, {
         title: form.title.trim(),
-        dueAt: toInstant(form.dueDate, form.dueTime),
+        questionCount: form.questionCount ? Number(form.questionCount) : null,
       })
-      setForm({ title: '', dueDate: '', dueTime: '18:00' })
+      setForm({ title: '', questionCount: '' })
       await loadHomeworks()
       setSelectedId(String(created.homeworkId))
     } catch (err) {
@@ -101,41 +429,6 @@ export default function ClassHomeworkSection({ classId, canManage, verifyOnly = 
     } finally {
       setSubmitting(false)
     }
-  }
-
-  async function persistStudent(studentId, draftOverride) {
-    const row = submissions.find((s) => s.studentId === studentId)
-    const draft = draftOverride ?? submissionDraft[studentId]
-    if (!row || !draft || !isDraftDirty(row, draft)) {
-      return
-    }
-
-    setSubmitting(true)
-    onError('')
-    try {
-      const updated = await updateHomeworkSubmission(classId, selectedId, studentId, {
-        submitted: draft.submitted,
-        submittedAt: null,
-        score: parseDraftScore(draft.score),
-        grade: draft.grade || null,
-        memo: row.memo ?? null,
-      })
-      setSubmissions((prev) => prev.map((s) => (s.studentId === studentId ? updated : s)))
-      setSubmissionDraft((prev) => ({
-        ...prev,
-        [studentId]: draftFromRow(updated),
-      }))
-    } catch (err) {
-      onError(err.message)
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  function handleSubmittedChange(studentId, submitted) {
-    const nextDraft = { ...submissionDraft[studentId], submitted }
-    setSubmissionDraft((prev) => ({ ...prev, [studentId]: nextDraft }))
-    persistStudent(studentId, nextDraft)
   }
 
   async function handleComplete() {
@@ -151,6 +444,10 @@ export default function ClassHomeworkSection({ classId, canManage, verifyOnly = 
     }
   }
 
+  const answerKeyDirty =
+    questionCount !== savedAnswerKey.questionCount ||
+    !answersEqual(answerKeyDraft.answers, savedAnswerKey.answers)
+
   if (loading) {
     return <p className="ams-class-detail__empty">불러오는 중…</p>
   }
@@ -160,8 +457,8 @@ export default function ClassHomeworkSection({ classId, canManage, verifyOnly = 
       <h3 className="ams-class-detail__heading">{verifyOnly ? '숙제 확인' : '숙제'}</h3>
       <p className="ams-class-detail__hint-inline">
         {verifyOnly
-          ? '수업기록에서 등록한 숙제의 제출·점수를 확인합니다. 새 숙제는 수업기록 탭에서 등록하세요.'
-          : '교사·관리자가 학생별 제출 여부·점수를 입력합니다. 점수·등급은 입력 후 다른 칸으로 이동하면 저장됩니다.'}
+          ? '정답지를 설정한 뒤 학생별 「답안 입력」에서 답을 입력하고 채점하세요.'
+          : '교직원이 정답지·학생 답안을 모달에서 입력합니다.'}
       </p>
 
       {canManage && !verifyOnly && (
@@ -176,20 +473,13 @@ export default function ClassHomeworkSection({ classId, canManage, verifyOnly = 
             />
           </label>
           <label>
-            마감일
+            문항 수
             <input
-              type="date"
-              value={form.dueDate}
-              onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
-              required
-            />
-          </label>
-          <label>
-            마감 시각
-            <input
-              type="time"
-              value={form.dueTime}
-              onChange={(e) => setForm({ ...form, dueTime: e.target.value })}
+              type="number"
+              min={1}
+              value={form.questionCount}
+              onChange={(e) => setForm({ ...form, questionCount: e.target.value })}
+              placeholder="정오표 설정 시 입력"
             />
           </label>
           <button type="submit" className="ams-btn ams-btn--primary" disabled={submitting}>
@@ -207,98 +497,120 @@ export default function ClassHomeworkSection({ classId, canManage, verifyOnly = 
             <select value={selectedId} onChange={(e) => setSelectedId(e.target.value)}>
               {homeworks.map((h) => (
                 <option key={h.homeworkId} value={h.homeworkId}>
-                  [{STATUS_LABEL[h.status] || h.status}] {h.title} —{' '}
-                  {new Date(h.dueAt).toLocaleString('ko-KR')}
+                  [{STATUS_LABEL[h.status] || h.status}] {h.title}
+                  {h.questionCount ? ` · ${h.questionCount}문항` : ''}
                 </option>
               ))}
             </select>
           </label>
 
-          {canManage && selectedId && (
-            <button
-              type="button"
-              className="ams-btn ams-btn--ghost"
-              disabled={submitting}
-              onClick={handleComplete}
-            >
-              이 숙제를 완료 처리
-            </button>
+          {selectedId && (
+            <div className="ams-homework-toolbar">
+              {canManage && (
+                <>
+                  <button
+                    type="button"
+                    className="ams-btn ams-btn--primary"
+                    onClick={openAnswerKeyModal}
+                  >
+                    정답지 설정
+                    {hasAnswerKey && (
+                      <span className="ams-homework-toolbar__badge">등록됨</span>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    className="ams-btn ams-btn--ghost"
+                    disabled={submitting}
+                    onClick={handleComplete}
+                  >
+                    완료 처리
+                  </button>
+                </>
+              )}
+              {!canManage && !hasAnswerKey && questionCount <= 0 && (
+                <p className="ams-class-detail__empty">아직 정답지가 등록되지 않았습니다.</p>
+              )}
+            </div>
           )}
 
-          <div className="ams-submission-table-wrap">
-            <table className="ams-submission-table">
-              <thead>
-                <tr>
-                  <th>학생</th>
-                  <th>제출</th>
-                  {canManage && <th>점수</th>}
-                  {canManage && <th>등급</th>}
-                  {!canManage && <th>상태</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {submissions.map((s) => (
-                  <tr key={s.studentId}>
-                    <td>{s.studentName}</td>
-                    <td>
-                      {canManage ? (
-                        <input
-                          type="checkbox"
-                          checked={submissionDraft[s.studentId]?.submitted ?? false}
-                          disabled={submitting}
-                          onChange={(e) => handleSubmittedChange(s.studentId, e.target.checked)}
-                        />
-                      ) : (
-                        <span>{s.submitted ? '제출 완료' : '미제출'}</span>
-                      )}
-                    </td>
-                    {canManage ? (
-                      <>
-                        <td>
-                          <input
-                            type="number"
-                            className="ams-submission-table__num"
-                            value={submissionDraft[s.studentId]?.score ?? ''}
-                            disabled={submitting}
-                            onChange={(e) =>
-                              setSubmissionDraft((prev) => ({
-                                ...prev,
-                                [s.studentId]: { ...prev[s.studentId], score: e.target.value },
-                              }))
-                            }
-                            onBlur={() => persistStudent(s.studentId)}
-                          />
-                        </td>
-                        <td>
-                          <input
-                            type="text"
-                            className="ams-submission-table__grade"
-                            value={submissionDraft[s.studentId]?.grade ?? ''}
-                            maxLength={16}
-                            disabled={submitting}
-                            onChange={(e) =>
-                              setSubmissionDraft((prev) => ({
-                                ...prev,
-                                [s.studentId]: { ...prev[s.studentId], grade: e.target.value },
-                              }))
-                            }
-                            onBlur={() => persistStudent(s.studentId)}
-                          />
-                        </td>
-                      </>
-                    ) : (
-                      <td colSpan={2}>
-                        {s.submitted ? '제출 완료' : '—'}
-                        {s.score != null ? ` · ${s.score}점` : ''}
-                        {s.grade ? ` (${s.grade})` : ''}
-                      </td>
-                    )}
+          {submissions.length > 0 && (
+            <div className="ams-submission-table-wrap">
+              <table className="ams-submission-table ams-submission-table--homework">
+                <thead>
+                  <tr>
+                    <th>학생</th>
+                    <th>맞은 수</th>
+                    <th>점수</th>
+                    <th>상태</th>
+                    <th>{canManage ? '답안' : '확인'}</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {submissions.map((s) => (
+                    <tr key={s.studentId}>
+                      <td>{s.studentName}</td>
+                      <td>
+                        {s.correctCount != null ? `${s.correctCount}/${questionCount || '?'}` : '—'}
+                      </td>
+                      <td>{s.score != null ? `${s.score}점` : '—'}</td>
+                      <td>{s.completedAt ? '완료' : hasAnswerKey ? '미채점' : '—'}</td>
+                      <td>
+                        {(canManage && hasAnswerKey) || (!canManage && s.completedAt) ? (
+                          <button
+                            type="button"
+                            className="ams-btn ams-btn--ghost ams-homework-row-btn"
+                            onClick={() => openGradeModal(s.studentId)}
+                          >
+                            {canManage ? (s.completedAt ? '수정' : '답안 입력') : '보기'}
+                          </button>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </>
+      )}
+
+      {modal?.type === 'answer-key' && canManage && (
+        <AnswerKeyModal
+          homeworkTitle={selectedHomework?.title ?? ''}
+          questionCount={questionCount}
+          answerKeyDraft={answerKeyDraft}
+          submitting={submitting}
+          answerKeyDirty={answerKeyDirty}
+          onQuestionCountChange={handleQuestionCountChange}
+          onAnswerChange={handleAnswerKeyChange}
+          onSave={handleSaveAnswerKey}
+          onClose={closeAnswerKeyModal}
+        />
+      )}
+
+      {modal?.type === 'grade' && gradingStudent && questionCount > 0 && (
+        <GradeModal
+          studentName={gradingStudent.studentName}
+          homeworkTitle={selectedHomework?.title ?? ''}
+          questionCount={questionCount}
+          correctAnswers={canManage ? savedAnswerKey.answers : []}
+          draft={gradeModalDraft}
+          canManage={canManage && hasAnswerKey}
+          grading={grading}
+          dirty={gradeModalDirty}
+          onDraftChange={(index, value) => {
+            setGradeModalDraft((prev) => {
+              const next = [...prev]
+              next[index] = value
+              return next
+            })
+          }}
+          onGrade={handleGradeFromModal}
+          onClose={closeGradeModal}
+        />
       )}
     </section>
   )

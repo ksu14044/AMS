@@ -6,13 +6,17 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.ams.api.dto.CreateHomeworkRequest;
+import com.example.ams.api.dto.GradeHomeworkSubmissionRequest;
+import com.example.ams.api.dto.HomeworkAnswerKeyResponse;
 import com.example.ams.api.dto.HomeworkResponse;
 import com.example.ams.api.dto.HomeworkSubmissionResponse;
+import com.example.ams.api.dto.SaveHomeworkAnswerKeyRequest;
 import com.example.ams.api.dto.UpdateHomeworkSubmissionRequest;
 import com.example.ams.common.ApiResponse;
 import com.example.ams.service.HomeworkService;
@@ -42,7 +46,24 @@ public class ClassHomeworkController {
 			@PathVariable long classId,
 			@Valid @RequestBody CreateHomeworkRequest request) {
 		return ApiResponse.ok(HomeworkResponse.from(
-				homeworkService.createHomework(classId, request.title(), request.dueAt())));
+				homeworkService.createHomework(classId, request.title(), request.questionCount())));
+	}
+
+	@GetMapping("/{homeworkId}/answer-keys")
+	public ApiResponse<HomeworkAnswerKeyResponse> getAnswerKeys(@PathVariable long homeworkId) {
+		var homework = homeworkService.getHomework(homeworkId);
+		return ApiResponse.ok(HomeworkAnswerKeyResponse.from(
+				homework, homeworkService.getAnswerKeys(homeworkId)));
+	}
+
+	@PutMapping("/{homeworkId}/answer-keys")
+	public ApiResponse<HomeworkAnswerKeyResponse> saveAnswerKeys(
+			@PathVariable long homeworkId,
+			@Valid @RequestBody SaveHomeworkAnswerKeyRequest request) {
+		var homework = homeworkService.saveAnswerKeys(
+				homeworkId, request.questionCount(), request.answers());
+		return ApiResponse.ok(HomeworkAnswerKeyResponse.from(
+				homework, homeworkService.getAnswerKeys(homeworkId)));
 	}
 
 	@GetMapping("/{homeworkId}/submissions")
@@ -66,6 +87,19 @@ public class ClassHomeworkController {
 				request.score(),
 				request.grade(),
 				request.memo());
+		var row = homeworkService.listSubmissionRows(homeworkId).stream()
+				.filter(r -> r.studentId() == studentId)
+				.findFirst()
+				.orElseThrow();
+		return ApiResponse.ok(HomeworkSubmissionResponse.from(row));
+	}
+
+	@PatchMapping("/{homeworkId}/submissions/{studentId}/grade")
+	public ApiResponse<HomeworkSubmissionResponse> gradeSubmission(
+			@PathVariable long homeworkId,
+			@PathVariable long studentId,
+			@Valid @RequestBody GradeHomeworkSubmissionRequest request) {
+		homeworkService.gradeSubmission(homeworkId, studentId, request.answers());
 		var row = homeworkService.listSubmissionRows(homeworkId).stream()
 				.filter(r -> r.studentId() == studentId)
 				.findFirst()

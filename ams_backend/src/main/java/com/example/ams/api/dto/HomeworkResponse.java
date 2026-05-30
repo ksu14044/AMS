@@ -9,15 +9,17 @@ public record HomeworkResponse(
 		long homeworkId,
 		long classId,
 		String title,
-		Instant dueAt,
-		AssignmentStatus status) {
+		Integer questionCount,
+		AssignmentStatus status,
+		Instant createdAt) {
 
 	public static HomeworkResponse from(Homework homework) {
 		return new HomeworkResponse(
 				homework.homeworkId(),
 				homework.classId(),
 				homework.title(),
-				homework.dueAt(),
-				homework.status());
+				homework.questionCount(),
+				homework.status(),
+				homework.createdAt());
 	}
 }

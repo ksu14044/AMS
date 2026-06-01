@@ -1,4 +1,5 @@
 -- Phase 12-7: clinic result preset · result_json
+-- H2(test, MODE=MySQL) 호환: UPDATE JOIN·AFTER 미사용
 
 CREATE TABLE clinic_result_preset (
     preset_id    BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -24,11 +25,14 @@ SELECT c.class_id,
 FROM `class` c;
 
 ALTER TABLE clinic_slot
-    ADD COLUMN clinic_result_preset_id BIGINT NULL AFTER lesson_record_id;
+    ADD COLUMN clinic_result_preset_id BIGINT NULL;
 
 UPDATE clinic_slot s
-INNER JOIN clinic_result_preset p ON p.class_id = s.class_id AND p.name = '기본'
-SET s.clinic_result_preset_id = p.preset_id;
+SET clinic_result_preset_id = (
+    SELECT p.preset_id
+    FROM clinic_result_preset p
+    WHERE p.class_id = s.class_id AND p.name = '기본'
+);
 
 ALTER TABLE clinic_slot
     ADD CONSTRAINT fk_clinic_slot_preset
@@ -38,8 +42,10 @@ ALTER TABLE clinic_slot
     MODIFY clinic_result_preset_id BIGINT NOT NULL;
 
 ALTER TABLE clinic_reservation
-    ADD COLUMN result_json JSON NULL AFTER result_memo,
-    ADD COLUMN result_saved_at TIMESTAMP NULL AFTER result_json;
+    ADD COLUMN result_json JSON NULL;
+
+ALTER TABLE clinic_reservation
+    ADD COLUMN result_saved_at TIMESTAMP NULL;
 
 UPDATE clinic_reservation
 SET result_json = JSON_OBJECT('attended', result_attended, 'memo', result_memo),

@@ -65,7 +65,7 @@ class StudyRecordPeriodCalculatorTest {
 		when(videoLessonRepository.findByClassId(classId)).thenReturn(List.of());
 
 		ClinicReservation reservation = new ClinicReservation(
-				1L, 50L, studentId, "강학생", ClinicReservationStatus.RESERVED, true, null, Instant.now());
+				1L, 50L, studentId, "강학생", ClinicReservationStatus.RESERVED, true, null, null, null, Instant.now());
 		LocalDate weekStart = LocalDate.of(2026, 5, 25);
 		when(clinicReservationRepository.findByClassIdAndStudentIdWithSlot(classId, studentId))
 				.thenReturn(List.of(new ClinicReservationWithSlot(
@@ -89,7 +89,7 @@ class StudyRecordPeriodCalculatorTest {
 		when(videoLessonRepository.findByClassId(classId)).thenReturn(List.of());
 
 		ClinicReservation reservation = new ClinicReservation(
-				1L, 50L, studentId, "강학생", ClinicReservationStatus.RESERVED, true, null, Instant.now());
+				1L, 50L, studentId, "강학생", ClinicReservationStatus.RESERVED, true, null, null, null, Instant.now());
 		when(clinicReservationRepository.findByClassIdAndStudentIdWithSlot(classId, studentId))
 				.thenReturn(List.of(new ClinicReservationWithSlot(
 						reservation, LocalDate.of(2026, 5, 25), DayOfWeek.TUE, LocalTime.of(10, 0))));

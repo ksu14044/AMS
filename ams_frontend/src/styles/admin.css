@@ -287,13 +287,26 @@
 .ams-enrollment-list__item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
+  flex-wrap: wrap;
   gap: var(--ams-space-3);
   padding: 10px 14px;
   border: var(--ams-border-width) solid var(--ams-color-border);
   border-radius: var(--ams-radius-sm);
   background: var(--ams-color-white);
   font-size: var(--ams-font-size-sm);
+}
+
+.ams-enrollment-list__name {
+  font-weight: var(--ams-font-weight-semibold);
+}
+
+.ams-enrollment-list__meta {
+  color: var(--ams-color-text-secondary);
+}
+
+.ams-enrollment-list__item .ams-btn {
+  margin-left: auto;
 }
 
 /* ─── 학생부 ─────────────────────────────── */

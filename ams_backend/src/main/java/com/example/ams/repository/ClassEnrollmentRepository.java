@@ -19,7 +19,8 @@ public class ClassEnrollmentRepository {
 			rs.getLong("class_id"),
 			rs.getLong("student_id"),
 			rs.getTimestamp("assigned_at").toInstant(),
-			rs.getLong("assigned_by"));
+			rs.getLong("assigned_by"),
+			rs.getDate("accessible_from") != null ? rs.getDate("accessible_from").toLocalDate() : null);
 
 	private final JdbcTemplate jdbcTemplate;
 
@@ -40,6 +41,13 @@ public class ClassEnrollmentRepository {
 		return count != null && count > 0;
 	}
 
+	public Optional<ClassEnrollment> findByClassIdAndStudentId(long classId, long studentId) {
+		return queryOne(
+				"SELECT * FROM class_enrollment WHERE class_id = ? AND student_id = ?",
+				classId,
+				studentId);
+	}
+
 	public List<ClassEnrollment> findByClassId(long classId) {
 		return jdbcTemplate.query(
 				"SELECT * FROM class_enrollment WHERE class_id = ? ORDER BY assigned_at DESC",
@@ -47,10 +55,10 @@ public class ClassEnrollmentRepository {
 				classId);
 	}
 
-	public ClassEnrollment insert(long classId, long studentId, long assignedBy) {
+	public ClassEnrollment insert(long classId, long studentId, long assignedBy, java.time.LocalDate accessibleFrom) {
 		String sql = """
-				INSERT INTO class_enrollment (class_id, student_id, assigned_by)
-				VALUES (?, ?, ?)
+				INSERT INTO class_enrollment (class_id, student_id, assigned_by, accessible_from)
+				VALUES (?, ?, ?, ?)
 				""";
 		KeyHolder keyHolder = new GeneratedKeyHolder();
 		jdbcTemplate.update(connection -> {
@@ -58,6 +66,11 @@ public class ClassEnrollmentRepository {
 			ps.setLong(1, classId);
 			ps.setLong(2, studentId);
 			ps.setLong(3, assignedBy);
+			if (accessibleFrom != null) {
+				ps.setDate(4, java.sql.Date.valueOf(accessibleFrom));
+			} else {
+				ps.setNull(4, java.sql.Types.DATE);
+			}
 			return ps;
 		}, keyHolder);
 		return findById(keyHolder.getKey().longValue()).orElseThrow();

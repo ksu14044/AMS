@@ -48,10 +48,10 @@ export function fetchEnrollments(classId) {
   return apiRequest(`/admin/classes/${classId}/enrollments`)
 }
 
-export function enrollStudent(classId, studentId) {
+export function enrollStudent(classId, studentId, accessibleFrom) {
   return apiRequest(`/admin/classes/${classId}/enrollments`, {
     method: 'POST',
-    body: JSON.stringify({ studentId }),
+    body: JSON.stringify({ studentId, accessibleFrom: accessibleFrom || null }),
   })
 }
 

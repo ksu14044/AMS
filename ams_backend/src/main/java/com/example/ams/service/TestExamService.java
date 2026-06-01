@@ -2,7 +2,9 @@ package com.example.ams.service;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -25,6 +27,7 @@ import com.example.ams.domain.user.UserRole;
 import com.example.ams.event.TestExamCreatedEvent;
 import com.example.ams.event.TestResultUpdatedEvent;
 import com.example.ams.repository.ClassEnrollmentRepository;
+import com.example.ams.repository.LessonRecordRepository;
 import com.example.ams.repository.TestAnswerKeyRepository;
 import com.example.ams.repository.TestExamRepository;
 import com.example.ams.repository.TestScoreRepository;
@@ -39,6 +42,7 @@ public class TestExamService {
 	private final TestExamRepository testRepository;
 	private final TestScoreRepository scoreRepository;
 	private final TestAnswerKeyRepository answerKeyRepository;
+	private final LessonRecordRepository lessonRecordRepository;
 	private final ClassEnrollmentRepository enrollmentRepository;
 	private final UserRepository userRepository;
 	private final ClassAccessService classAccessService;
@@ -50,6 +54,7 @@ public class TestExamService {
 			TestExamRepository testRepository,
 			TestScoreRepository scoreRepository,
 			TestAnswerKeyRepository answerKeyRepository,
+			LessonRecordRepository lessonRecordRepository,
 			ClassEnrollmentRepository enrollmentRepository,
 			UserRepository userRepository,
 			ClassAccessService classAccessService,
@@ -59,6 +64,7 @@ public class TestExamService {
 		this.testRepository = testRepository;
 		this.scoreRepository = scoreRepository;
 		this.answerKeyRepository = answerKeyRepository;
+		this.lessonRecordRepository = lessonRecordRepository;
 		this.enrollmentRepository = enrollmentRepository;
 		this.userRepository = userRepository;
 		this.classAccessService = classAccessService;
@@ -72,6 +78,10 @@ public class TestExamService {
 		List<TestExam> tests = testRepository.findByClassId(classId);
 		if (currentUserService.requireRole() == UserRole.STUDENT) {
 			long me = currentUserService.requireUserId();
+			LocalDate accessibleFrom = enrollmentRepository.findByClassIdAndStudentId(classId, me)
+					.map(e -> e.accessibleFrom())
+					.orElse(null);
+			Map<Long, LocalDate> lessonDateCache = new HashMap<>();
 			return tests.stream()
 					.filter(t -> {
 						if (t.isRetake()) {
@@ -80,9 +90,30 @@ public class TestExamService {
 						return assignmentTargetService.canStudentAccess(
 								AssignmentEntityType.TEST, t.testId(), classId, me);
 					})
+					.filter(t -> isVisibleWithinAccessWindow(t, accessibleFrom, lessonDateCache))
 					.toList();
 		}
 		return tests;
+	}
+
+	private boolean isVisibleWithinAccessWindow(
+			TestExam test,
+			LocalDate accessibleFrom,
+			Map<Long, LocalDate> lessonDateCache) {
+		if (accessibleFrom == null || test.isRetake()) {
+			return true;
+		}
+		Long lessonRecordId = testRepository.findLessonRecordId(test.testId());
+		if (lessonRecordId == null) {
+			return true;
+		}
+		LocalDate lessonDate = lessonDateCache.computeIfAbsent(
+				lessonRecordId,
+				id -> lessonRecordRepository.findById(id).map(r -> r.lessonDate()).orElse(null));
+		if (lessonDate == null || !lessonDate.isBefore(accessibleFrom)) {
+			return true;
+		}
+		return false;
 	}
 
 	public AssignmentTargetService.TargetView getTargets(long testId) {

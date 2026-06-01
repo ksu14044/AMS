@@ -1,6 +1,7 @@
 package com.example.ams.service;
 
 import java.util.List;
+import java.time.LocalDate;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -74,14 +75,15 @@ public class AdminClassService {
 	}
 
 	@Transactional
-	public ClassEnrollment enrollStudent(long classId, long studentId) {
+	public ClassEnrollment enrollStudent(long classId, long studentId, LocalDate accessibleFrom) {
 		Clazz clazz = requireClassInAcademy(classId);
 		long adminId = currentUserService.requireUserId();
 		User student = requireActiveStudent(studentId, clazz.academyId());
 		if (enrollmentRepository.existsByClassIdAndStudentId(clazz.classId(), student.userId())) {
 			throw new BusinessException(ErrorCode.ALREADY_ENROLLED);
 		}
-		ClassEnrollment enrollment = enrollmentRepository.insert(clazz.classId(), student.userId(), adminId);
+		LocalDate from = accessibleFrom != null ? accessibleFrom : LocalDate.now();
+		ClassEnrollment enrollment = enrollmentRepository.insert(clazz.classId(), student.userId(), adminId, from);
 		eventPublisher.publishEvent(new ClassEnrollmentCreatedEvent(clazz.classId(), student.userId()));
 		return enrollment;
 	}

@@ -1,8 +1,10 @@
 package com.example.ams.service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -28,6 +30,7 @@ import com.example.ams.repository.ClassEnrollmentRepository;
 import com.example.ams.repository.ClinicReservationRepository;
 import com.example.ams.repository.HomeworkRepository;
 import com.example.ams.repository.HomeworkSubmissionRepository;
+import com.example.ams.repository.LessonRecordRepository;
 import com.example.ams.repository.TestExamRepository;
 import com.example.ams.repository.TestScoreRepository;
 import com.example.ams.repository.UserRepository;
@@ -44,6 +47,7 @@ public class StudyRecordService {
 	private final UserRepository userRepository;
 	private final HomeworkRepository homeworkRepository;
 	private final HomeworkSubmissionRepository homeworkSubmissionRepository;
+	private final LessonRecordRepository lessonRecordRepository;
 	private final ClinicReservationRepository clinicReservationRepository;
 	private final TestExamRepository testExamRepository;
 	private final TestScoreRepository testScoreRepository;
@@ -58,6 +62,7 @@ public class StudyRecordService {
 			UserRepository userRepository,
 			HomeworkRepository homeworkRepository,
 			HomeworkSubmissionRepository homeworkSubmissionRepository,
+			LessonRecordRepository lessonRecordRepository,
 			ClinicReservationRepository clinicReservationRepository,
 			TestExamRepository testExamRepository,
 			TestScoreRepository testScoreRepository,
@@ -70,6 +75,7 @@ public class StudyRecordService {
 		this.userRepository = userRepository;
 		this.homeworkRepository = homeworkRepository;
 		this.homeworkSubmissionRepository = homeworkSubmissionRepository;
+		this.lessonRecordRepository = lessonRecordRepository;
 		this.clinicReservationRepository = clinicReservationRepository;
 		this.testExamRepository = testExamRepository;
 		this.testScoreRepository = testScoreRepository;
@@ -120,11 +126,15 @@ public class StudyRecordService {
 
 	private StudyRecordResponse buildRecord(long classId, long studentId) {
 		User student = userRepository.findById(studentId).orElseThrow();
+		LocalDate accessibleFrom = enrollmentRepository.findByClassIdAndStudentId(classId, studentId)
+				.map(e -> e.accessibleFrom())
+				.orElse(null);
+		Map<Long, LocalDate> lessonDateCache = new HashMap<>();
 
-		StudyRecordMetricResponse homework = computeHomework(classId, studentId);
+		StudyRecordMetricResponse homework = computeHomework(classId, studentId, accessibleFrom, lessonDateCache);
 		StudyRecordMetricResponse clinic = computeClinic(classId, studentId);
-		StudyRecordTestMetricResponse test = computeTest(classId, studentId);
-		StudyRecordMetricResponse video = computeVideo(classId, studentId);
+		StudyRecordTestMetricResponse test = computeTest(classId, studentId, accessibleFrom, lessonDateCache);
+		StudyRecordMetricResponse video = computeVideo(classId, studentId, accessibleFrom, lessonDateCache);
 
 		double overall = homework.ratePercent() * 0.4
 				+ clinic.ratePercent() * 0.3
@@ -146,9 +156,14 @@ public class StudyRecordService {
 				encouragementMessage(gaugeLevel, overallPercent));
 	}
 
-	private StudyRecordMetricResponse computeHomework(long classId, long studentId) {
+	private StudyRecordMetricResponse computeHomework(
+			long classId,
+			long studentId,
+			LocalDate accessibleFrom,
+			Map<Long, LocalDate> lessonDateCache) {
 		List<Homework> completed = homeworkRepository.findByClassId(classId).stream()
 				.filter(h -> h.status() == AssignmentStatus.COMPLETED)
+				.filter(h -> isInAccessibleWindow(homeworkRepository.findLessonRecordId(h.homeworkId()), accessibleFrom, lessonDateCache))
 				.toList();
 		int total = completed.size();
 		if (total == 0) {
@@ -179,9 +194,14 @@ public class StudyRecordService {
 		return new StudyRecordMetricResponse(attended, total, percent(attended, total));
 	}
 
-	private StudyRecordTestMetricResponse computeTest(long classId, long studentId) {
+	private StudyRecordTestMetricResponse computeTest(
+			long classId,
+			long studentId,
+			LocalDate accessibleFrom,
+			Map<Long, LocalDate> lessonDateCache) {
 		List<TestExam> completed = testExamRepository.findByClassId(classId).stream()
 				.filter(t -> t.status() == AssignmentStatus.COMPLETED)
+				.filter(t -> isInAccessibleWindow(testExamRepository.findLessonRecordId(t.testId()), accessibleFrom, lessonDateCache))
 				.toList();
 		if (completed.isEmpty()) {
 			return new StudyRecordTestMetricResponse(0, 0, 0, null);
@@ -236,10 +256,15 @@ public class StudyRecordService {
 		return value.stripTrailingZeros().toPlainString();
 	}
 
-	private StudyRecordMetricResponse computeVideo(long classId, long studentId) {
+	private StudyRecordMetricResponse computeVideo(
+			long classId,
+			long studentId,
+			LocalDate accessibleFrom,
+			Map<Long, LocalDate> lessonDateCache) {
 		long total = videoLessonRepository.findByClassId(classId).stream()
 				.filter(v -> assignmentTargetService.requiresVideoCertification(
 						v.videoId(), classId, studentId))
+				.filter(v -> isInAccessibleWindow(videoLessonRepository.findLessonRecordId(v.videoId()), accessibleFrom, lessonDateCache))
 				.count();
 		if (total == 0) {
 			return new StudyRecordMetricResponse(0, 0, 0);
@@ -247,11 +272,25 @@ public class StudyRecordService {
 		int certified = (int) videoLessonRepository.findByClassId(classId).stream()
 				.filter(v -> assignmentTargetService.requiresVideoCertification(
 						v.videoId(), classId, studentId))
+				.filter(v -> isInAccessibleWindow(videoLessonRepository.findLessonRecordId(v.videoId()), accessibleFrom, lessonDateCache))
 				.filter(v -> videoCertificationRepository
 						.findByVideoIdAndStudentId(v.videoId(), studentId)
 						.isPresent())
 				.count();
 		return new StudyRecordMetricResponse(certified, (int) total, percent(certified, (int) total));
+	}
+
+	private boolean isInAccessibleWindow(
+			Long lessonRecordId,
+			LocalDate accessibleFrom,
+			Map<Long, LocalDate> lessonDateCache) {
+		if (accessibleFrom == null || lessonRecordId == null) {
+			return true;
+		}
+		LocalDate lessonDate = lessonDateCache.computeIfAbsent(
+				lessonRecordId,
+				id -> lessonRecordRepository.findById(id).map(r -> r.lessonDate()).orElse(null));
+		return lessonDate == null || !lessonDate.isBefore(accessibleFrom);
 	}
 
 	private static int percent(int numerator, int denominator) {

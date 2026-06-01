@@ -26,6 +26,8 @@ import com.example.ams.domain.clazz.AssignmentStatus;
 import com.example.ams.domain.clazz.ClinicSlotOccurrence;
 import com.example.ams.domain.clazz.DayOfWeek;
 import com.example.ams.domain.clazz.LessonRecord;
+import com.example.ams.domain.user.UserRole;
+import com.example.ams.repository.ClassEnrollmentRepository;
 import com.example.ams.repository.ClinicReservationRepository;
 import com.example.ams.repository.ClinicSlotRepository;
 import com.example.ams.repository.HomeworkRepository;
@@ -46,6 +48,7 @@ public class LessonRecordService {
 	private final VideoLessonRepository videoLessonRepository;
 	private final ClinicSlotRepository clinicSlotRepository;
 	private final ClinicReservationRepository clinicReservationRepository;
+	private final ClassEnrollmentRepository enrollmentRepository;
 	private final UserRepository userRepository;
 	private final ClassAccessService classAccessService;
 	private final CurrentUserService currentUserService;
@@ -62,6 +65,7 @@ public class LessonRecordService {
 			VideoLessonRepository videoLessonRepository,
 			ClinicSlotRepository clinicSlotRepository,
 			ClinicReservationRepository clinicReservationRepository,
+			ClassEnrollmentRepository enrollmentRepository,
 			UserRepository userRepository,
 			ClassAccessService classAccessService,
 			CurrentUserService currentUserService,
@@ -76,6 +80,7 @@ public class LessonRecordService {
 		this.videoLessonRepository = videoLessonRepository;
 		this.clinicSlotRepository = clinicSlotRepository;
 		this.clinicReservationRepository = clinicReservationRepository;
+		this.enrollmentRepository = enrollmentRepository;
 		this.userRepository = userRepository;
 		this.classAccessService = classAccessService;
 		this.currentUserService = currentUserService;
@@ -88,7 +93,15 @@ public class LessonRecordService {
 
 	public List<LessonRecordRow> listLessonRecords(long classId) {
 		classAccessService.requireReadableClass(classId);
+		UserRole role = currentUserService.requireRole();
+		long me = role == UserRole.STUDENT ? currentUserService.requireUserId() : -1L;
+		LocalDate accessibleFrom = role == UserRole.STUDENT
+				? enrollmentRepository.findByClassIdAndStudentId(classId, me)
+						.map(e -> e.accessibleFrom())
+						.orElse(null)
+				: null;
 		return lessonRecordRepository.findByClassId(classId).stream()
+				.filter(r -> accessibleFrom == null || !r.lessonDate().isBefore(accessibleFrom))
 				.map(this::toRow)
 				.toList();
 	}
@@ -96,6 +109,16 @@ public class LessonRecordService {
 	public LessonRecordRow getLessonRecord(long lessonRecordId) {
 		LessonRecord record = requireRecord(lessonRecordId);
 		classAccessService.requireReadableClass(record.classId());
+		UserRole role = currentUserService.requireRole();
+		if (role == UserRole.STUDENT) {
+			long me = currentUserService.requireUserId();
+			LocalDate accessibleFrom = enrollmentRepository.findByClassIdAndStudentId(record.classId(), me)
+					.map(e -> e.accessibleFrom())
+					.orElse(null);
+			if (accessibleFrom != null && record.lessonDate().isBefore(accessibleFrom)) {
+				throw new BusinessException(ErrorCode.LESSON_RECORD_NOT_FOUND);
+			}
+		}
 		return toDetailRow(record);
 	}
 

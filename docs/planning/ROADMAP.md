@@ -261,28 +261,28 @@
 
 - [x] `lesson_record` · 반 상세 **수업기록 탭**
 - [x] 숙제·테스트·클리닉·영상 FK 컬럼 (nullable)
-- [ ] 숙제·테스트 등록 API `lesson_record_id` 연동
+- [x] 숙제·테스트 등록 API `lesson_record_id` 연동
 - [x] 공지·일정·교재 별도 유지
 
 ### 12-2. 정오표·채점 (§11)
 
-- [ ] 문항별 answer_key · answers JSON
-- [ ] `ceil(100/q×correct,1)` · `due_at` 제거
-- [ ] 교직원 전용 · 조교 정답지 조회
+- [x] 문항별 answer_key · answers JSON
+- [x] `ceil(100/q×correct,1)` · `due_at` 제거
+- [x] 교직원 전용 · 조교 정답지 조회
 
 ### 12-3. 석차·재시험 (§12, §13)
 
-- [ ] `rank` · 동점 공동·건너뛰기
-- [ ] 재시험 3회 · 올림/내림 · 최종=마지막
-- [ ] percentile deprecated
+- [x] `rank` · 동점 공동·건너뛰기
+- [x] 재시험 3회 · 올림/내림 · 최종=마지막
+- [x] percentile deprecated
 
 ### 12-4. 대상 학생·영상 (§14)
 
-- [ ] `assignment_target` · 영상 기본 미선택
+- [x] `assignment_target` · 영상 기본 미선택
 
 ### 12-5. 조회 시작일 (§15)
 
-- [ ] `accessible_from` · 클리닉 제외
+- [x] `accessible_from` · 클리닉 제외
 
 ### 12-6. 알림 (§16)
 
@@ -300,7 +300,7 @@
 
 - [ ] `PARENT` · parent-links · `/parent/*`
 
-DB: V21~V26 ([schema-overview](./database/schema-overview.md))
+DB: V21~V27 ([schema-overview](./database/schema-overview.md))
 
 ---
 

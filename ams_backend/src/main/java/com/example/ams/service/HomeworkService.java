@@ -1,8 +1,10 @@
 package com.example.ams.service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -28,6 +30,7 @@ import com.example.ams.repository.ClassEnrollmentRepository;
 import com.example.ams.repository.HomeworkAnswerKeyRepository;
 import com.example.ams.repository.HomeworkRepository;
 import com.example.ams.repository.HomeworkSubmissionRepository;
+import com.example.ams.repository.LessonRecordRepository;
 import com.example.ams.repository.UserRepository;
 import com.example.ams.security.CurrentUserService;
 
@@ -37,6 +40,7 @@ public class HomeworkService {
 	private final HomeworkRepository homeworkRepository;
 	private final HomeworkAnswerKeyRepository answerKeyRepository;
 	private final HomeworkSubmissionRepository submissionRepository;
+	private final LessonRecordRepository lessonRecordRepository;
 	private final ClassEnrollmentRepository enrollmentRepository;
 	private final UserRepository userRepository;
 	private final ClassAccessService classAccessService;
@@ -48,6 +52,7 @@ public class HomeworkService {
 			HomeworkRepository homeworkRepository,
 			HomeworkAnswerKeyRepository answerKeyRepository,
 			HomeworkSubmissionRepository submissionRepository,
+			LessonRecordRepository lessonRecordRepository,
 			ClassEnrollmentRepository enrollmentRepository,
 			UserRepository userRepository,
 			ClassAccessService classAccessService,
@@ -57,6 +62,7 @@ public class HomeworkService {
 		this.homeworkRepository = homeworkRepository;
 		this.answerKeyRepository = answerKeyRepository;
 		this.submissionRepository = submissionRepository;
+		this.lessonRecordRepository = lessonRecordRepository;
 		this.enrollmentRepository = enrollmentRepository;
 		this.userRepository = userRepository;
 		this.classAccessService = classAccessService;
@@ -70,12 +76,37 @@ public class HomeworkService {
 		List<Homework> homeworks = homeworkRepository.findByClassId(classId);
 		if (currentUserService.requireRole() == UserRole.STUDENT) {
 			long me = currentUserService.requireUserId();
+			LocalDate accessibleFrom = enrollmentRepository.findByClassIdAndStudentId(classId, me)
+					.map(e -> e.accessibleFrom())
+					.orElse(null);
+			Map<Long, LocalDate> lessonDateCache = new HashMap<>();
 			return homeworks.stream()
 					.filter(h -> assignmentTargetService.canStudentAccess(
 							AssignmentEntityType.HOMEWORK, h.homeworkId(), classId, me))
+					.filter(h -> isVisibleWithinAccessWindow(h, accessibleFrom, lessonDateCache))
 					.toList();
 		}
 		return homeworks;
+	}
+
+	private boolean isVisibleWithinAccessWindow(
+			Homework homework,
+			LocalDate accessibleFrom,
+			Map<Long, LocalDate> lessonDateCache) {
+		if (accessibleFrom == null) {
+			return true;
+		}
+		Long lessonRecordId = homeworkRepository.findLessonRecordId(homework.homeworkId());
+		if (lessonRecordId == null) {
+			return true;
+		}
+		LocalDate lessonDate = lessonDateCache.computeIfAbsent(
+				lessonRecordId,
+				id -> lessonRecordRepository.findById(id).map(r -> r.lessonDate()).orElse(null));
+		if (lessonDate == null || !lessonDate.isBefore(accessibleFrom)) {
+			return true;
+		}
+		return false;
 	}
 
 	public AssignmentTargetService.TargetView getTargets(long homeworkId) {

@@ -79,7 +79,7 @@ public class AdminClassController {
 	public ApiResponse<EnrollmentResponse> enroll(
 			@PathVariable long classId,
 			@Valid @RequestBody CreateEnrollmentRequest request) {
-		ClassEnrollment enrollment = adminClassService.enrollStudent(classId, request.studentId());
+		ClassEnrollment enrollment = adminClassService.enrollStudent(classId, request.studentId(), request.accessibleFrom());
 		return ApiResponse.ok(EnrollmentResponse.from(enrollment));
 	}
 

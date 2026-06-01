@@ -1,6 +1,7 @@
 package com.example.ams.api.dto;
 
 import java.time.Instant;
+import java.time.LocalDate;
 
 import com.example.ams.domain.clazz.ClassEnrollment;
 
@@ -9,7 +10,8 @@ public record EnrollmentResponse(
 		long classId,
 		long studentId,
 		Instant assignedAt,
-		long assignedBy) {
+		long assignedBy,
+		LocalDate accessibleFrom) {
 
 	public static EnrollmentResponse from(ClassEnrollment enrollment) {
 		return new EnrollmentResponse(
@@ -17,6 +19,7 @@ public record EnrollmentResponse(
 				enrollment.classId(),
 				enrollment.studentId(),
 				enrollment.assignedAt(),
-				enrollment.assignedBy());
+				enrollment.assignedBy(),
+				enrollment.accessibleFrom());
 	}
 }

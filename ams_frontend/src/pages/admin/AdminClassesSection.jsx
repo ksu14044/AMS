@@ -27,6 +27,7 @@ export default function AdminClassesSection() {
   const [selectedClassId, setSelectedClassId] = useState('')
   const [classForm, setClassForm] = useState(EMPTY_CLASS_FORM)
   const [enrollStudentId, setEnrollStudentId] = useState('')
+  const [enrollAccessibleFrom, setEnrollAccessibleFrom] = useState('')
   const [editForm, setEditForm] = useState(null)
   const [loading, setLoading] = useState(true)
   const [enrollmentsLoading, setEnrollmentsLoading] = useState(false)
@@ -161,8 +162,13 @@ export default function AdminClassesSection() {
     setSubmitting(true)
     setError('')
     try {
-      await enrollStudent(selectedClassId, Number(enrollStudentId))
+      await enrollStudent(
+        selectedClassId,
+        Number(enrollStudentId),
+        enrollAccessibleFrom || null,
+      )
       setEnrollStudentId('')
+      setEnrollAccessibleFrom('')
       await loadEnrollments(selectedClassId)
     } catch (err) {
       setError(err.message)
@@ -416,6 +422,14 @@ export default function AdminClassesSection() {
                   ))}
                 </select>
               </label>
+              <label>
+                조회 시작일
+                <input
+                  type="date"
+                  value={enrollAccessibleFrom}
+                  onChange={(e) => setEnrollAccessibleFrom(e.target.value)}
+                />
+              </label>
               <button
                 type="submit"
                 className="ams-btn ams-btn--primary"
@@ -424,6 +438,9 @@ export default function AdminClassesSection() {
                 배정
               </button>
             </form>
+            <p className="ams-admin__hint">
+              조회 시작일을 비우면 오늘 날짜로 배정됩니다.
+            </p>
 
             {studentsAvailableToEnroll.length === 0 && students.length > 0 && (
               <p className="ams-admin__hint">배정 가능한 학생이 없습니다 (전원 배정됨 또는 학생 없음).</p>
@@ -441,7 +458,12 @@ export default function AdminClassesSection() {
               <ul className="ams-enrollment-list">
                 {enrollments.map((e) => (
                   <li key={e.enrollmentId} className="ams-enrollment-list__item">
-                    <span>{studentNameById[e.studentId] ?? `학생 #${e.studentId}`}</span>
+                    <span className="ams-enrollment-list__name">
+                      {studentNameById[e.studentId] ?? `학생 #${e.studentId}`}
+                    </span>
+                    <span className="ams-enrollment-list__meta">
+                      조회 시작일: {e.accessibleFrom ?? '-'}
+                    </span>
                     <button
                       type="button"
                       className="ams-btn ams-btn--ghost ams-btn--sm"

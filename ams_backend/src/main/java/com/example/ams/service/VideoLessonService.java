@@ -1,7 +1,10 @@
 package com.example.ams.service;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -13,9 +16,12 @@ import com.example.ams.common.YoutubeUrlValidator;
 import com.example.ams.domain.clazz.AssignmentEntityType;
 import com.example.ams.domain.clazz.Clazz;
 import com.example.ams.domain.clazz.VideoLesson;
+import com.example.ams.domain.user.UserRole;
 import com.example.ams.event.VideoLessonCreatedEvent;
 import com.example.ams.integration.YoutubeOEmbedClient;
 import com.example.ams.integration.YoutubeOEmbedMetadata;
+import com.example.ams.repository.ClassEnrollmentRepository;
+import com.example.ams.repository.LessonRecordRepository;
 import com.example.ams.repository.VideoLessonRepository;
 import com.example.ams.security.CurrentUserService;
 
@@ -23,6 +29,8 @@ import com.example.ams.security.CurrentUserService;
 public class VideoLessonService {
 
 	private final VideoLessonRepository videoRepository;
+	private final LessonRecordRepository lessonRecordRepository;
+	private final ClassEnrollmentRepository enrollmentRepository;
 	private final ClassAccessService classAccessService;
 	private final CurrentUserService currentUserService;
 	private final AssignmentTargetService assignmentTargetService;
@@ -31,12 +39,16 @@ public class VideoLessonService {
 
 	public VideoLessonService(
 			VideoLessonRepository videoRepository,
+			LessonRecordRepository lessonRecordRepository,
+			ClassEnrollmentRepository enrollmentRepository,
 			ClassAccessService classAccessService,
 			CurrentUserService currentUserService,
 			AssignmentTargetService assignmentTargetService,
 			YoutubeOEmbedClient youtubeOEmbedClient,
 			ApplicationEventPublisher eventPublisher) {
 		this.videoRepository = videoRepository;
+		this.lessonRecordRepository = lessonRecordRepository;
+		this.enrollmentRepository = enrollmentRepository;
 		this.classAccessService = classAccessService;
 		this.currentUserService = currentUserService;
 		this.assignmentTargetService = assignmentTargetService;
@@ -46,7 +58,38 @@ public class VideoLessonService {
 
 	public List<VideoLesson> listVideos(long classId) {
 		classAccessService.requireReadableClass(classId);
-		return videoRepository.findByClassId(classId);
+		List<VideoLesson> videos = videoRepository.findByClassId(classId);
+		if (currentUserService.requireRole() != UserRole.STUDENT) {
+			return videos;
+		}
+		long me = currentUserService.requireUserId();
+		LocalDate accessibleFrom = enrollmentRepository.findByClassIdAndStudentId(classId, me)
+				.map(e -> e.accessibleFrom())
+				.orElse(null);
+		Map<Long, LocalDate> lessonDateCache = new HashMap<>();
+		return videos.stream()
+				.filter(v -> isVisibleWithinAccessWindow(v, accessibleFrom, lessonDateCache))
+				.toList();
+	}
+
+	private boolean isVisibleWithinAccessWindow(
+			VideoLesson video,
+			LocalDate accessibleFrom,
+			Map<Long, LocalDate> lessonDateCache) {
+		if (accessibleFrom == null) {
+			return true;
+		}
+		Long lessonRecordId = videoRepository.findLessonRecordId(video.videoId());
+		if (lessonRecordId == null) {
+			return true;
+		}
+		LocalDate lessonDate = lessonDateCache.computeIfAbsent(
+				lessonRecordId,
+				id -> lessonRecordRepository.findById(id).map(r -> r.lessonDate()).orElse(null));
+		if (lessonDate == null || !lessonDate.isBefore(accessibleFrom)) {
+			return true;
+		}
+		return false;
 	}
 
 	public AssignmentTargetService.TargetView getTargets(long videoId) {
@@ -131,7 +174,7 @@ public class VideoLessonService {
 			String youtubeUrl,
 			String title,
 			List<Long> targetStudentIds) {
-		VideoLesson video = updateVideo(classId, videoId, youtubeUrl, title, null);
+		updateVideo(classId, videoId, youtubeUrl, title, null);
 		assignmentTargetService.updateTargets(
 				AssignmentEntityType.VIDEO, videoId, classId, targetStudentIds);
 		return videoRepository.findById(videoId).orElseThrow();

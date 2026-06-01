@@ -17,3 +17,7 @@ ams:
     frontend-base-url: http://localhost:5173
     # 학원 최초 개설 링크: POST /api/v1/auth/signup-invites/academy + 헤더 X-Ams-Bootstrap-Key
     academy-bootstrap-key: local-dev-bootstrap-key
+
+# V29 등 이미 적용된 마이그레이션 SQL을 H2 호환으로 수정한 뒤 checksum 불일치 시 (로컬 MySQL 1회):
+# PowerShell — -D 인자 전체를 따옴표로 감싸야 URL의 : 가 Maven에 잘못 파싱되지 않음
+#   .\mvnw.cmd flyway:repair "-Dflyway.url=jdbc:mysql://localhost:3306/ams?serverTimezone=Asia/Seoul" "-Dflyway.user=root" "-Dflyway.password=YOUR_PASSWORD"

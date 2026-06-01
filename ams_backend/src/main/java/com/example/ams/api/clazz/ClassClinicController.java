@@ -19,7 +19,6 @@ import com.example.ams.api.dto.CreateClinicSlotRequest;
 import com.example.ams.api.dto.UpdateClinicSlotRequest;
 import com.example.ams.api.dto.UserResponse;
 import com.example.ams.common.ApiResponse;
-import com.example.ams.domain.clazz.ClinicSlot;
 import com.example.ams.service.ClinicSlotService;
 
 import jakarta.validation.Valid;
@@ -38,11 +37,7 @@ public class ClassClinicController {
 	public ApiResponse<List<ClinicSlotResponse>> listSlots(
 			@PathVariable long classId,
 			@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate weekStart) {
-		List<ClinicSlotResponse> slots = clinicSlotService.listSlots(classId, weekStart).stream()
-				.map(slot -> ClinicSlotResponse.from(
-						slot, clinicSlotService.getTargets(slot.slotId())))
-				.toList();
-		return ApiResponse.ok(slots);
+		return ApiResponse.ok(clinicSlotService.listSlotResponses(classId, weekStart));
 	}
 
 	@GetMapping("/assistants")
@@ -57,17 +52,16 @@ public class ClassClinicController {
 	public ApiResponse<ClinicSlotResponse> createSlot(
 			@PathVariable long classId,
 			@Valid @RequestBody CreateClinicSlotRequest request) {
-		int capacity = request.maxCapacity() != null ? request.maxCapacity() : 1;
-		ClinicSlot created = clinicSlotService.createSlot(
+		int capacity = request.maxCapacity() != null ? request.maxCapacity() : 10;
+		return ApiResponse.ok(clinicSlotService.toResponse(clinicSlotService.createSlot(
 				classId,
 				request.weekStartDate(),
 				request.dayOfWeek(),
 				request.startTime(),
 				request.assistantId(),
+				request.presetId(),
 				capacity,
-				request.targetStudentIds());
-		return ApiResponse.ok(ClinicSlotResponse.from(
-				created, clinicSlotService.getTargets(created.slotId())));
+				request.targetStudentIds())));
 	}
 
 	@PatchMapping("/slots/{slotId}")
@@ -75,16 +69,15 @@ public class ClassClinicController {
 			@PathVariable long classId,
 			@PathVariable long slotId,
 			@Valid @RequestBody UpdateClinicSlotRequest request) {
-		int capacity = request.maxCapacity() != null ? request.maxCapacity() : 1;
-		ClinicSlot updated = clinicSlotService.updateSlot(
+		int capacity = request.maxCapacity() != null ? request.maxCapacity() : 10;
+		return ApiResponse.ok(clinicSlotService.toResponse(clinicSlotService.updateSlot(
 				classId,
 				slotId,
 				request.dayOfWeek(),
 				request.startTime(),
 				request.assistantId(),
-				capacity);
-		return ApiResponse.ok(ClinicSlotResponse.from(
-				updated, clinicSlotService.getTargets(updated.slotId())));
+				request.presetId(),
+				capacity)));
 	}
 
 	@DeleteMapping("/slots/{slotId}")

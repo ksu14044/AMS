@@ -3,7 +3,6 @@ package com.example.ams.api.dto;
 import java.util.List;
 
 import com.example.ams.service.ClinicReservationService.SlotBookingView;
-import com.example.ams.service.AssignmentTargetService.TargetView;
 
 public record ClinicSlotBookingResponse(
 		ClinicSlotResponse slot,
@@ -15,9 +14,8 @@ public record ClinicSlotBookingResponse(
 		List<ClinicReservationResponse> reservations) {
 
 	public static ClinicSlotBookingResponse from(SlotBookingView view) {
-		TargetView targets = view.targets();
 		return new ClinicSlotBookingResponse(
-				ClinicSlotResponse.from(view.slot(), targets),
+				ClinicSlotResponse.from(view.slot(), view.targets(), view.resultFields()),
 				view.bookedCount(),
 				view.maxCapacity(),
 				view.full(),

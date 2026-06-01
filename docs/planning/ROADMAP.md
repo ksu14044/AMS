@@ -293,7 +293,7 @@
 
 ### 12-7. 클리닉 프리셋 (§17)
 
-- [ ] preset · start_time only · capacity 10
+- [x] preset · start_time only · capacity 10
 
 ### 12-8. 보고서 (§18)
 
@@ -303,7 +303,7 @@
 
 - [ ] `PARENT` · parent-links · `/parent/*`
 
-DB: V21~V28 ([schema-overview](./database/schema-overview.md))
+DB: V21~V29 ([schema-overview](./database/schema-overview.md))
 
 ---
 

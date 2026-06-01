@@ -197,6 +197,7 @@ public class LessonRecordService {
 				item.clinicDate(),
 				item.startTime(),
 				item.assistantId(),
+				item.presetId(),
 				item.resolvedMaxCapacity(),
 				item.targetStudentIds());
 		return toDetailRow(record);
@@ -271,6 +272,7 @@ public class LessonRecordService {
 					clinic.clinicDate(),
 					clinic.startTime(),
 					clinic.assistantId(),
+					clinic.presetId(),
 					clinic.resolvedMaxCapacity(),
 					clinic.targetStudentIds());
 		}
@@ -363,6 +365,8 @@ public class LessonRecordService {
 					null,
 					null,
 					null,
+					null,
+					null,
 					toTargetResponse(AssignmentEntityType.HOMEWORK, hw.homeworkId(), classId),
 					hw.status() == AssignmentStatus.SCHEDULED,
 					true));
@@ -374,6 +378,8 @@ public class LessonRecordService {
 					test.title(),
 					test.questionCount(),
 					test.retakeThresholdCount(),
+					null,
+					null,
 					null,
 					null,
 					null,
@@ -395,6 +401,8 @@ public class LessonRecordService {
 					null,
 					null,
 					null,
+					null,
+					null,
 					toTargetResponse(AssignmentEntityType.VIDEO, video.videoId(), classId),
 					true,
 					true));
@@ -412,6 +420,8 @@ public class LessonRecordService {
 					formatTime(clinic.startTime()),
 					clinic.assistantId(),
 					clinic.maxCapacity(),
+					clinic.presetId(),
+					clinic.presetName(),
 					toTargetResponse(AssignmentEntityType.CLINIC_SLOT, clinic.slotId(), classId),
 					clinicReservationRepository.countBySlotId(clinic.slotId()) == 0,
 					true));

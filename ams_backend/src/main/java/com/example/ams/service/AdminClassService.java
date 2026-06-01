@@ -29,18 +29,21 @@ public class AdminClassService {
 	private final UserRepository userRepository;
 	private final CurrentUserService currentUserService;
 	private final ApplicationEventPublisher eventPublisher;
+	private final ClinicResultPresetService clinicResultPresetService;
 
 	public AdminClassService(
 			ClazzRepository clazzRepository,
 			ClassEnrollmentRepository enrollmentRepository,
 			UserRepository userRepository,
 			CurrentUserService currentUserService,
-			ApplicationEventPublisher eventPublisher) {
+			ApplicationEventPublisher eventPublisher,
+			ClinicResultPresetService clinicResultPresetService) {
 		this.clazzRepository = clazzRepository;
 		this.enrollmentRepository = enrollmentRepository;
 		this.userRepository = userRepository;
 		this.currentUserService = currentUserService;
 		this.eventPublisher = eventPublisher;
+		this.clinicResultPresetService = clinicResultPresetService;
 	}
 
 	public List<Clazz> listClasses() {
@@ -55,7 +58,9 @@ public class AdminClassService {
 			throw new BusinessException(ErrorCode.CLASS_NAME_ALREADY_EXISTS);
 		}
 		User teacher = requireHomeroomTeacher(homeroomTeacherId, subject, academyId);
-		return clazzRepository.insert(academyId, subject, name, teacher.userId(), classroom);
+		Clazz created = clazzRepository.insert(academyId, subject, name, teacher.userId(), classroom);
+		clinicResultPresetService.ensureDefaultPreset(created.classId());
+		return created;
 	}
 
 	@Transactional

@@ -139,7 +139,7 @@ public class PendingTaskService {
 		}
 
 		for (ClinicReservation reservation : clinicReservationRepository.findByClassIdAndStudentId(classId, studentId)) {
-			if (reservation.resultAttended() == null) {
+			if (!reservation.isResultComplete()) {
 				items.add(task(PendingTaskType.CLINIC, clazz, reservation.reservationId(), "클리닉 결과 대기"));
 			}
 		}

@@ -12,6 +12,7 @@ public record LessonRecordClinicItem(
 		@NotNull LocalDate clinicDate,
 		@NotNull LocalTime startTime,
 		@NotNull Long assistantId,
+		@NotNull Long presetId,
 		@Min(1) @Max(20) Integer maxCapacity,
 		List<Long> targetStudentIds) {
 

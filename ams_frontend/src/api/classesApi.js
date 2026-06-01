@@ -173,6 +173,28 @@ export function cancelClinicReservation(classId, slotId) {
   })
 }
 
+export function fetchClinicPresets(classId) {
+  return apiRequest(`/classes/${classId}/clinic/presets`)
+}
+
+export function createClinicPreset(classId, payload) {
+  return apiRequest(`/classes/${classId}/clinic/presets`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function updateClinicPreset(classId, presetId, payload) {
+  return apiRequest(`/classes/${classId}/clinic/presets/${presetId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteClinicPreset(classId, presetId) {
+  return apiRequest(`/classes/${classId}/clinic/presets/${presetId}`, { method: 'DELETE' })
+}
+
 export function updateClinicReservationResult(reservationId, payload) {
   return apiRequest(`/clinic/reservations/${reservationId}/result`, {
     method: 'PATCH',

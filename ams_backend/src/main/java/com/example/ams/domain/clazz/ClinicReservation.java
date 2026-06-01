@@ -10,5 +10,11 @@ public record ClinicReservation(
 		ClinicReservationStatus status,
 		Boolean resultAttended,
 		String resultMemo,
+		String resultJson,
+		Instant resultSavedAt,
 		Instant createdAt) {
+
+	public boolean isResultComplete() {
+		return resultSavedAt != null;
+	}
 }

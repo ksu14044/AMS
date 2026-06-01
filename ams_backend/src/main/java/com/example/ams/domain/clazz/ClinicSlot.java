@@ -11,5 +11,7 @@ public record ClinicSlot(
 		LocalTime startTime,
 		Long assistantId,
 		String assistantName,
-		int maxCapacity) {
+		int maxCapacity,
+		long presetId,
+		String presetName) {
 }

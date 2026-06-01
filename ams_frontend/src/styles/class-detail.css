@@ -1053,6 +1053,99 @@
   font-family: inherit;
 }
 
+.ams-clinic-preset-section {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: var(--ams-border-width) solid var(--ams-color-border);
+}
+
+.ams-clinic-preset-section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.ams-clinic-preset-section__list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ams-clinic-preset-section__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-sm);
+  background: var(--ams-color-surface-muted, #fafafa);
+}
+
+.ams-clinic-preset-section__summary {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--ams-font-size-sm);
+}
+
+.ams-clinic-preset-section__summary span {
+  color: var(--ams-color-text-secondary);
+  font-size: var(--ams-font-size-xs);
+}
+
+.ams-clinic-preset-section__actions,
+.ams-clinic-preset-editor__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ams-clinic-preset-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.ams-clinic-preset-editor__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ams-clinic-preset-editor__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.ams-clinic-preset-editor__row input,
+.ams-clinic-preset-editor__row select {
+  min-width: 100px;
+  padding: 6px 8px;
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-sm);
+}
+
+.ams-clinic-preset-editor__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--ams-font-size-xs);
+}
+
+.ams-clinic-day-panel__preset {
+  font-size: var(--ams-font-size-xs);
+  color: var(--ams-color-text-secondary);
+}
+
 /* ─── 학생 클리닉 예약 (요일 그룹 + 시간 pill + 명시적 저장) ─── */
 .ams-clinic-day-list {
   list-style: none;
@@ -1409,6 +1502,189 @@
   display: flex;
   flex-direction: column;
   gap: var(--ams-space-2);
+}
+
+/* ─── 클리닉 결과 입력 테이블 (학생 다수) ─── */
+.ams-clinic-result-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-top: 4px;
+}
+
+.ams-clinic-result-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: var(--ams-font-size-sm);
+}
+
+.ams-clinic-result-table thead th {
+  padding: 8px;
+  font-size: var(--ams-font-size-xs);
+  font-weight: var(--ams-font-weight-semibold);
+  color: var(--ams-color-text-secondary);
+  text-align: left;
+  vertical-align: bottom;
+  border-bottom: var(--ams-border-width) solid var(--ams-color-border);
+  background: var(--ams-color-surface);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ams-clinic-result-table__col-name {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+}
+
+.ams-clinic-result-table__col-action {
+  text-align: center;
+}
+
+.ams-clinic-result-table__req {
+  margin-left: 2px;
+  color: var(--ams-color-danger-fg);
+}
+
+.ams-clinic-result-table tbody tr {
+  border-bottom: var(--ams-border-width) solid var(--ams-color-border);
+}
+
+.ams-clinic-result-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.ams-clinic-result-table tbody tr:nth-child(even) {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.ams-clinic-result-table__row--saved {
+  background: rgba(34, 139, 34, 0.04) !important;
+}
+
+.ams-clinic-result-table--multiline .ams-clinic-result-table__name,
+.ams-clinic-result-table--multiline .ams-clinic-result-table__cell,
+.ams-clinic-result-table--multiline .ams-clinic-result-table__action {
+  vertical-align: top;
+}
+
+.ams-clinic-result-table__name {
+  padding: 8px;
+  font-weight: var(--ams-font-weight-semibold);
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: inherit;
+  box-shadow: 2px 0 4px -2px rgba(0, 0, 0, 0.06);
+  vertical-align: middle;
+}
+
+.ams-clinic-result-table__name-text {
+  display: inline-block;
+  max-width: calc(100% - 12px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.ams-clinic-result-table__status {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+.ams-clinic-result-table__status--done {
+  background: var(--ams-color-success, #2a9d4b);
+}
+
+.ams-clinic-result-table__status--pending {
+  background: var(--ams-color-border);
+}
+
+.ams-clinic-result-table__cell {
+  padding: 8px;
+  vertical-align: middle;
+}
+
+.ams-clinic-result-table__input {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 6px 8px;
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-sm);
+  font-size: var(--ams-font-size-sm);
+  font-family: inherit;
+  line-height: 1.4;
+  background: var(--ams-color-white);
+}
+
+.ams-clinic-result-table__input--compact {
+  min-height: 32px;
+}
+
+.ams-clinic-result-table__textarea {
+  min-height: 52px;
+  max-height: 120px;
+  resize: vertical;
+  overflow-y: auto;
+}
+
+.ams-clinic-result-table__input:focus {
+  outline: 2px solid var(--ams-color-primary-soft, rgba(220, 38, 38, 0.25));
+  border-color: var(--ams-color-primary);
+}
+
+.ams-clinic-result-table__readonly {
+  display: block;
+  color: var(--ams-color-text-secondary);
+  font-size: var(--ams-font-size-sm);
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.ams-clinic-result-table__readonly--clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.ams-clinic-result-table__readonly--expanded {
+  white-space: pre-wrap;
+}
+
+.ams-clinic-result-table__expand {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ams-color-primary);
+  font-size: var(--ams-font-size-xs);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.ams-clinic-result-table__action {
+  padding: 8px 6px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.ams-clinic-result-table--multiline .ams-clinic-result-table__action {
+  vertical-align: top;
+  padding-top: 10px;
+}
+
+.ams-clinic-result-table__save {
+  min-width: 44px;
+  padding: 6px 8px;
 }
 
 .ams-clinic-day-panel__student {

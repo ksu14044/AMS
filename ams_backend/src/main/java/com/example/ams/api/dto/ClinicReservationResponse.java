@@ -1,16 +1,21 @@
 package com.example.ams.api.dto;
 
+import java.time.Instant;
+import java.util.Map;
+
+import com.example.ams.common.ClinicResultSchemaJson;
 import com.example.ams.domain.clazz.ClinicReservation;
-import com.example.ams.domain.clazz.ClinicReservationStatus;
 
 public record ClinicReservationResponse(
 		long reservationId,
 		long slotId,
 		long studentId,
 		String studentName,
-		ClinicReservationStatus status,
+		com.example.ams.domain.clazz.ClinicReservationStatus status,
 		Boolean resultAttended,
-		String resultMemo) {
+		String resultMemo,
+		Map<String, Object> result,
+		Instant resultSavedAt) {
 
 	public static ClinicReservationResponse from(ClinicReservation r) {
 		return new ClinicReservationResponse(
@@ -20,6 +25,8 @@ public record ClinicReservationResponse(
 				r.studentName(),
 				r.status(),
 				r.resultAttended(),
-				r.resultMemo());
+				r.resultMemo(),
+				ClinicResultSchemaJson.fromValuesJson(r.resultJson()),
+				r.resultSavedAt());
 	}
 }

@@ -7,6 +7,7 @@ import {
   deleteLessonRecordTest,
   deleteLessonRecordVideo,
   fetchClinicAssistants,
+  fetchClinicPresets,
   fetchLessonRecord,
   fetchLessonRecords,
   updateLessonRecord,
@@ -17,11 +18,13 @@ import {
 } from '../../api/classesApi'
 import { dayLabel } from '../../auth/dayLabels'
 import StudentTargetPicker from '../../components/StudentTargetPicker'
+import { ClinicPresetPicker } from '../../components/ClinicPresetSection'
 import {
   buildTargetStudentIdsPayload,
   createInitialTarget,
   targetFromResponse,
 } from '../../utils/assignmentTargets'
+import { defaultPresetId } from '../../utils/clinicPresets'
 
 const JS_DAY_TO_CLINIC = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
 
@@ -48,6 +51,7 @@ const EMPTY_CREATE = {
   clinicDate: '',
   clinicStartTime: '18:00',
   clinicAssistantId: '',
+  clinicPresetId: '',
   clinicMaxCapacity: '10',
 }
 
@@ -66,6 +70,7 @@ const EMPTY_ADD_LINKED = {
   clinicDate: '',
   clinicStartTime: '18:00',
   clinicAssistantId: '',
+  clinicPresetId: '',
   clinicMaxCapacity: '10',
 }
 
@@ -141,6 +146,7 @@ function editDraftFromItem(item) {
       clinicDate: item.clinicDate ?? '',
       clinicStartTime: item.clinicStartTime ?? '18:00',
       clinicAssistantId: item.assistantId != null ? String(item.assistantId) : '',
+      clinicPresetId: item.presetId != null ? String(item.presetId) : '',
       clinicMaxCapacity: item.maxCapacity != null ? String(item.maxCapacity) : '10',
     }
   }
@@ -159,6 +165,7 @@ function LinkedItemEditForm({
   onTargetChange,
   classId,
   assistants,
+  clinicPresets,
   submitting,
   onCancel,
   onSave,
@@ -323,6 +330,12 @@ function LinkedItemEditForm({
               ))}
             </select>
           </label>
+          <ClinicPresetPicker
+            presets={clinicPresets}
+            value={draft.clinicPresetId}
+            onChange={(e) => onDraftChange({ ...draft, clinicPresetId: e.target.value })}
+            disabled={submitting}
+          />
           <label className="ams-field ams-field--compact">
             <span className="ams-field__label">정원</span>
             <input
@@ -410,6 +423,7 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
   const [clinicTarget, setClinicTarget] = useState(() => createInitialTarget(true))
   const [editSummary, setEditSummary] = useState('')
   const [assistants, setAssistants] = useState([])
+  const [clinicPresets, setClinicPresets] = useState([])
   const [showAddLinked, setShowAddLinked] = useState(false)
   const [addLinkedForm, setAddLinkedForm] = useState(EMPTY_ADD_LINKED)
   const [addHomeworkTarget, setAddHomeworkTarget] = useState(() => createInitialTarget(true))
@@ -446,8 +460,14 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
 
   useEffect(() => {
     if (!canEdit) return
-    fetchClinicAssistants(classId)
-      .then(setAssistants)
+    Promise.all([fetchClinicAssistants(classId), fetchClinicPresets(classId)])
+      .then(([assistantList, presetList]) => {
+        setAssistants(assistantList)
+        setClinicPresets(presetList)
+        const defaultId = defaultPresetId(presetList)
+        setCreateForm((prev) => ({ ...prev, clinicPresetId: prev.clinicPresetId || defaultId }))
+        setAddLinkedForm((prev) => ({ ...prev, clinicPresetId: prev.clinicPresetId || defaultId }))
+      })
       .catch((err) => onError(err.message))
   }, [classId, canEdit, onError])
 
@@ -555,12 +575,13 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
         false,
       )
     } else if (item.type === 'clinic') {
-      if (!editDraft.clinicDate || !editDraft.clinicAssistantId) return
+      if (!editDraft.clinicDate || !editDraft.clinicAssistantId || !editDraft.clinicPresetId) return
       payload = appendTargetPayload(
         {
           clinicDate: editDraft.clinicDate,
           startTime: editDraft.clinicStartTime,
           assistantId: Number(editDraft.clinicAssistantId),
+          presetId: Number(editDraft.clinicPresetId),
           maxCapacity: Number(editDraft.clinicMaxCapacity) || 10,
         },
         editTarget,
@@ -666,7 +687,7 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
       return
     }
     if (addLinkedForm.includeClinic) {
-      if (!addLinkedForm.clinicDate || !addLinkedForm.clinicAssistantId) return
+      if (!addLinkedForm.clinicDate || !addLinkedForm.clinicAssistantId || !addLinkedForm.clinicPresetId) return
       if (addClinicTarget.mode === 'custom' && addClinicTarget.studentIds.length === 0) {
         onError('클리닉 대상 학생을 한 명 이상 선택하세요.')
         return
@@ -711,6 +732,7 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
           clinicDate: addLinkedForm.clinicDate,
           startTime: addLinkedForm.clinicStartTime,
           assistantId: Number(addLinkedForm.clinicAssistantId),
+          presetId: Number(addLinkedForm.clinicPresetId),
           maxCapacity: Number(addLinkedForm.clinicMaxCapacity) || 10,
         },
         addClinicTarget,
@@ -752,7 +774,7 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
       return
     }
     if (createForm.includeClinic) {
-      if (!createForm.clinicDate || !createForm.clinicAssistantId) return
+      if (!createForm.clinicDate || !createForm.clinicAssistantId || !createForm.clinicPresetId) return
       if (clinicTarget.mode === 'custom' && clinicTarget.studentIds.length === 0) {
         onError('클리닉 대상 학생을 한 명 이상 선택하세요.')
         return
@@ -800,6 +822,7 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
           clinicDate: createForm.clinicDate,
           startTime: createForm.clinicStartTime,
           assistantId: Number(createForm.clinicAssistantId),
+          presetId: Number(createForm.clinicPresetId),
           maxCapacity: Number(createForm.clinicMaxCapacity) || 10,
         },
         clinicTarget,
@@ -1052,6 +1075,10 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
                         next && !createForm.clinicDate && createForm.lessonDate
                           ? createForm.lessonDate
                           : createForm.clinicDate,
+                      clinicPresetId:
+                        next && !createForm.clinicPresetId
+                          ? defaultPresetId(clinicPresets)
+                          : createForm.clinicPresetId,
                     })
                   }}
                 >
@@ -1100,6 +1127,14 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
                       ))}
                     </select>
                   </label>
+                  <ClinicPresetPicker
+                    presets={clinicPresets}
+                    value={createForm.clinicPresetId}
+                    onChange={(e) =>
+                      setCreateForm({ ...createForm, clinicPresetId: e.target.value })
+                    }
+                    disabled={submitting}
+                  />
                   <label className="ams-field ams-field--compact">
                     <span className="ams-field__label">정원</span>
                     <input
@@ -1473,6 +1508,14 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
                             ))}
                           </select>
                         </label>
+                        <ClinicPresetPicker
+                          presets={clinicPresets}
+                          value={addLinkedForm.clinicPresetId}
+                          onChange={(e) =>
+                            setAddLinkedForm({ ...addLinkedForm, clinicPresetId: e.target.value })
+                          }
+                          disabled={submitting}
+                        />
                         <label className="ams-field ams-field--compact">
                           <span className="ams-field__label">정원</span>
                           <input
@@ -1565,6 +1608,7 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
                               onTargetChange={setEditTarget}
                               classId={classId}
                               assistants={assistants}
+                              clinicPresets={clinicPresets}
                               submitting={submitting}
                               onCancel={closeLinkedEdit}
                               onSave={() => handleSaveLinkedEdit(item)}

@@ -15,6 +15,7 @@ public record CreateClinicSlotRequest(
 		@NotNull DayOfWeek dayOfWeek,
 		@NotNull LocalTime startTime,
 		@NotNull Long assistantId,
+		@NotNull Long presetId,
 		@Min(1) @Max(20) Integer maxCapacity,
 		List<Long> targetStudentIds) {
 }

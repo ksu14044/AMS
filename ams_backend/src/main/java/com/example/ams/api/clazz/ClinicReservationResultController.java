@@ -28,6 +28,6 @@ public class ClinicReservationResultController {
 			@PathVariable long reservationId,
 			@Valid @RequestBody UpdateClinicReservationResultRequest request) {
 		return ApiResponse.ok(ClinicReservationResponse.from(
-				clinicReservationService.updateResult(reservationId, request.resultAttended(), request.resultMemo())));
+				clinicReservationService.updateResult(reservationId, request.result())));
 	}
 }

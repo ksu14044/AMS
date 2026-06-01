@@ -18,32 +18,31 @@ import com.example.ams.domain.clazz.DayOfWeek;
 @Repository
 public class ClinicSlotRepository {
 
+	private static ClinicSlot mapSlot(java.sql.ResultSet rs) throws java.sql.SQLException {
+		return new ClinicSlot(
+				rs.getLong("slot_id"),
+				rs.getLong("class_id"),
+				rs.getDate("week_start_date").toLocalDate(),
+				DayOfWeek.valueOf(rs.getString("day_of_week")),
+				rs.getTime("start_time").toLocalTime(),
+				rs.getObject("assistant_id", Long.class),
+				rs.getString("assistant_name"),
+				rs.getInt("max_capacity"),
+				rs.getLong("clinic_result_preset_id"),
+				rs.getString("preset_name"));
+	}
+
 	private static final RowMapper<AssistantClinicSlotRow> ASSISTANT_WEEK_ROW_MAPPER = (rs, rowNum) -> new AssistantClinicSlotRow(
-			new ClinicSlot(
-					rs.getLong("slot_id"),
-					rs.getLong("class_id"),
-					rs.getDate("week_start_date").toLocalDate(),
-					DayOfWeek.valueOf(rs.getString("day_of_week")),
-					rs.getTime("start_time").toLocalTime(),
-					rs.getObject("assistant_id", Long.class),
-					rs.getString("assistant_name"),
-					rs.getInt("max_capacity")),
+			mapSlot(rs),
 			rs.getString("class_name"));
 
-	private static final RowMapper<ClinicSlot> ROW_MAPPER = (rs, rowNum) -> new ClinicSlot(
-			rs.getLong("slot_id"),
-			rs.getLong("class_id"),
-			rs.getDate("week_start_date").toLocalDate(),
-			DayOfWeek.valueOf(rs.getString("day_of_week")),
-			rs.getTime("start_time").toLocalTime(),
-			rs.getObject("assistant_id", Long.class),
-			rs.getString("assistant_name"),
-			rs.getInt("max_capacity"));
+	private static final RowMapper<ClinicSlot> ROW_MAPPER = (rs, rowNum) -> mapSlot(rs);
 
 	private static final String SELECT_BASE = """
-			SELECT s.*, u.name AS assistant_name
+			SELECT s.*, u.name AS assistant_name, p.name AS preset_name
 			FROM clinic_slot s
 			LEFT JOIN `user` u ON s.assistant_id = u.user_id
+			INNER JOIN clinic_result_preset p ON s.clinic_result_preset_id = p.preset_id
 			""";
 
 	private final JdbcTemplate jdbcTemplate;
@@ -67,9 +66,10 @@ public class ClinicSlotRepository {
 			long academyId) {
 		return jdbcTemplate.query(
 				"""
-						SELECT s.*, u.name AS assistant_name, c.name AS class_name
+						SELECT s.*, u.name AS assistant_name, p.name AS preset_name, c.name AS class_name
 						FROM clinic_slot s
 						LEFT JOIN `user` u ON s.assistant_id = u.user_id
+						INNER JOIN clinic_result_preset p ON s.clinic_result_preset_id = p.preset_id
 						INNER JOIN `class` c ON s.class_id = c.class_id
 						WHERE s.assistant_id = ? AND s.week_start_date = ? AND c.academy_id = ?
 						ORDER BY FIELD(s.day_of_week, 'MON','TUE','WED','THU','FRI','SAT','SUN'), s.start_time, c.name
@@ -110,8 +110,9 @@ public class ClinicSlotRepository {
 			DayOfWeek dayOfWeek,
 			LocalTime startTime,
 			Long assistantId,
-			int maxCapacity) {
-		return insert(classId, weekStart, dayOfWeek, startTime, assistantId, maxCapacity, null);
+			int maxCapacity,
+			long presetId) {
+		return insert(classId, weekStart, dayOfWeek, startTime, assistantId, maxCapacity, presetId, null);
 	}
 
 	public ClinicSlot insert(
@@ -121,10 +122,13 @@ public class ClinicSlotRepository {
 			LocalTime startTime,
 			Long assistantId,
 			int maxCapacity,
+			long presetId,
 			Long lessonRecordId) {
 		String sql = """
-				INSERT INTO clinic_slot (class_id, week_start_date, day_of_week, start_time, assistant_id, max_capacity, lesson_record_id)
-				VALUES (?, ?, ?, ?, ?, ?, ?)
+				INSERT INTO clinic_slot (
+					class_id, week_start_date, day_of_week, start_time,
+					assistant_id, max_capacity, clinic_result_preset_id, lesson_record_id)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 				""";
 		KeyHolder keyHolder = new GeneratedKeyHolder();
 		jdbcTemplate.update(connection -> {
@@ -139,10 +143,11 @@ public class ClinicSlotRepository {
 				ps.setNull(5, java.sql.Types.BIGINT);
 			}
 			ps.setInt(6, maxCapacity);
+			ps.setLong(7, presetId);
 			if (lessonRecordId != null) {
-				ps.setLong(7, lessonRecordId);
+				ps.setLong(8, lessonRecordId);
 			} else {
-				ps.setNull(7, java.sql.Types.BIGINT);
+				ps.setNull(8, java.sql.Types.BIGINT);
 			}
 			return ps;
 		}, keyHolder);
@@ -156,16 +161,20 @@ public class ClinicSlotRepository {
 			LocalTime startTime,
 			String assistantName,
 			Long assistantId,
-			int maxCapacity) {
+			int maxCapacity,
+			long presetId,
+			String presetName) {
 	}
 
 	public List<ClinicSlotSummary> findSummariesByLessonRecordId(long lessonRecordId) {
 		return jdbcTemplate.query(
 				"""
 						SELECT s.slot_id, s.week_start_date, s.day_of_week, s.start_time,
-						       u.name AS assistant_name, s.assistant_id, s.max_capacity
+						       u.name AS assistant_name, s.assistant_id, s.max_capacity,
+						       s.clinic_result_preset_id, p.name AS preset_name
 						FROM clinic_slot s
 						LEFT JOIN `user` u ON s.assistant_id = u.user_id
+						INNER JOIN clinic_result_preset p ON s.clinic_result_preset_id = p.preset_id
 						WHERE s.lesson_record_id = ?
 						ORDER BY s.slot_id
 						""",
@@ -176,7 +185,9 @@ public class ClinicSlotRepository {
 						rs.getTime("start_time").toLocalTime(),
 						rs.getString("assistant_name"),
 						rs.getObject("assistant_id", Long.class),
-						rs.getInt("max_capacity")),
+						rs.getInt("max_capacity"),
+						rs.getLong("clinic_result_preset_id"),
+						rs.getString("preset_name")),
 				lessonRecordId);
 	}
 
@@ -193,17 +204,20 @@ public class ClinicSlotRepository {
 			DayOfWeek dayOfWeek,
 			LocalTime startTime,
 			Long assistantId,
-			int maxCapacity) {
+			int maxCapacity,
+			long presetId) {
 		jdbcTemplate.update(
 				"""
 						UPDATE clinic_slot
-						SET day_of_week = ?, start_time = ?, assistant_id = ?, max_capacity = ?
+						SET day_of_week = ?, start_time = ?, assistant_id = ?, max_capacity = ?,
+						    clinic_result_preset_id = ?
 						WHERE slot_id = ? AND class_id = ?
 						""",
 				dayOfWeek.name(),
 				java.sql.Time.valueOf(startTime),
 				assistantId,
 				maxCapacity,
+				presetId,
 				slotId,
 				classId);
 		return findByIdAndClassId(slotId, classId).orElseThrow();
@@ -216,11 +230,13 @@ public class ClinicSlotRepository {
 			DayOfWeek dayOfWeek,
 			LocalTime startTime,
 			Long assistantId,
-			int maxCapacity) {
+			int maxCapacity,
+			long presetId) {
 		jdbcTemplate.update(
 				"""
 						UPDATE clinic_slot
-						SET week_start_date = ?, day_of_week = ?, start_time = ?, assistant_id = ?, max_capacity = ?
+						SET week_start_date = ?, day_of_week = ?, start_time = ?, assistant_id = ?,
+						    max_capacity = ?, clinic_result_preset_id = ?
 						WHERE slot_id = ? AND class_id = ?
 						""",
 				java.sql.Date.valueOf(weekStart),
@@ -228,6 +244,7 @@ public class ClinicSlotRepository {
 				java.sql.Time.valueOf(startTime),
 				assistantId,
 				maxCapacity,
+				presetId,
 				slotId,
 				classId);
 		return findByIdAndClassId(slotId, classId).orElseThrow();

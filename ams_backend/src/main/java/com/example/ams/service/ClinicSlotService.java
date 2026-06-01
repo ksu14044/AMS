@@ -10,6 +10,8 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.ams.api.dto.ClinicResultFieldResponse;
+import com.example.ams.api.dto.ClinicSlotResponse;
 import com.example.ams.common.BusinessException;
 import com.example.ams.common.ErrorCode;
 import com.example.ams.common.WeekStartDateValidator;
@@ -35,6 +37,7 @@ public class ClinicSlotService {
 	private final UserRepository userRepository;
 	private final ClassAccessService classAccessService;
 	private final AssignmentTargetService assignmentTargetService;
+	private final ClinicResultPresetService presetService;
 	private final ApplicationEventPublisher eventPublisher;
 
 	public ClinicSlotService(
@@ -44,6 +47,7 @@ public class ClinicSlotService {
 			UserRepository userRepository,
 			ClassAccessService classAccessService,
 			AssignmentTargetService assignmentTargetService,
+			ClinicResultPresetService presetService,
 			ApplicationEventPublisher eventPublisher) {
 		this.clinicSlotRepository = clinicSlotRepository;
 		this.clinicWeekRepository = clinicWeekRepository;
@@ -51,13 +55,32 @@ public class ClinicSlotService {
 		this.userRepository = userRepository;
 		this.classAccessService = classAccessService;
 		this.assignmentTargetService = assignmentTargetService;
+		this.presetService = presetService;
 		this.eventPublisher = eventPublisher;
+	}
+
+	public List<ClinicSlotResponse> listSlotResponses(long classId, LocalDate weekStart) {
+		LocalDate monday = WeekStartDateValidator.requireMonday(weekStart);
+		return listSlots(classId, monday).stream().map(this::toResponse).toList();
 	}
 
 	public List<ClinicSlot> listSlots(long classId, LocalDate weekStart) {
 		classAccessService.requireClinicReadableClass(classId);
 		LocalDate monday = WeekStartDateValidator.requireMonday(weekStart);
 		return clinicSlotRepository.findByClassIdAndWeekStart(classId, monday);
+	}
+
+	public ClinicSlotResponse toResponse(ClinicSlot slot) {
+		return ClinicSlotResponse.from(
+				slot,
+				getTargets(slot.slotId()),
+				resultFields(slot.classId(), slot.presetId()));
+	}
+
+	public List<ClinicResultFieldResponse> resultFields(long classId, long presetId) {
+		return presetService.parseFields(presetService.requirePreset(classId, presetId)).stream()
+				.map(ClinicResultFieldResponse::from)
+				.toList();
 	}
 
 	public List<User> listAssistants(long classId) {
@@ -73,11 +96,13 @@ public class ClinicSlotService {
 			DayOfWeek dayOfWeek,
 			LocalTime startTime,
 			Long assistantId,
+			long presetId,
 			int maxCapacity,
 			List<Long> targetStudentIds) {
 		Clazz clazz = classAccessService.requireReadableClass(classId);
 		classAccessService.requireManageClassContent(clazz);
-		return insertSlot(classId, weekStart, dayOfWeek, startTime, assistantId, maxCapacity, null, targetStudentIds);
+		return insertSlot(
+				classId, weekStart, dayOfWeek, startTime, assistantId, presetId, maxCapacity, null, targetStudentIds);
 	}
 
 	@Transactional
@@ -87,6 +112,7 @@ public class ClinicSlotService {
 			LocalDate clinicDate,
 			LocalTime startTime,
 			Long assistantId,
+			long presetId,
 			int maxCapacity,
 			List<Long> targetStudentIds) {
 		Clazz clazz = classAccessService.requireReadableClass(classId);
@@ -94,7 +120,8 @@ public class ClinicSlotService {
 		DayOfWeek dayOfWeek = toDomainDayOfWeek(clinicDate);
 		LocalDate monday = clinicDate.with(TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
 		clinicWeekRepository.ensureOpenWeek(classId, monday);
-		return insertSlot(classId, monday, dayOfWeek, startTime, assistantId, maxCapacity, lessonRecordId, targetStudentIds);
+		return insertSlot(
+				classId, monday, dayOfWeek, startTime, assistantId, presetId, maxCapacity, lessonRecordId, targetStudentIds);
 	}
 
 	public AssignmentTargetService.TargetView getTargets(long slotId) {
@@ -115,12 +142,14 @@ public class ClinicSlotService {
 			DayOfWeek dayOfWeek,
 			LocalTime startTime,
 			Long assistantId,
+			long presetId,
 			int maxCapacity,
 			Long lessonRecordId,
 			List<Long> targetStudentIds) {
-		Clazz clazz = classAccessService.requireReadableClass(classId);
+		classAccessService.requireReadableClass(classId);
+		presetService.requirePreset(classId, presetId);
 		validateCapacity(maxCapacity);
-		validateAssistant(clazz.academyId(), assistantId);
+		validateAssistant(classAccessService.requireReadableClass(classId).academyId(), assistantId);
 		LocalDate monday = WeekStartDateValidator.requireMonday(weekStart);
 		try {
 			ClinicSlot slot = clinicSlotRepository.insert(
@@ -130,6 +159,7 @@ public class ClinicSlotService {
 					startTime,
 					assistantId,
 					maxCapacity,
+					presetId,
 					lessonRecordId);
 			assignmentTargetService.applyOnCreate(
 					AssignmentEntityType.CLINIC_SLOT, slot.slotId(), classId, targetStudentIds);
@@ -146,17 +176,20 @@ public class ClinicSlotService {
 			DayOfWeek dayOfWeek,
 			LocalTime startTime,
 			Long assistantId,
+			long presetId,
 			int maxCapacity) {
 		Clazz clazz = classAccessService.requireReadableClass(classId);
 		classAccessService.requireManageClassContent(clazz);
 		requireSlot(classId, slotId);
+		presetService.requirePreset(classId, presetId);
 		validateCapacity(maxCapacity);
 		validateAssistant(clazz.academyId(), assistantId);
 		var affectedStudents = clinicReservationRepository.findBySlotId(slotId).stream()
 				.map(ClinicReservation::studentId)
 				.toList();
 		try {
-			ClinicSlot updated = clinicSlotRepository.update(slotId, classId, dayOfWeek, startTime, assistantId, maxCapacity);
+			ClinicSlot updated = clinicSlotRepository.update(
+					slotId, classId, dayOfWeek, startTime, assistantId, maxCapacity, presetId);
 			if (!affectedStudents.isEmpty()) {
 				String slotLabel = NotificationMessages.clinicSlotLabel(dayOfWeek, startTime);
 				eventPublisher.publishEvent(new ClinicSlotUpdatedEvent(classId, slotId, slotLabel, affectedStudents));
@@ -194,11 +227,13 @@ public class ClinicSlotService {
 			LocalDate clinicDate,
 			LocalTime startTime,
 			Long assistantId,
+			long presetId,
 			int maxCapacity,
 			List<Long> targetStudentIds) {
 		Clazz clazz = classAccessService.requireReadableClass(classId);
 		classAccessService.requireEditClassContent(clazz);
 		ClinicSlot existing = requireSlot(classId, slotId);
+		presetService.requirePreset(classId, presetId);
 		validateCapacity(maxCapacity);
 		validateAssistant(clazz.academyId(), assistantId);
 		if (clinicReservationRepository.countBySlotId(slotId) > 0
@@ -212,7 +247,7 @@ public class ClinicSlotService {
 		clinicWeekRepository.ensureOpenWeek(classId, monday);
 		try {
 			ClinicSlot updated = clinicSlotRepository.updateSchedule(
-					slotId, classId, monday, dayOfWeek, startTime, assistantId, maxCapacity);
+					slotId, classId, monday, dayOfWeek, startTime, assistantId, maxCapacity, presetId);
 			assignmentTargetService.updateTargets(
 					AssignmentEntityType.CLINIC_SLOT, slotId, classId, targetStudentIds);
 			return updated;

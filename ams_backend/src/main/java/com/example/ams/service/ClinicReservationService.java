@@ -12,7 +12,9 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.ams.api.dto.ClinicResultFieldResponse;
 import com.example.ams.common.BusinessException;
+import com.example.ams.common.ClinicResultSchemaJson;
 import com.example.ams.common.ClinicBookingPolicy;
 import com.example.ams.common.ErrorCode;
 import com.example.ams.common.WeekStartDateValidator;
@@ -39,6 +41,7 @@ public class ClinicReservationService {
 	private final ClassEnrollmentRepository enrollmentRepository;
 	private final ClassAccessService classAccessService;
 	private final AssignmentTargetService assignmentTargetService;
+	private final ClinicResultPresetService presetService;
 	private final CurrentUserService currentUserService;
 	private final ApplicationEventPublisher eventPublisher;
 
@@ -49,6 +52,7 @@ public class ClinicReservationService {
 			ClassEnrollmentRepository enrollmentRepository,
 			ClassAccessService classAccessService,
 			AssignmentTargetService assignmentTargetService,
+			ClinicResultPresetService presetService,
 			CurrentUserService currentUserService,
 			ApplicationEventPublisher eventPublisher) {
 		this.weekRepository = weekRepository;
@@ -57,6 +61,7 @@ public class ClinicReservationService {
 		this.enrollmentRepository = enrollmentRepository;
 		this.classAccessService = classAccessService;
 		this.assignmentTargetService = assignmentTargetService;
+		this.presetService = presetService;
 		this.currentUserService = currentUserService;
 		this.eventPublisher = eventPublisher;
 	}
@@ -97,6 +102,7 @@ public class ClinicReservationService {
 		}
 
 		List<SlotBookingView> slotViews = new ArrayList<>();
+		Map<Long, List<ClinicResultFieldResponse>> fieldsCache = new java.util.HashMap<>();
 		for (ClinicSlot slot : slots) {
 			List<ClinicReservation> slotReservations = bySlot.getOrDefault(slot.slotId(), List.of());
 			int booked = slotReservations.size();
@@ -113,6 +119,10 @@ public class ClinicReservationService {
 					&& myBookedTimeKeys.contains(timeKey(slot));
 			slotViews.add(new SlotBookingView(
 					slot,
+					fieldsCache.computeIfAbsent(slot.presetId(), id -> presetService.parseFields(
+							presetService.requirePreset(classId, id)).stream()
+							.map(ClinicResultFieldResponse::from)
+							.toList()),
 					booked,
 					slot.maxCapacity(),
 					booked >= slot.maxCapacity(),
@@ -150,6 +160,7 @@ public class ClinicReservationService {
 				.collect(Collectors.groupingBy(ClinicReservation::slotId));
 
 		List<AssistantClinicSlotItem> items = new ArrayList<>();
+		Map<Long, List<ClinicResultFieldResponse>> fieldsCache = new java.util.HashMap<>();
 		for (com.example.ams.domain.clazz.AssistantClinicSlotRow row : rows) {
 			ClinicSlot slot = row.slot();
 			List<ClinicReservation> slotReservations = bySlot.getOrDefault(slot.slotId(), List.of());
@@ -158,6 +169,10 @@ public class ClinicReservationService {
 					slot.classId(),
 					row.className(),
 					slot,
+					fieldsCache.computeIfAbsent(slot.presetId(), id -> presetService.parseFields(
+							presetService.requirePreset(slot.classId(), id)).stream()
+							.map(ClinicResultFieldResponse::from)
+							.toList()),
 					booked,
 					slot.maxCapacity(),
 					booked >= slot.maxCapacity(),
@@ -228,15 +243,21 @@ public class ClinicReservationService {
 	}
 
 	@Transactional
-	public ClinicReservation updateResult(long reservationId, Boolean attended, String memo) {
+	public ClinicReservation updateResult(long reservationId, Map<String, Object> rawResult) {
 		ClinicReservation reservation = reservationRepository.findById(reservationId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.RESERVATION_NOT_FOUND));
 		ClinicSlot slot = slotRepository.findById(reservation.slotId())
 				.orElseThrow(() -> new BusinessException(ErrorCode.CLINIC_SLOT_NOT_FOUND));
 		Clazz clazz = classAccessService.requireClinicReadableClass(slot.classId());
 		requireStaffCanManageResults(clazz, slot);
-		ClinicReservation updated = reservationRepository.updateResult(reservationId, attended, memo);
-		if (attended != null || (memo != null && !memo.isBlank())) {
+		var preset = presetService.requirePreset(slot.classId(), slot.presetId());
+		var fields = presetService.parseFields(preset);
+		Map<String, Object> normalized = ClinicResultSchemaJson.validateAndNormalizeValues(fields, rawResult);
+		String resultJson = ClinicResultSchemaJson.toValuesJson(normalized);
+		Boolean attended = ClinicResultSchemaJson.attendedValue(resultJson);
+		String memo = ClinicResultSchemaJson.memoValue(resultJson);
+		ClinicReservation updated = reservationRepository.updateResult(reservationId, resultJson, attended, memo);
+		if (updated.isResultComplete()) {
 			String slotLabel = NotificationMessages.clinicSlotLabel(slot.dayOfWeek(), slot.startTime());
 			eventPublisher.publishEvent(new ClinicResultUpdatedEvent(
 					slot.classId(), reservationId, reservation.studentId(), slotLabel));
@@ -281,6 +302,7 @@ public class ClinicReservationService {
 
 	public record SlotBookingView(
 			ClinicSlot slot,
+			List<ClinicResultFieldResponse> resultFields,
 			int bookedCount,
 			int maxCapacity,
 			boolean full,
@@ -297,6 +319,7 @@ public class ClinicReservationService {
 			long classId,
 			String className,
 			ClinicSlot slot,
+			List<ClinicResultFieldResponse> resultFields,
 			int bookedCount,
 			int maxCapacity,
 			boolean full,

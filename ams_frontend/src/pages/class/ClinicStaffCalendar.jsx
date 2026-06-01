@@ -25,6 +25,7 @@ export default function ClinicStaffCalendar({
   canViewResults,
   currentUserId,
   assistants,
+  presets,
   assistantLabel,
   resultDraft,
   setResultDraft,
@@ -86,6 +87,7 @@ export default function ClinicStaffCalendar({
         canViewResults={canViewResults}
         currentUserId={currentUserId}
         assistants={assistants}
+        presets={presets}
         assistantLabel={assistantLabel}
         resultDraft={resultDraft}
         setResultDraft={setResultDraft}

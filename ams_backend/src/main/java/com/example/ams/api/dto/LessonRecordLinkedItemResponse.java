@@ -13,6 +13,8 @@ public record LessonRecordLinkedItemResponse(
 		String clinicStartTime,
 		Long assistantId,
 		Integer maxCapacity,
+		Long presetId,
+		String presetName,
 		AssignmentTargetResponse targets,
 		boolean canDelete,
 		boolean canEdit) {

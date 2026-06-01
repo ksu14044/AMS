@@ -1,21 +1,27 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   cancelClinicReservation,
+  createClinicPreset,
   createClinicSlot,
+  deleteClinicPreset,
   deleteClinicSlot,
   fetchClinicAssistants,
+  fetchClinicPresets,
   fetchClinicWeek,
   reserveClinicSlot,
+  updateClinicPreset,
   updateClinicReservationResult,
   updateClinicSlot,
 } from '../../api/classesApi'
 import { useAuth } from '../../auth/AuthContext'
 import { CLINIC_DAY_OPTIONS, dayLabel } from '../../auth/dayLabels'
+import ClinicPresetSection, { ClinicPresetPicker } from '../../components/ClinicPresetSection'
 import StudentTargetPicker from '../../components/StudentTargetPicker'
 import {
   buildTargetStudentIdsPayload,
   createInitialTarget,
 } from '../../utils/assignmentTargets'
+import { defaultPresetId } from '../../utils/clinicPresets'
 import { addDays, mondayOfWeek } from '../../utils/weekDate'
 import ClinicStaffCalendar from './ClinicStaffCalendar'
 import { pickDefaultClinicDay, summarizeClinicWeekByDay } from '../../utils/clinicWeekCalendar'
@@ -24,7 +30,8 @@ const EMPTY_FORM = {
   dayOfWeek: 'MON',
   startTime: '18:00',
   assistantId: '',
-  maxCapacity: '1',
+  presetId: '',
+  maxCapacity: '10',
 }
 
 const WEEKDAY_ORDER = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
@@ -42,6 +49,7 @@ export default function ClassClinicSection({
   const [weekStart, setWeekStart] = useState(() => mondayOfWeek())
   const [weekView, setWeekView] = useState(null)
   const [assistants, setAssistants] = useState([])
+  const [presets, setPresets] = useState([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
@@ -75,7 +83,14 @@ export default function ClassClinicSection({
     try {
       await loadWeek()
       if (canManage) {
-        setAssistants(await fetchClinicAssistants(classId))
+        const [assistantList, presetList] = await Promise.all([
+          fetchClinicAssistants(classId),
+          fetchClinicPresets(classId),
+        ])
+        setAssistants(assistantList)
+        setPresets(presetList)
+        const defaultId = defaultPresetId(presetList)
+        setForm((prev) => ({ ...prev, presetId: prev.presetId || defaultId }))
       }
     } catch (err) {
       onError(err.message)
@@ -112,7 +127,7 @@ export default function ClassClinicSection({
 
   async function handleCreate(e) {
     e.preventDefault()
-    if (!form.assistantId) return
+    if (!form.assistantId || !form.presetId) return
     if (createTarget.mode === 'custom' && createTarget.studentIds.length === 0) {
       onError('대상 학생을 한 명 이상 선택하세요.')
       return
@@ -125,14 +140,15 @@ export default function ClassClinicSection({
         dayOfWeek: form.dayOfWeek,
         startTime: form.startTime,
         assistantId: Number(form.assistantId),
-        maxCapacity: Number(form.maxCapacity) || 1,
+        presetId: Number(form.presetId),
+        maxCapacity: Number(form.maxCapacity) || 10,
       }
       const targetStudentIds = buildTargetStudentIdsPayload(createTarget, true)
       if (targetStudentIds !== undefined) {
         payload.targetStudentIds = targetStudentIds
       }
       await createClinicSlot(classId, payload)
-      setForm(EMPTY_FORM)
+      setForm({ ...EMPTY_FORM, presetId: defaultPresetId(presets) })
       setCreateTarget(createInitialTarget(true))
       setSelectedDay(form.dayOfWeek)
       await loadWeek()
@@ -149,7 +165,8 @@ export default function ClassClinicSection({
       dayOfWeek: slot.dayOfWeek,
       startTime: slot.startTime?.slice(0, 5) ?? '18:00',
       assistantId: slot.assistantId ? String(slot.assistantId) : '',
-      maxCapacity: String(slot.maxCapacity ?? 1),
+      presetId: slot.presetId ? String(slot.presetId) : defaultPresetId(presets),
+      maxCapacity: String(slot.maxCapacity ?? 10),
     })
   }
 
@@ -160,7 +177,7 @@ export default function ClassClinicSection({
 
   async function handleUpdate(e) {
     e.preventDefault()
-    if (!editingId || !editForm.assistantId) return
+    if (!editingId || !editForm.assistantId || !editForm.presetId) return
     setSubmitting(true)
     onError('')
     try {
@@ -168,7 +185,8 @@ export default function ClassClinicSection({
         dayOfWeek: editForm.dayOfWeek,
         startTime: editForm.startTime,
         assistantId: Number(editForm.assistantId),
-        maxCapacity: Number(editForm.maxCapacity) || 1,
+        presetId: Number(editForm.presetId),
+        maxCapacity: Number(editForm.maxCapacity) || 10,
       })
       cancelEdit()
       await loadWeek()
@@ -246,16 +264,55 @@ export default function ClassClinicSection({
     }
   }
 
-  async function handleSaveResult(reservationId) {
-    const d = resultDraft[reservationId] || {}
+  async function handleSaveResult(reservationId, payload) {
     setSubmitting(true)
     onError('')
     try {
-      await updateClinicReservationResult(reservationId, {
-        resultAttended: d.attended === '' ? null : d.attended === 'true',
-        resultMemo: d.memo || null,
-      })
+      await updateClinicReservationResult(reservationId, payload)
       await loadWeek()
+    } catch (err) {
+      onError(err.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleCreatePreset(payload) {
+    setSubmitting(true)
+    onError('')
+    try {
+      await createClinicPreset(classId, payload)
+      setPresets(await fetchClinicPresets(classId))
+    } catch (err) {
+      onError(err.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleUpdatePreset(presetId, payload) {
+    setSubmitting(true)
+    onError('')
+    try {
+      await updateClinicPreset(classId, presetId, payload)
+      setPresets(await fetchClinicPresets(classId))
+    } catch (err) {
+      onError(err.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleDeletePreset(presetId, name) {
+    if (!window.confirm(`「${name}」 프리셋을 삭제할까요?`)) return
+    setSubmitting(true)
+    onError('')
+    try {
+      await deleteClinicPreset(classId, presetId)
+      const next = await fetchClinicPresets(classId)
+      setPresets(next)
+      const defaultId = defaultPresetId(next)
+      setForm((prev) => ({ ...prev, presetId: defaultId }))
     } catch (err) {
       onError(err.message)
     } finally {
@@ -345,6 +402,17 @@ export default function ClassClinicSection({
       </div>
 
       {canManage && (
+        <ClinicPresetSection
+          presets={presets}
+          canManage={canManage}
+          submitting={submitting}
+          onCreate={handleCreatePreset}
+          onUpdate={handleUpdatePreset}
+          onDelete={handleDeletePreset}
+        />
+      )}
+
+      {canManage && (
         <form className="ams-clinic-form" onSubmit={handleCreate}>
           <label>
             요일
@@ -395,6 +463,12 @@ export default function ClassClinicSection({
               onChange={(e) => setForm({ ...form, maxCapacity: e.target.value })}
             />
           </label>
+          <ClinicPresetPicker
+            presets={presets}
+            value={form.presetId}
+            onChange={(e) => setForm({ ...form, presetId: e.target.value })}
+            disabled={submitting}
+          />
           <StudentTargetPicker
             className="ams-assignment-form__full"
             classId={classId}
@@ -421,6 +495,7 @@ export default function ClassClinicSection({
           canViewResults={canViewResults}
           currentUserId={user?.userId}
           assistants={assistants}
+          presets={presets}
           assistantLabel={assistantLabel}
           resultDraft={resultDraft}
           setResultDraft={setResultDraft}

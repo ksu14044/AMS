@@ -112,7 +112,7 @@ notification (
 ```
 V21__lesson_record.sql
 V22__homework_test_v3.sql
-V23__clinic_preset.sql
+V29__clinic_result_preset.sql
 V24__parent_role.sql
 V25__notification_dismissed.sql
 V26__report_period_preset.sql

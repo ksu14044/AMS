@@ -1,3 +1,6 @@
+import { ClinicPresetPicker } from '../../components/ClinicPresetSection'
+import ClinicSlotResultTable from '../../components/ClinicSlotResultTable'
+
 function canEditSlotResult(canManage, canViewResults, currentUserId, assistantId) {
   if (!canViewResults) return false
   if (canManage) return true
@@ -11,6 +14,7 @@ export default function ClinicDayDetailPanel({
   canViewResults,
   currentUserId,
   assistants,
+  presets,
   assistantLabel,
   resultDraft,
   setResultDraft,
@@ -49,6 +53,7 @@ export default function ClinicDayDetailPanel({
       <ul className="ams-clinic-day-panel__slots">
         {rows.map((row) => {
           const s = row.slot
+          const fields = s.resultFields ?? []
           const isEditing = editingId === s.slotId && canManage
           const editableResult = canEditSlotResult(
             canManage,
@@ -98,6 +103,12 @@ export default function ClinicDayDetailPanel({
                       onChange={(e) => setEditForm({ ...editForm, maxCapacity: e.target.value })}
                     />
                   </label>
+                  <ClinicPresetPicker
+                    presets={presets}
+                    value={editForm.presetId}
+                    onChange={(e) => setEditForm({ ...editForm, presetId: e.target.value })}
+                    disabled={submitting}
+                  />
                   <div className="ams-clinic-list__actions">
                     <button type="submit" className="ams-btn ams-btn--primary" disabled={submitting}>
                       저장
@@ -118,6 +129,9 @@ export default function ClinicDayDetailPanel({
                 <span className="ams-clinic-day-panel__assistant">
                   {assistantLabel(s.assistantId, s.assistantName)}
                 </span>
+                {s.presetName && (
+                  <span className="ams-clinic-day-panel__preset">{s.presetName}</span>
+                )}
                 <span
                   className={
                     row.full
@@ -130,67 +144,17 @@ export default function ClinicDayDetailPanel({
               </div>
 
               {row.reservations?.length > 0 ? (
-                <ul className="ams-clinic-day-panel__students">
-                  {row.reservations.map((r) => (
-                    <li key={r.reservationId} className="ams-clinic-day-panel__student">
-                      <span className="ams-clinic-day-panel__student-name">{r.studentName}</span>
-                      {editableResult ? (
-                        <div className="ams-clinic-day-panel__result">
-                          <select
-                            value={
-                              resultDraft[r.reservationId]?.attended ??
-                              (r.resultAttended == null ? '' : String(r.resultAttended))
-                            }
-                            onChange={(e) =>
-                              setResultDraft((prev) => ({
-                                ...prev,
-                                [r.reservationId]: {
-                                  ...prev[r.reservationId],
-                                  attended: e.target.value,
-                                },
-                              }))
-                            }
-                          >
-                            <option value="">출석 선택</option>
-                            <option value="true">출석</option>
-                            <option value="false">결석</option>
-                          </select>
-                          <input
-                            type="text"
-                            placeholder="메모"
-                            value={resultDraft[r.reservationId]?.memo ?? r.resultMemo ?? ''}
-                            onChange={(e) =>
-                              setResultDraft((prev) => ({
-                                ...prev,
-                                [r.reservationId]: {
-                                  ...prev[r.reservationId],
-                                  memo: e.target.value,
-                                },
-                              }))
-                            }
-                          />
-                          <button
-                            type="button"
-                            className="ams-btn ams-btn--primary ams-btn--sm"
-                            disabled={submitting}
-                            onClick={() => onSaveResult(r.reservationId)}
-                          >
-                            저장
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="ams-clinic-day-panel__attendance-readonly">
-                          {r.resultAttended == null
-                            ? '미입력'
-                            : r.resultAttended
-                              ? '출석'
-                              : '결석'}
-                          {r.resultMemo ? ` · ${r.resultMemo}` : ''}
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
+                <ClinicSlotResultTable
+                  fields={fields}
+                  reservations={row.reservations}
+                  resultDraft={resultDraft}
+                  onDraftChange={(reservationId, next) =>
+                    setResultDraft((prev) => ({ ...prev, [reservationId]: next }))
+                  }
+                  onSaveResult={onSaveResult}
+                  submitting={submitting}
+                  editable={editableResult}
+                />
               ) : (
                 <p className="ams-clinic-day-panel__no-student">예약 없음</p>
               )}

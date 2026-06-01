@@ -27,6 +27,10 @@ public class ClinicReservationRepository {
 			ClinicReservationStatus.valueOf(rs.getString("status")),
 			rs.getObject("result_attended") != null ? rs.getBoolean("result_attended") : null,
 			rs.getString("result_memo"),
+			rs.getString("result_json"),
+			rs.getTimestamp("result_saved_at") != null
+					? rs.getTimestamp("result_saved_at").toInstant()
+					: null,
 			rs.getTimestamp("created_at").toInstant());
 
 	private static final String SELECT_BASE = """
@@ -44,6 +48,10 @@ public class ClinicReservationRepository {
 					ClinicReservationStatus.valueOf(rs.getString("status")),
 					rs.getObject("result_attended") != null ? rs.getBoolean("result_attended") : null,
 					rs.getString("result_memo"),
+					rs.getString("result_json"),
+					rs.getTimestamp("result_saved_at") != null
+							? rs.getTimestamp("result_saved_at").toInstant()
+							: null,
 					rs.getTimestamp("created_at").toInstant()),
 			rs.getDate("week_start_date").toLocalDate(),
 			DayOfWeek.valueOf(rs.getString("day_of_week")),
@@ -166,9 +174,15 @@ public class ClinicReservationRepository {
 				studentId);
 	}
 
-	public ClinicReservation updateResult(long reservationId, Boolean attended, String memo) {
+	public ClinicReservation updateResult(long reservationId, String resultJson, Boolean attended, String memo) {
 		jdbcTemplate.update(
-				"UPDATE clinic_reservation SET result_attended = ?, result_memo = ? WHERE reservation_id = ?",
+				"""
+						UPDATE clinic_reservation
+						SET result_json = ?, result_attended = ?, result_memo = ?,
+						    result_saved_at = CURRENT_TIMESTAMP
+						WHERE reservation_id = ?
+						""",
+				resultJson,
 				attended,
 				memo,
 				reservationId);

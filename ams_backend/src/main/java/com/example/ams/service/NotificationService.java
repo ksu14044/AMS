@@ -18,7 +18,9 @@ import com.example.ams.domain.clazz.Homework;
 import com.example.ams.domain.clazz.TestExam;
 import com.example.ams.domain.notification.Notification;
 import com.example.ams.domain.notification.NotificationReferenceType;
+import com.example.ams.domain.notification.NotificationStatus;
 import com.example.ams.domain.notification.NotificationType;
+import com.example.ams.domain.user.UserRole;
 import com.example.ams.repository.ClassEnrollmentRepository;
 import com.example.ams.repository.ClinicReservationRepository;
 import com.example.ams.repository.ClinicSlotRepository;
@@ -41,6 +43,7 @@ public class NotificationService {
 	private final ClinicSlotRepository clinicSlotRepository;
 	private final ClinicReservationRepository clinicReservationRepository;
 	private final AssignmentTargetService assignmentTargetService;
+	private final PendingTaskService pendingTaskService;
 	private final CurrentUserService currentUserService;
 
 	public NotificationService(
@@ -53,6 +56,7 @@ public class NotificationService {
 			ClinicSlotRepository clinicSlotRepository,
 			ClinicReservationRepository clinicReservationRepository,
 			AssignmentTargetService assignmentTargetService,
+			PendingTaskService pendingTaskService,
 			CurrentUserService currentUserService) {
 		this.notificationRepository = notificationRepository;
 		this.enrollmentRepository = enrollmentRepository;
@@ -63,6 +67,7 @@ public class NotificationService {
 		this.clinicSlotRepository = clinicSlotRepository;
 		this.clinicReservationRepository = clinicReservationRepository;
 		this.assignmentTargetService = assignmentTargetService;
+		this.pendingTaskService = pendingTaskService;
 		this.currentUserService = currentUserService;
 	}
 
@@ -78,13 +83,38 @@ public class NotificationService {
 		return notificationRepository.countUnread(userId, academyId);
 	}
 
+	public int getBadgeCount() {
+		if (currentUserService.requireRole() == UserRole.STUDENT) {
+			return pendingTaskService.countPending(currentUserService.requireUserId());
+		}
+		return getUnreadCount();
+	}
+
+	public String badgeCountKind() {
+		return currentUserService.requireRole() == UserRole.STUDENT ? "pending" : "unread";
+	}
+
+	public int getPendingCount() {
+		if (currentUserService.requireRole() != UserRole.STUDENT) {
+			return 0;
+		}
+		return pendingTaskService.countPending(currentUserService.requireUserId());
+	}
+
 	@Transactional
 	public Notification markRead(long notificationId) {
 		long userId = currentUserService.requireUserId();
 		Notification notification = notificationRepository.findByIdAndUserId(notificationId, userId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.NOTIFICATION_NOT_FOUND));
 		currentUserService.assertSameAcademy(notification.academyId());
-		notificationRepository.markRead(notificationId, userId);
+		if (notification.status() != NotificationStatus.ACTIVE) {
+			return notification;
+		}
+		if (isInfoType(notification.type())) {
+			notificationRepository.dismiss(notificationId, userId);
+		} else {
+			notificationRepository.markRead(notificationId, userId);
+		}
 		return notificationRepository.findById(notificationId).orElseThrow();
 	}
 
@@ -92,7 +122,64 @@ public class NotificationService {
 	public int markAllRead() {
 		long userId = currentUserService.requireUserId();
 		long academyId = currentUserService.requireAcademyId();
-		return notificationRepository.markAllRead(userId, academyId);
+		int readCount = notificationRepository.markAllRead(userId, academyId);
+		int dismissed = notificationRepository.dismissAllInfoNotifications(userId, academyId, infoTypes());
+		return readCount + dismissed;
+	}
+
+	@Transactional
+	public void dismissHomeworkTask(long studentId, long homeworkId) {
+		notificationRepository.dismissTaskNotifications(
+				studentId,
+				NotificationReferenceType.HOMEWORK,
+				homeworkId,
+				List.of(NotificationType.HOMEWORK_CREATED, NotificationType.HOMEWORK_D1));
+	}
+
+	@Transactional
+	public void dismissTestTask(long studentId, long testId) {
+		notificationRepository.dismissTaskNotifications(
+				studentId,
+				NotificationReferenceType.TEST,
+				testId,
+				List.of(NotificationType.TEST_CREATED, NotificationType.TEST_D1));
+	}
+
+	@Transactional
+	public void dismissVideoTask(long studentId, long videoId) {
+		notificationRepository.dismissTaskNotifications(
+				studentId,
+				NotificationReferenceType.VIDEO_LESSON,
+				videoId,
+				List.of(NotificationType.VIDEO_LESSON));
+	}
+
+	@Transactional
+	public void dismissClinicReservationTask(long studentId, long reservationId) {
+		notificationRepository.dismissTaskNotifications(
+				studentId,
+				NotificationReferenceType.CLINIC_RESERVATION,
+				reservationId,
+				List.of(NotificationType.CLINIC_CONFIRMED));
+	}
+
+	private static boolean isInfoType(NotificationType type) {
+		return switch (type) {
+			case CLASS_NOTICE, ENROLLMENT_ASSIGNED, DILIGENCE_REPORT, CLINIC_SLOT_CHANGED,
+					HOMEWORK_RESULT, TEST_RESULT, CLINIC_RESULT -> true;
+			default -> false;
+		};
+	}
+
+	private static List<NotificationType> infoTypes() {
+		return List.of(
+				NotificationType.CLASS_NOTICE,
+				NotificationType.ENROLLMENT_ASSIGNED,
+				NotificationType.DILIGENCE_REPORT,
+				NotificationType.CLINIC_SLOT_CHANGED,
+				NotificationType.HOMEWORK_RESULT,
+				NotificationType.TEST_RESULT,
+				NotificationType.CLINIC_RESULT);
 	}
 
 	@Transactional

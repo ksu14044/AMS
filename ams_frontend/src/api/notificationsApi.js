@@ -7,8 +7,20 @@ export function fetchNotifications(unreadOnly = false) {
   return apiRequest(`/notifications${query}`, NO_CACHE)
 }
 
+export function fetchNotificationBadgeCount() {
+  return apiRequest('/notifications/badge-count', NO_CACHE)
+}
+
 export function fetchUnreadNotificationCount() {
   return apiRequest('/notifications/unread-count', NO_CACHE).then((data) => data.count)
+}
+
+export function fetchPendingTaskCount() {
+  return apiRequest('/notifications/pending-count', NO_CACHE).then((data) => data.count)
+}
+
+export function fetchPendingTasks() {
+  return apiRequest('/me/pending-tasks', NO_CACHE)
 }
 
 export function markNotificationRead(notificationId) {

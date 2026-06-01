@@ -1,10 +1,13 @@
 ﻿import { useCallback, useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   fetchNotifications,
+  fetchPendingTaskCount,
   markAllNotificationsRead,
   markNotificationRead,
 } from '../../api/notificationsApi'
 import { notifyNotificationsChanged } from '../../api/notificationEvents'
+import { useAuth } from '../../auth/AuthContext'
 import '../../styles/notifications.css'
 
 function formatWhen(iso) {
@@ -32,8 +35,11 @@ function applyRead(items, notificationId, updated, unreadOnly) {
 }
 
 export default function NotificationsPage() {
+  const { user } = useAuth()
+  const isStudent = user?.role === 'STUDENT'
   const [filter, setFilter] = useState('all')
   const [items, setItems] = useState([])
+  const [pendingCount, setPendingCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [markingAll, setMarkingAll] = useState(false)
@@ -44,13 +50,18 @@ export default function NotificationsPage() {
     setLoading(true)
     setError('')
     try {
-      setItems(await fetchNotifications(unreadOnly))
+      const [list, pending] = await Promise.all([
+        fetchNotifications(unreadOnly),
+        isStudent ? fetchPendingTaskCount().catch(() => 0) : Promise.resolve(0),
+      ])
+      setItems(list)
+      setPendingCount(pending)
     } catch (err) {
       setError(err.message)
     } finally {
       setLoading(false)
     }
-  }, [unreadOnly])
+  }, [unreadOnly, isStudent])
 
   useEffect(() => {
     load()
@@ -119,6 +130,15 @@ export default function NotificationsPage() {
       </header>
 
       {error && <p className="ams-notifications__error">{error}</p>}
+
+      {isStudent && pendingCount > 0 && (
+        <Link to="/notifications/pending" className="ams-notifications__pending-card">
+          <span className="ams-notifications__pending-title">
+            아직 완료하지 않은 과제가 {pendingCount}건 있습니다
+          </span>
+          <span className="ams-notifications__pending-link">미완료 목록 보기 →</span>
+        </Link>
+      )}
 
       {loading && <p className="ams-notifications__status">불러오는 중…</p>}
 

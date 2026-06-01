@@ -13,6 +13,7 @@ import com.example.ams.event.HomeworkCreatedEvent;
 import com.example.ams.event.HomeworkResultUpdatedEvent;
 import com.example.ams.event.TestExamCreatedEvent;
 import com.example.ams.event.TestResultUpdatedEvent;
+import com.example.ams.event.VideoCertificationSubmittedEvent;
 import com.example.ams.event.VideoLessonCreatedEvent;
 
 @Component
@@ -46,19 +47,28 @@ public class NotificationEventListener {
 
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 	public void onHomeworkResultUpdated(HomeworkResultUpdatedEvent event) {
+		notificationService.dismissHomeworkTask(event.studentId(), event.homeworkId());
 		notificationService.notifyHomeworkResult(
 				event.classId(), event.homeworkId(), event.studentId(), event.title());
 	}
 
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 	public void onTestResultUpdated(TestResultUpdatedEvent event) {
-		notificationService.notifyTestResult(event.classId(), event.testId(), event.studentId(), event.title());
+		notificationService.dismissTestTask(event.studentId(), event.testId());
+		notificationService.notifyTestResult(
+				event.classId(), event.testId(), event.studentId(), event.title());
 	}
 
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 	public void onClinicResultUpdated(ClinicResultUpdatedEvent event) {
+		notificationService.dismissClinicReservationTask(event.studentId(), event.reservationId());
 		notificationService.notifyClinicResult(
 				event.classId(), event.reservationId(), event.studentId(), event.slotLabel());
+	}
+
+	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+	public void onVideoCertificationSubmitted(VideoCertificationSubmittedEvent event) {
+		notificationService.dismissVideoTask(event.studentId(), event.videoId());
 	}
 
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)

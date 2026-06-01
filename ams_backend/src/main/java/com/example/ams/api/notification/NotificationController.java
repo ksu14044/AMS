@@ -9,7 +9,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.ams.api.dto.NotificationBadgeCountResponse;
 import com.example.ams.api.dto.NotificationResponse;
+import com.example.ams.api.dto.PendingTaskCountResponse;
 import com.example.ams.api.dto.UnreadNotificationCountResponse;
 import com.example.ams.common.ApiResponse;
 import com.example.ams.domain.notification.Notification;
@@ -34,9 +36,21 @@ public class NotificationController {
 		return ApiResponse.ok(items);
 	}
 
+	@GetMapping("/badge-count")
+	public ApiResponse<NotificationBadgeCountResponse> badgeCount() {
+		return ApiResponse.ok(new NotificationBadgeCountResponse(
+				notificationService.getBadgeCount(),
+				notificationService.badgeCountKind()));
+	}
+
 	@GetMapping("/unread-count")
 	public ApiResponse<UnreadNotificationCountResponse> unreadCount() {
 		return ApiResponse.ok(new UnreadNotificationCountResponse(notificationService.getUnreadCount()));
+	}
+
+	@GetMapping("/pending-count")
+	public ApiResponse<PendingTaskCountResponse> pendingCount() {
+		return ApiResponse.ok(new PendingTaskCountResponse(notificationService.getPendingCount()));
 	}
 
 	@PatchMapping("/{notificationId}/read")
@@ -46,8 +60,10 @@ public class NotificationController {
 	}
 
 	@PatchMapping("/read-all")
-	public ApiResponse<UnreadNotificationCountResponse> markAllRead() {
+	public ApiResponse<NotificationBadgeCountResponse> markAllRead() {
 		notificationService.markAllRead();
-		return ApiResponse.ok(new UnreadNotificationCountResponse(0));
+		return ApiResponse.ok(new NotificationBadgeCountResponse(
+				notificationService.getBadgeCount(),
+				notificationService.badgeCountKind()));
 	}
 }

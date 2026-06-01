@@ -1,13 +1,31 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { fetchClasses } from '../../api/classesApi'
+import { fetchPendingTasks } from '../../api/notificationsApi'
 import { fetchMyStudyRecord } from '../../api/studyRecordsApi'
 import AcademyNoticesSection from '../../components/AcademyNoticesSection'
+import DashboardCard from '../../components/DashboardCard'
 import { SUBJECT_OPTIONS, subjectLabel } from '../../auth/subjectLabels'
 import { rememberLastClass, useLastClassId } from '../../utils/lastClass'
 import '../../styles/class-list.css'
+import '../../styles/class-detail.css'
+import '../../styles/notifications.css'
 
 const GAUGE_CLASS = { GREEN: 'green', ORANGE: 'orange', RED: 'red' }
+
+const TYPE_LABEL = {
+  HOMEWORK: '숙제',
+  TEST: '테스트',
+  VIDEO: '영상',
+  CLINIC: '클리닉',
+}
+
+const TAB_BY_TYPE = {
+  HOMEWORK: 'homework',
+  TEST: 'test',
+  VIDEO: 'video',
+  CLINIC: 'clinic',
+}
 
 const SUBJECT_ICONS = {
   KO: (
@@ -31,6 +49,7 @@ const SUBJECT_ICONS = {
 export default function StudentHomePage() {
   const [classes, setClasses] = useState([])
   const [gauges, setGauges] = useState({})
+  const [pendingTasks, setPendingTasks] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [lastClassId, setLastClassId] = useLastClassId()
@@ -52,8 +71,12 @@ export default function StudentHomePage() {
     setLoading(true)
     setError('')
     try {
-      const list = await fetchClasses()
+      const [list, pending] = await Promise.all([
+        fetchClasses(),
+        fetchPendingTasks().catch(() => []),
+      ])
       setClasses(list)
+      setPendingTasks(pending)
       const gaugeMap = {}
       await Promise.all(
         list.map(async (c) => {
@@ -84,6 +107,35 @@ export default function StudentHomePage() {
   return (
     <div className="ams-class-list-page">
       <AcademyNoticesSection canManage={false} compact />
+
+      {!loading && pendingTasks.length > 0 && (
+        <DashboardCard
+          title="미완료 과제"
+          actionLabel={`전체 ${pendingTasks.length}건 →`}
+          actionTo="/notifications/pending"
+        >
+          <p className="ams-student-pending__summary">
+            아직 완료하지 않은 과제가 {pendingTasks.length}건 있습니다.
+          </p>
+          <ul className="ams-student-pending__list">
+            {pendingTasks.slice(0, 3).map((item) => (
+              <li key={`${item.type}-${item.classId}-${item.entityId}`}>
+                <Link
+                  to={`/classes/${item.classId}?tab=${TAB_BY_TYPE[item.type] ?? 'home'}`}
+                  className="ams-student-pending__link"
+                >
+                  <span className="ams-student-pending__label">
+                    [{TYPE_LABEL[item.type] ?? item.type}] {item.title}
+                  </span>
+                  <span className="ams-student-pending__meta">
+                    [{subjectLabel(item.subject)}] {item.className}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </DashboardCard>
+      )}
 
       {loading ? (
         <p className="ams-class-list-page__empty">불러오는 중…</p>

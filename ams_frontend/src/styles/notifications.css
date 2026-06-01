@@ -75,6 +75,48 @@
   font-weight: var(--ams-font-weight-semibold);
 }
 
+.ams-notifications__summary {
+  margin: 0 0 var(--ams-space-4);
+  font-size: var(--ams-font-size-sm);
+  color: var(--ams-color-text-secondary);
+}
+
+.ams-notifications__pending-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-1);
+  margin-bottom: var(--ams-space-4);
+  padding: var(--ams-space-3) var(--ams-space-4);
+  border: var(--ams-border-width) solid var(--ams-color-primary);
+  border-radius: var(--ams-radius-md);
+  background: var(--ams-color-primary-light);
+  text-decoration: none;
+  color: inherit;
+}
+
+.ams-notifications__pending-title {
+  font-size: var(--ams-font-size-sm);
+  font-weight: var(--ams-font-weight-bold);
+  color: var(--ams-color-text);
+}
+
+.ams-notifications__pending-link {
+  font-size: var(--ams-font-size-xs);
+  color: var(--ams-color-primary);
+  font-weight: var(--ams-font-weight-semibold);
+}
+
+.ams-notifications__item--link {
+  display: flex;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.ams-notifications__item--link:hover .ams-notifications__title {
+  color: var(--ams-color-primary);
+}
+
 .ams-notifications__status,
 .ams-notifications__empty {
   margin: 0;

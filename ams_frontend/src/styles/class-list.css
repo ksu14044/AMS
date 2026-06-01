@@ -9,6 +9,51 @@
   gap: var(--ams-space-4);
 }
 
+.ams-student-pending__summary {
+  margin: 0 0 var(--ams-space-3);
+  font-size: var(--ams-font-size-sm);
+  color: var(--ams-color-text-secondary);
+}
+
+.ams-student-pending__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-2);
+}
+
+.ams-student-pending__link {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--ams-space-2) var(--ams-space-3);
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-sm);
+  text-decoration: none;
+  color: inherit;
+  background: var(--ams-color-white);
+}
+
+.ams-student-pending__link:hover {
+  border-color: var(--ams-color-primary);
+}
+
+.ams-student-pending__link:hover .ams-student-pending__label {
+  color: var(--ams-color-primary);
+}
+
+.ams-student-pending__label {
+  font-size: var(--ams-font-size-sm);
+  font-weight: var(--ams-font-weight-semibold);
+}
+
+.ams-student-pending__meta {
+  font-size: var(--ams-font-size-xs);
+  color: var(--ams-color-text-secondary);
+}
+
 .ams-class-list-page__greeting {
   margin: 0;
   font-size: var(--ams-font-size-lg);

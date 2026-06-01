@@ -2,6 +2,10 @@ package com.example.ams.domain.notification;
 
 import java.time.Instant;
 
+import com.example.ams.domain.notification.NotificationReferenceType;
+import com.example.ams.domain.notification.NotificationStatus;
+import com.example.ams.domain.notification.NotificationType;
+
 public record Notification(
 		long notificationId,
 		long academyId,
@@ -11,6 +15,7 @@ public record Notification(
 		String body,
 		NotificationReferenceType referenceType,
 		Long referenceId,
+		NotificationStatus status,
 		Instant readAt,
 		Instant createdAt) {
 

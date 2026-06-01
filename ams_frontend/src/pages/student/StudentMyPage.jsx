@@ -2,19 +2,20 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthContext'
 import { roleLabel } from '../../auth/roleLabels'
-import { fetchUnreadNotificationCount } from '../../api/notificationsApi'
+import { fetchNotificationBadgeCount } from '../../api/notificationsApi'
 import '../../styles/class-list.css'
 
 export default function StudentMyPage() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
-  const [unreadCount, setUnreadCount] = useState(0)
+  const [badgeCount, setBadgeCount] = useState(0)
 
   const loadCount = useCallback(async () => {
     try {
-      setUnreadCount(await fetchUnreadNotificationCount())
+      const badge = await fetchNotificationBadgeCount()
+      setBadgeCount(badge.count)
     } catch {
-      setUnreadCount(0)
+      setBadgeCount(0)
     }
   }, [])
 
@@ -38,8 +39,8 @@ export default function StudentMyPage() {
       <div className="ams-my-menu">
         <Link to="/notifications" className="ams-my-menu__item">
           <span>알림</span>
-          {unreadCount > 0 && (
-            <span className="ams-my-menu__badge">{unreadCount}</span>
+          {badgeCount > 0 && (
+            <span className="ams-my-menu__badge">{badgeCount}</span>
           )}
         </Link>
       </div>

@@ -10,6 +10,7 @@ import SignupAcademyPage from '../pages/auth/SignupAcademyPage'
 import SignupStaffPage from '../pages/auth/SignupStaffPage'
 import SignupStudentPage from '../pages/auth/SignupStudentPage'
 import NotificationsPage from '../pages/notifications/NotificationsPage'
+import PendingTasksPage from '../pages/notifications/PendingTasksPage'
 import AdminHomePage from '../pages/admin/AdminHomePage'
 import ClassDetailPage from '../pages/class/ClassDetailPage'
 import StudentHomePage from '../pages/student/StudentHomePage'
@@ -50,6 +51,9 @@ export default function AppRouter() {
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout title="알림" />}>
               <Route path="/notifications" element={<NotificationsPage />} />
+            </Route>
+            <Route element={<AppLayout title="미완료 과제" />}>
+              <Route path="/notifications/pending" element={<PendingTasksPage />} />
             </Route>
             <Route element={<AppLayout title="반 상세" />}>
               <Route path="/classes/:classId" element={<ClassDetailPage />} />

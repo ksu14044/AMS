@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { fetchUnreadNotificationCount } from '../api/notificationsApi'
+import { fetchNotificationBadgeCount } from '../api/notificationsApi'
 import { NOTIFICATIONS_CHANGED } from '../api/notificationEvents'
 import '../styles/notifications.css'
 
@@ -10,7 +10,8 @@ export default function NotificationBell() {
 
   const load = useCallback(async () => {
     try {
-      setCount(await fetchUnreadNotificationCount())
+      const badge = await fetchNotificationBadgeCount()
+      setCount(badge.count)
     } catch {
       setCount(0)
     }

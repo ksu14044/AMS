@@ -3,6 +3,7 @@ package com.example.ams.service;
 import java.util.List;
 
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -12,6 +13,7 @@ import com.example.ams.common.ErrorCode;
 import com.example.ams.domain.clazz.VideoCertification;
 import com.example.ams.domain.clazz.VideoLesson;
 import com.example.ams.domain.user.UserRole;
+import com.example.ams.event.VideoCertificationSubmittedEvent;
 import com.example.ams.repository.VideoCertificationRepository;
 import com.example.ams.repository.VideoLessonRepository;
 import com.example.ams.security.CurrentUserService;
@@ -25,6 +27,7 @@ public class VideoCertificationService {
 	private final AssignmentTargetService assignmentTargetService;
 	private final CurrentUserService currentUserService;
 	private final LocalFileStorageService fileStorageService;
+	private final ApplicationEventPublisher eventPublisher;
 
 	public VideoCertificationService(
 			VideoCertificationRepository certificationRepository,
@@ -32,13 +35,15 @@ public class VideoCertificationService {
 			ClassAccessService classAccessService,
 			AssignmentTargetService assignmentTargetService,
 			CurrentUserService currentUserService,
-			LocalFileStorageService fileStorageService) {
+			LocalFileStorageService fileStorageService,
+			ApplicationEventPublisher eventPublisher) {
 		this.certificationRepository = certificationRepository;
 		this.videoRepository = videoRepository;
 		this.classAccessService = classAccessService;
 		this.assignmentTargetService = assignmentTargetService;
 		this.currentUserService = currentUserService;
 		this.fileStorageService = fileStorageService;
+		this.eventPublisher = eventPublisher;
 	}
 
 	public VideoCertification getMyCertification(long videoId) {
@@ -80,21 +85,26 @@ public class VideoCertificationService {
 		long academyId = currentUserService.requireAcademyId();
 		String imageUrl = fileStorageService.storeCertificationImage(academyId, studentId, file);
 
+		VideoCertification saved;
 		var existing = certificationRepository.findByVideoIdAndStudentId(videoId, studentId);
 		if (existing.isPresent()) {
 			certificationRepository.updateImage(existing.get().certificationId(), imageUrl);
-			return certificationRepository.findByVideoIdAndStudentId(videoId, studentId).orElseThrow();
+			saved = certificationRepository.findByVideoIdAndStudentId(videoId, studentId).orElseThrow();
+		} else {
+			try {
+				saved = certificationRepository.insert(videoId, studentId, imageUrl);
+			} catch (DuplicateKeyException ex) {
+				certificationRepository.updateImage(
+						certificationRepository.findByVideoIdAndStudentId(videoId, studentId)
+								.orElseThrow()
+								.certificationId(),
+						imageUrl);
+				saved = certificationRepository.findByVideoIdAndStudentId(videoId, studentId).orElseThrow();
+			}
 		}
-		try {
-			return certificationRepository.insert(videoId, studentId, imageUrl);
-		} catch (DuplicateKeyException ex) {
-			certificationRepository.updateImage(
-					certificationRepository.findByVideoIdAndStudentId(videoId, studentId)
-							.orElseThrow()
-							.certificationId(),
-					imageUrl);
-			return certificationRepository.findByVideoIdAndStudentId(videoId, studentId).orElseThrow();
-		}
+		eventPublisher.publishEvent(new VideoCertificationSubmittedEvent(
+				video.classId(), videoId, studentId, video.title()));
+		return saved;
 	}
 
 	private VideoLesson requireReadableVideo(long videoId) {

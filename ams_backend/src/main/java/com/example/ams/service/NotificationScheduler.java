@@ -13,8 +13,7 @@ public class NotificationScheduler {
 	}
 
 	@Scheduled(cron = "0 0 9 * * *", zone = "Asia/Seoul")
-	public void sendD1Reminders() {
-		notificationService.sendHomeworkD1Reminders();
+	public void sendTestDayBeforeReminders() {
 		notificationService.sendTestD1Reminders();
 	}
 

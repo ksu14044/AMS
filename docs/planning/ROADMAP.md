@@ -286,7 +286,10 @@
 
 ### 12-6. 알림 (§16)
 
-- [ ] ACTIVE/DISMISSED · D-1 제거 · 홈 미완료
+- [x] ACTIVE/DISMISSED · 과제형 완료 시 소멸 · 정보형 읽음 시 정리
+- [x] `pending-count` / `pending-tasks` · 뱃지 = 미완료 건수
+- [x] 숙제 D-1 스케줄 제거 · 테스트 `test_at` 전날 유지
+- [x] 학생 홈 미완료 카드 (알림과 동일 데이터)
 
 ### 12-7. 클리닉 프리셋 (§17)
 
@@ -300,7 +303,7 @@
 
 - [ ] `PARENT` · parent-links · `/parent/*`
 
-DB: V21~V27 ([schema-overview](./database/schema-overview.md))
+DB: V21~V28 ([schema-overview](./database/schema-overview.md))
 
 ---
 

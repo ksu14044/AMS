@@ -11,6 +11,7 @@ import org.springframework.stereotype.Repository;
 
 import com.example.ams.domain.notification.Notification;
 import com.example.ams.domain.notification.NotificationReferenceType;
+import com.example.ams.domain.notification.NotificationStatus;
 import com.example.ams.domain.notification.NotificationType;
 
 @Repository
@@ -27,6 +28,7 @@ public class NotificationRepository {
 					? NotificationReferenceType.valueOf(rs.getString("reference_type"))
 					: null,
 			rs.getObject("reference_id") != null ? rs.getLong("reference_id") : null,
+			NotificationStatus.valueOf(rs.getString("status")),
 			rs.getTimestamp("read_at") != null ? rs.getTimestamp("read_at").toInstant() : null,
 			rs.getTimestamp("created_at").toInstant());
 
@@ -45,8 +47,8 @@ public class NotificationRepository {
 			NotificationReferenceType referenceType,
 			Long referenceId) {
 		String sql = """
-				INSERT INTO notification (academy_id, user_id, type, title, body, reference_type, reference_id)
-				VALUES (?, ?, ?, ?, ?, ?, ?)
+				INSERT INTO notification (academy_id, user_id, type, title, body, reference_type, reference_id, status)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 				""";
 		KeyHolder keyHolder = new GeneratedKeyHolder();
 		jdbcTemplate.update(connection -> {
@@ -62,6 +64,7 @@ public class NotificationRepository {
 			} else {
 				ps.setNull(7, java.sql.Types.BIGINT);
 			}
+			ps.setString(8, NotificationStatus.ACTIVE.name());
 			return ps;
 		}, keyHolder);
 		return findById(keyHolder.getKey().longValue()).orElseThrow();
@@ -82,12 +85,12 @@ public class NotificationRepository {
 		String sql = unreadOnly
 				? """
 						SELECT * FROM notification
-						WHERE user_id = ? AND academy_id = ? AND read_at IS NULL
+						WHERE user_id = ? AND academy_id = ? AND status = 'ACTIVE' AND read_at IS NULL
 						ORDER BY created_at DESC
 						"""
 				: """
 						SELECT * FROM notification
-						WHERE user_id = ? AND academy_id = ?
+						WHERE user_id = ? AND academy_id = ? AND status = 'ACTIVE'
 						ORDER BY created_at DESC
 						""";
 		return jdbcTemplate.query(sql, ROW_MAPPER, userId, academyId);
@@ -95,7 +98,10 @@ public class NotificationRepository {
 
 	public int countUnread(long userId, long academyId) {
 		Integer count = jdbcTemplate.queryForObject(
-				"SELECT COUNT(*) FROM notification WHERE user_id = ? AND academy_id = ? AND read_at IS NULL",
+				"""
+						SELECT COUNT(*) FROM notification
+						WHERE user_id = ? AND academy_id = ? AND status = 'ACTIVE' AND read_at IS NULL
+						""",
 				Integer.class,
 				userId,
 				academyId);
@@ -104,17 +110,83 @@ public class NotificationRepository {
 
 	public boolean markRead(long notificationId, long userId) {
 		int updated = jdbcTemplate.update(
-				"UPDATE notification SET read_at = CURRENT_TIMESTAMP WHERE notification_id = ? AND user_id = ? AND read_at IS NULL",
+				"""
+						UPDATE notification
+						SET read_at = CURRENT_TIMESTAMP
+						WHERE notification_id = ? AND user_id = ? AND read_at IS NULL
+						""",
 				notificationId,
 				userId);
 		return updated > 0;
 	}
 
+	public boolean dismiss(long notificationId, long userId) {
+		int updated = jdbcTemplate.update(
+				"""
+						UPDATE notification
+						SET status = 'DISMISSED', read_at = COALESCE(read_at, CURRENT_TIMESTAMP)
+						WHERE notification_id = ? AND user_id = ? AND status = 'ACTIVE'
+						""",
+				notificationId,
+				userId);
+		return updated > 0;
+	}
+
+	public int dismissTaskNotifications(
+			long userId,
+			NotificationReferenceType referenceType,
+			long referenceId,
+			List<NotificationType> types) {
+		if (types.isEmpty()) {
+			return 0;
+		}
+		String placeholders = String.join(", ", types.stream().map(t -> "?").toList());
+		Object[] args = new Object[3 + types.size()];
+		args[0] = userId;
+		args[1] = referenceType.name();
+		args[2] = referenceId;
+		for (int i = 0; i < types.size(); i++) {
+			args[3 + i] = types.get(i).name();
+		}
+		return jdbcTemplate.update(
+				"""
+						UPDATE notification
+						SET status = 'DISMISSED', read_at = COALESCE(read_at, CURRENT_TIMESTAMP)
+						WHERE user_id = ? AND reference_type = ? AND reference_id = ?
+						  AND status = 'ACTIVE' AND type IN (%s)
+						""".formatted(placeholders),
+				args);
+	}
+
 	public int markAllRead(long userId, long academyId) {
 		return jdbcTemplate.update(
-				"UPDATE notification SET read_at = CURRENT_TIMESTAMP WHERE user_id = ? AND academy_id = ? AND read_at IS NULL",
+				"""
+						UPDATE notification
+						SET read_at = CURRENT_TIMESTAMP
+						WHERE user_id = ? AND academy_id = ? AND status = 'ACTIVE' AND read_at IS NULL
+						""",
 				userId,
 				academyId);
+	}
+
+	public int dismissAllInfoNotifications(long userId, long academyId, List<NotificationType> infoTypes) {
+		if (infoTypes.isEmpty()) {
+			return 0;
+		}
+		String placeholders = String.join(", ", infoTypes.stream().map(t -> "?").toList());
+		Object[] args = new Object[2 + infoTypes.size()];
+		args[0] = userId;
+		args[1] = academyId;
+		for (int i = 0; i < infoTypes.size(); i++) {
+			args[2 + i] = infoTypes.get(i).name();
+		}
+		return jdbcTemplate.update(
+				"""
+						UPDATE notification
+						SET status = 'DISMISSED', read_at = COALESCE(read_at, CURRENT_TIMESTAMP)
+						WHERE user_id = ? AND academy_id = ? AND status = 'ACTIVE' AND type IN (%s)
+						""".formatted(placeholders),
+				args);
 	}
 
 	public boolean existsByUserAndTypeAndReference(
@@ -126,6 +198,7 @@ public class NotificationRepository {
 				"""
 						SELECT COUNT(*) FROM notification
 						WHERE user_id = ? AND type = ? AND reference_type = ? AND reference_id = ?
+						  AND status = 'ACTIVE'
 						""",
 				Integer.class,
 				userId,

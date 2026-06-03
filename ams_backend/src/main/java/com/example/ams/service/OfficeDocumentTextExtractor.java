@@ -98,7 +98,7 @@ final class OfficeDocumentTextExtractor {
 		try {
 			HWPFile hwpFile = HWPReader.fromInputStream(new ByteArrayInputStream(bytes));
 			return TextExtractor.extract(hwpFile, TextExtractMethod.InsertControlTextBetweenParagraphText).trim();
-		} catch (IOException | RuntimeException ex) {
+		} catch (Exception ex) {
 			throw new BusinessException(
 					ErrorCode.INVALID_REQUEST,
 					"한글(hwp) 파일을 읽을 수 없습니다. PDF로 저장 후 업로드해 주세요.");

@@ -40,6 +40,31 @@ ALTER TABLE t ADD CONSTRAINT fk_name FOREIGN KEY (...) REFERENCES ...;
 - `V29` — `AFTER`·`UPDATE JOIN` 회피
 - `V31` — FK 선삭제, `ADD COLUMN` without `AFTER`
 
+## checksum mismatch (로컬만 실패, CI는 통과)
+
+로그: `Migration checksum mismatch for migration version N`
+
+**원인**: 로컬 MySQL에 **예전 내용**의 `VN`이 이미 적용됐는데, 저장소의 `VN__....sql`만 수정함. CI/H2는 빈 DB라 문제 없음.
+
+**조치** (DB 스키마가 현재 파일과 맞을 때 — `mvn test` 통과 후 1회 repair):
+
+```powershell
+cd ams_backend
+.\scripts\flyway-repair-local.ps1
+```
+
+(`application-local.yaml` 의 DB 설정 사용. PowerShell에서 URL의 `&`·비밀번호 `!` 를 `-D`에 넣으면 인자가 잘림.)
+
+수동 실행 시 **작은따옴표** 필수:
+
+```powershell
+.\mvnw.cmd flyway:repair '-Dflyway.url=jdbc:mysql://localhost:3306/ams?serverTimezone=Asia/Seoul' '-Dflyway.user=root' '-Dflyway.password=YOUR_PASSWORD'
+```
+
+이후 `spring-boot:run`.
+
+**주의**: 운영/공유 DB에는 repair 전 팀 합의. 앞으로는 배포된 `Vn`은 수정하지 말고 `V{n+1}` 추가.
+
 ## Cursor
 
 에이전트 규칙: `.cursor/rules/flyway-migrations.mdc` (이 폴더의 `.sql` 편집 시 자동 참고)

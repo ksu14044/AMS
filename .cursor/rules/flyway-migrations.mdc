@@ -40,7 +40,9 @@ CI·`mvn test`는 **H2**(`MODE=MySQL`)로 전체 마이그레이션을 적용한
 
 ## 수정·배포
 
-- **이미 적용된** `Vn` 파일 내용 변경 시 checksum 불일치 → 로컬 `flyway:repair` (예: `application-local.yaml.example` 참고).
-- 실패한 Vn은 DB 부분 적용 후 **롤백 SQL** 실행 → `flyway_schema_history`에서 해당 version 삭제 → 수정본 재기동.
+- **이미 로컬 MySQL에 적용된** `Vn` SQL을 고친 뒤 → `checksum mismatch` → `flyway:repair` 1회 (`migration/README.md`).
+- CI/H2는 매번 빈 DB라 checksum 오류가 안 남 — **로컬만** 터지는 패턴이 흔함.
+- 실패한 Vn은 롤백 SQL → `flyway_schema_history`에서 version 삭제 → 수정본 재기동.
+- 팀/운영에 나간 `Vn`은 내용 수정 금지 → 새 `V{n+1}`.
 
 템플릿: `db/migration/_TEMPLATE.example.sql` · 상세: `db/migration/README.md`

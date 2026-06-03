@@ -5,8 +5,12 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -27,7 +31,9 @@ import com.example.ams.domain.clazz.AssignmentStatus;
 import com.example.ams.domain.clazz.Clazz;
 import com.example.ams.domain.clazz.TestExam;
 import com.example.ams.domain.clazz.TestScore;
+import com.example.ams.api.dto.GenerateReportsRequest;
 import com.example.ams.domain.report.DiligenceReport;
+import com.example.ams.domain.report.ReportPeriodPreset;
 import com.example.ams.domain.user.User;
 import com.example.ams.domain.user.UserRole;
 import com.example.ams.event.DiligenceReportCreatedEvent;
@@ -43,6 +49,9 @@ import com.example.ams.security.CurrentUserService;
 @Service
 public class DiligenceReportService {
 
+	private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
+	private static final DateTimeFormatter PERIOD_LABEL_FMT = DateTimeFormatter.ofPattern("yyyy.MM.dd");
+
 	private final DiligenceReportRepository reportRepository;
 	private final TestExamRepository testExamRepository;
 	private final TestScoreRepository testScoreRepository;
@@ -55,6 +64,7 @@ public class DiligenceReportService {
 	private final DiligenceReportPdfService pdfService;
 	private final AmsUploadProperties uploadProperties;
 	private final ApplicationEventPublisher eventPublisher;
+	private final ReportPeriodPresetService reportPeriodPresetService;
 
 	public DiligenceReportService(
 			DiligenceReportRepository reportRepository,
@@ -68,7 +78,8 @@ public class DiligenceReportService {
 			StudyRecordPeriodCalculator periodCalculator,
 			DiligenceReportPdfService pdfService,
 			AmsUploadProperties uploadProperties,
-			ApplicationEventPublisher eventPublisher) {
+			ApplicationEventPublisher eventPublisher,
+			ReportPeriodPresetService reportPeriodPresetService) {
 		this.reportRepository = reportRepository;
 		this.testExamRepository = testExamRepository;
 		this.testScoreRepository = testScoreRepository;
@@ -81,6 +92,7 @@ public class DiligenceReportService {
 		this.pdfService = pdfService;
 		this.uploadProperties = uploadProperties;
 		this.eventPublisher = eventPublisher;
+		this.reportPeriodPresetService = reportPeriodPresetService;
 	}
 
 	public List<ReportListRow> listByClass(long classId) {
@@ -129,35 +141,7 @@ public class DiligenceReportService {
 		if (reports.isEmpty()) {
 			throw new BusinessException(ErrorCode.REPORT_NOT_FOUND, "이 시험의 보고서가 없습니다.");
 		}
-
-		String zipBaseName = sanitizeArchiveFileName(clazz.name() + "_" + test.title());
-		Set<String> usedEntryNames = new HashSet<>();
-		int added = 0;
-
-		try (ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-				ZipOutputStream zip = new ZipOutputStream(buffer)) {
-			for (DiligenceReport report : reports) {
-				java.nio.file.Path pdfPath = pdfFilePath(report.reportId());
-				if (!Files.exists(pdfPath)) {
-					continue;
-				}
-				User student = userRepository.findById(report.studentId()).orElseThrow();
-				String entryName = uniqueZipEntryName(
-						usedEntryNames,
-						sanitizeArchiveFileName(student.name() + "_" + report.reportId()) + ".pdf");
-				zip.putNextEntry(new ZipEntry(entryName));
-				Files.copy(pdfPath, zip);
-				zip.closeEntry();
-				added++;
-			}
-			zip.finish();
-			if (added == 0) {
-				throw new BusinessException(ErrorCode.REPORT_NOT_FOUND, "다운로드할 PDF가 없습니다.");
-			}
-			return new PdfArchive(zipBaseName + ".zip", new ByteArrayResource(buffer.toByteArray()));
-		} catch (IOException e) {
-			throw new BusinessException(ErrorCode.INTERNAL_ERROR, "ZIP 생성에 실패했습니다.");
-		}
+		return buildZipArchive(sanitizeArchiveFileName(clazz.name() + "_" + test.title()), reports);
 	}
 
 	private java.nio.file.Path pdfFilePath(long reportId) {
@@ -208,6 +192,73 @@ public class DiligenceReportService {
 	}
 
 	@Transactional
+	public GenerateReportsV3Result generateReportsForPeriod(long classId, GenerateReportsRequest request) {
+		Clazz clazz = clazzRepository.findById(classId).orElseThrow();
+		if (!classAccessService.canManageClassContent(clazz)) {
+			throw new BusinessException(ErrorCode.FORBIDDEN);
+		}
+		Instant periodStart = startOfDay(request.periodStart());
+		Instant periodEnd = endOfDay(request.periodEnd());
+		if (periodEnd.isBefore(periodStart)) {
+			throw new BusinessException(ErrorCode.INVALID_REQUEST, "기간 종료일은 시작일 이후여야 합니다.");
+		}
+
+		List<Long> studentIds = distinctStudentIds(request.studentIds());
+		if (studentIds.isEmpty()) {
+			throw new BusinessException(ErrorCode.INVALID_REQUEST, "학생을 한 명 이상 선택하세요.");
+		}
+		for (long studentId : studentIds) {
+			if (!enrollmentRepository.existsByClassIdAndStudentId(classId, studentId)) {
+				throw new BusinessException(ErrorCode.INVALID_REQUEST, "반에 속하지 않은 학생이 포함되어 있습니다.");
+			}
+		}
+
+		Long presetId = request.presetId();
+		if (presetId != null) {
+			reportPeriodPresetService.requirePreset(classId, presetId);
+		}
+		String periodLabel = resolvePeriodLabel(classId, presetId, request.periodStart(), request.periodEnd());
+
+		reportRepository.deleteByClassIdAndPeriodAndStudentIds(classId, periodStart, periodEnd, studentIds);
+
+		int created = 0;
+		for (long studentId : studentIds) {
+			createReportForStudent(
+					clazz,
+					studentId,
+					null,
+					periodStart,
+					periodEnd,
+					periodLabel,
+					presetId,
+					null);
+			created++;
+		}
+		return new GenerateReportsV3Result(created, periodStart, periodEnd, periodLabel);
+	}
+
+	public PdfArchive loadPeriodPdfArchive(long classId, LocalDate periodStart, LocalDate periodEnd) {
+		return loadPeriodPdfArchive(classId, startOfDay(periodStart), endOfDay(periodEnd));
+	}
+
+	public PdfArchive loadPeriodPdfArchive(long classId, Instant periodStart, Instant periodEnd) {
+		Clazz clazz = classAccessService.requireReadableClass(classId);
+		if (!classAccessService.canManageClassContent(clazz)) {
+			throw new BusinessException(ErrorCode.FORBIDDEN);
+		}
+		List<DiligenceReport> reports = reportRepository.findByClassIdAndPeriod(classId, periodStart, periodEnd);
+		if (reports.isEmpty()) {
+			throw new BusinessException(ErrorCode.REPORT_NOT_FOUND, "해당 기간의 보고서가 없습니다.");
+		}
+		String zipBase = sanitizeArchiveFileName(
+				clazz.name() + "_"
+						+ PERIOD_LABEL_FMT.format(periodStart.atZone(SEOUL).toLocalDate())
+						+ "-"
+						+ PERIOD_LABEL_FMT.format(periodEnd.atZone(SEOUL).toLocalDate()));
+		return buildZipArchive(zipBase, reports);
+	}
+
+	@Transactional
 	public int generateReportsForTest(long classId, long testId) {
 		TestExam test = testExamRepository.findById(testId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.TEST_NOT_FOUND));
@@ -239,67 +290,137 @@ public class DiligenceReportService {
 			long studentId = enrollment.studentId();
 			Instant periodStart = previous.map(TestExam::testAt)
 					.orElse(enrollment.assignedAt());
-
-			StudyRecordPeriodMetrics metrics = periodCalculator.compute(
-					test.classId(),
-					studentId,
-					periodStart,
-					periodEnd);
-
-			Optional<TestScore> scoreOpt = testScoreRepository.findByTestIdAndStudentId(testId, studentId);
-			BigDecimal raw = scoreOpt.map(TestScore::rawScore).orElse(null);
-			BigDecimal classAvg = scoreOpt.map(TestScore::classAvg).orElse(null);
-			int testScorePercent = StudyRecordGrades.rawScorePercent(raw);
-			String testGrade = raw != null ? StudyRecordGrades.letterGrade(testScorePercent) : null;
-
-			Integer homeworkRate = metrics.homeworkRate();
-			Integer clinicRate = metrics.clinicRate();
-			Integer videoRate = metrics.videoRate();
-			int totalScore = StudyRecordGrades.weightedTotalPercent(
-					homeworkRate,
-					clinicRate,
-					testScorePercent,
-					true);
-			String overallGrade = StudyRecordGrades.letterGrade(totalScore);
-
-			DiligenceReport saved = reportRepository.insert(new ReportInsert(
-					test.classId(),
-					studentId,
-					testId,
-					periodStart,
-					periodEnd,
-					metrics.homeworkSubmitted(),
-					metrics.homeworkTotal(),
-					homeworkRate,
-					StudyRecordGrades.letterGradeOrNull(homeworkRate),
-					metrics.clinicAttended(),
-					metrics.clinicTotal(),
-					clinicRate,
-					StudyRecordGrades.letterGradeOrNull(clinicRate),
-					raw,
-					classAvg,
-					null,
-					null,
-					testGrade,
-					metrics.videoCertified(),
-					metrics.videoTotal(),
-					videoRate,
-					StudyRecordGrades.letterGradeOrNull(videoRate),
-					totalScore,
-					overallGrade,
-					null,
-					null));
-
-			try {
-				User student = userRepository.findById(studentId).orElseThrow();
-				String pdfUrl = pdfService.writePdf(saved, clazz.name(), student.name(), test.title());
-				reportRepository.updatePdfPath(saved.reportId(), pdfUrl);
-			} catch (java.io.IOException e) {
-				throw new BusinessException(ErrorCode.INTERNAL_ERROR, "PDF 생성에 실패했습니다.");
-			}
-			eventPublisher.publishEvent(new DiligenceReportCreatedEvent(
-					test.classId(), studentId, saved.reportId(), test.title()));
+			createReportForStudent(clazz, studentId, test, periodStart, periodEnd, null, null, test.title());
 		}
+	}
+
+	private void createReportForStudent(
+			Clazz clazz,
+			long studentId,
+			TestExam test,
+			Instant periodStart,
+			Instant periodEnd,
+			String periodLabel,
+			Long periodPresetId,
+			String pdfTestTitle) {
+		StudyRecordPeriodMetrics metrics = periodCalculator.compute(
+				clazz.classId(),
+				studentId,
+				periodStart,
+				periodEnd);
+
+		StudyRecordPeriodTestMetrics testMetrics = test != null
+				? periodCalculator.computeTestMetricsForSingleExam(test, studentId)
+				: periodCalculator.computeTestMetrics(clazz.classId(), studentId, periodStart, periodEnd);
+		Long testId = testMetrics.representativeTestId();
+		BigDecimal raw = testMetrics.displayRawScore();
+		BigDecimal classAvg = testMetrics.latestClassAvg();
+		Integer testRank = testMetrics.latestRank();
+		int testScorePercent = testMetrics.averageScorePercent();
+		String testGrade = testMetrics.hasScoredTest()
+				? StudyRecordGrades.letterGrade(testScorePercent)
+				: null;
+
+		Integer homeworkRate = metrics.homeworkRate();
+		Integer clinicRate = metrics.clinicRate();
+		Integer videoRate = metrics.videoRate();
+		int totalScore = StudyRecordGrades.weightedTotalPercent(
+				homeworkRate,
+				clinicRate,
+				testScorePercent,
+				testMetrics.hasScoredTest());
+		String overallGrade = StudyRecordGrades.letterGrade(totalScore);
+
+		DiligenceReport saved = reportRepository.insert(new ReportInsert(
+				clazz.classId(),
+				studentId,
+				testId,
+				periodStart,
+				periodEnd,
+				periodLabel,
+				periodPresetId,
+				metrics.homeworkSubmitted(),
+				metrics.homeworkTotal(),
+				homeworkRate,
+				StudyRecordGrades.letterGradeOrNull(homeworkRate),
+				metrics.clinicAttended(),
+				metrics.clinicTotal(),
+				clinicRate,
+				StudyRecordGrades.letterGradeOrNull(clinicRate),
+				raw,
+				classAvg,
+				null,
+				null,
+				testRank,
+				testGrade,
+				metrics.videoCertified(),
+				metrics.videoTotal(),
+				videoRate,
+				StudyRecordGrades.letterGradeOrNull(videoRate),
+				totalScore,
+				overallGrade,
+				null,
+				null));
+
+		String titleForPdf = pdfTestTitle != null ? pdfTestTitle : (periodLabel != null ? periodLabel : "성실도 보고서");
+		try {
+			User student = userRepository.findById(studentId).orElseThrow();
+			String pdfUrl = pdfService.writePdf(saved, clazz.name(), student.name(), titleForPdf);
+			reportRepository.updatePdfPath(saved.reportId(), pdfUrl);
+		} catch (java.io.IOException e) {
+			throw new BusinessException(ErrorCode.INTERNAL_ERROR, "PDF 생성에 실패했습니다.");
+		}
+		eventPublisher.publishEvent(new DiligenceReportCreatedEvent(
+				clazz.classId(), studentId, saved.reportId(), titleForPdf));
+	}
+
+	private PdfArchive buildZipArchive(String zipBaseName, List<DiligenceReport> reports) {
+		Set<String> usedEntryNames = new HashSet<>();
+		int added = 0;
+		try (ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+				ZipOutputStream zip = new ZipOutputStream(buffer)) {
+			for (DiligenceReport report : reports) {
+				java.nio.file.Path pdfPath = pdfFilePath(report.reportId());
+				if (!Files.exists(pdfPath)) {
+					continue;
+				}
+				User student = userRepository.findById(report.studentId()).orElseThrow();
+				String entryName = uniqueZipEntryName(
+						usedEntryNames,
+						sanitizeArchiveFileName(student.name() + "_" + report.reportId()) + ".pdf");
+				zip.putNextEntry(new ZipEntry(entryName));
+				Files.copy(pdfPath, zip);
+				zip.closeEntry();
+				added++;
+			}
+			zip.finish();
+			if (added == 0) {
+				throw new BusinessException(ErrorCode.REPORT_NOT_FOUND, "다운로드할 PDF가 없습니다.");
+			}
+			return new PdfArchive(zipBaseName + ".zip", new ByteArrayResource(buffer.toByteArray()));
+		} catch (IOException e) {
+			throw new BusinessException(ErrorCode.INTERNAL_ERROR, "ZIP 생성에 실패했습니다.");
+		}
+	}
+
+	private String resolvePeriodLabel(long classId, Long presetId, LocalDate periodStart, LocalDate periodEnd) {
+		if (presetId != null) {
+			ReportPeriodPreset preset = reportPeriodPresetService.requirePreset(classId, presetId);
+			return preset.name();
+		}
+		return PERIOD_LABEL_FMT.format(periodStart) + " ~ " + PERIOD_LABEL_FMT.format(periodEnd);
+	}
+
+	private static Instant startOfDay(LocalDate date) {
+		return date.atStartOfDay(SEOUL).toInstant();
+	}
+
+	private static Instant endOfDay(LocalDate date) {
+		return date.atTime(23, 59, 59).atZone(SEOUL).toInstant();
+	}
+
+	private static List<Long> distinctStudentIds(List<Long> studentIds) {
+		return new ArrayList<>(new LinkedHashSet<>(studentIds));
 	}
 
 	private Instant resolvePeriodEnd(TestExam test) {
@@ -360,12 +481,12 @@ public class DiligenceReportService {
 	private List<ReportListRow> toListRows(List<DiligenceReport> reports) {
 		List<ReportListRow> rows = new ArrayList<>();
 		for (DiligenceReport r : reports) {
-			TestExam test = testExamRepository.findById(r.testId()).orElseThrow();
 			User student = userRepository.findById(r.studentId()).orElseThrow();
 			rows.add(new ReportListRow(
 					r.reportId(),
 					r.testId(),
-					test.title(),
+					resolveReportTitle(r),
+					r.periodLabel(),
 					r.studentId(),
 					student.name(),
 					r.periodStart(),
@@ -377,8 +498,17 @@ public class DiligenceReportService {
 		return rows;
 	}
 
+	private String resolveReportTitle(DiligenceReport r) {
+		if (r.periodLabel() != null && !r.periodLabel().isBlank()) {
+			return r.periodLabel();
+		}
+		if (r.testId() != null) {
+			return testExamRepository.findById(r.testId()).map(TestExam::title).orElse("성실도 보고서");
+		}
+		return "성실도 보고서";
+	}
+
 	private ReportDetailRow toDetailRow(DiligenceReport r) {
-		TestExam test = testExamRepository.findById(r.testId()).orElseThrow();
 		User student = userRepository.findById(r.studentId()).orElseThrow();
 		Clazz clazz = clazzRepository.findById(r.classId()).orElseThrow();
 		return new ReportDetailRow(
@@ -388,7 +518,8 @@ public class DiligenceReportService {
 				r.studentId(),
 				student.name(),
 				r.testId(),
-				test.title(),
+				resolveReportTitle(r),
+				r.periodLabel(),
 				r.periodStart(),
 				r.periodEnd(),
 				r.homeworkSubmitted(),
@@ -403,6 +534,7 @@ public class DiligenceReportService {
 				r.testClassAvg(),
 				r.testUpperRankPct(),
 				r.testPercentileRank(),
+				r.testRank(),
 				r.testGrade(),
 				r.videoCertified(),
 				r.videoTotal(),
@@ -423,10 +555,18 @@ public class DiligenceReportService {
 			boolean reportGenerated) {
 	}
 
+	public record GenerateReportsV3Result(
+			int created,
+			Instant periodStart,
+			Instant periodEnd,
+			String periodLabel) {
+	}
+
 	public record ReportListRow(
 			long reportId,
-			long testId,
+			Long testId,
 			String testTitle,
+			String periodLabel,
 			long studentId,
 			String studentName,
 			Instant periodStart,
@@ -442,8 +582,9 @@ public class DiligenceReportService {
 			String className,
 			long studentId,
 			String studentName,
-			long testId,
+			Long testId,
 			String testTitle,
+			String periodLabel,
 			Instant periodStart,
 			Instant periodEnd,
 			int homeworkSubmitted,
@@ -458,6 +599,7 @@ public class DiligenceReportService {
 			BigDecimal testClassAvg,
 			Integer testUpperRankPct,
 			Integer testPercentileRank,
+			Integer testRank,
 			String testGrade,
 			int videoCertified,
 			int videoTotal,

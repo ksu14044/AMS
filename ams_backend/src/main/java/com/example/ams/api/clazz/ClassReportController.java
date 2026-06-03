@@ -9,12 +9,19 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.ams.api.dto.DiligenceReportListResponse;
+import com.example.ams.api.dto.GenerateReportsRequest;
 import com.example.ams.api.dto.GenerateReportsResponse;
+import com.example.ams.api.dto.GenerateReportsV3Response;
 import com.example.ams.api.dto.ReportGenerationTargetResponse;
+import com.example.ams.api.dto.ReportPeriodArchiveRequest;
+import com.example.ams.service.DiligenceReportService.GenerateReportsV3Result;
+
+import jakarta.validation.Valid;
 import com.example.ams.common.ApiResponse;
 import com.example.ams.service.DiligenceReportService;
 
@@ -44,12 +51,39 @@ public class ClassReportController {
 		return ApiResponse.ok(list);
 	}
 
+	@PostMapping("/generate")
+	public ApiResponse<GenerateReportsV3Response> generate(
+			@PathVariable long classId,
+			@Valid @RequestBody GenerateReportsRequest request) {
+		GenerateReportsV3Result result = diligenceReportService.generateReportsForPeriod(classId, request);
+		return ApiResponse.ok(new GenerateReportsV3Response(
+				result.created(),
+				result.periodStart(),
+				result.periodEnd(),
+				result.periodLabel()));
+	}
+
+	/** @deprecated v3.0 — {@link #generate(long, GenerateReportsRequest)} 사용 */
 	@PostMapping("/generate/{testId}")
-	public ApiResponse<GenerateReportsResponse> generate(
+	public ApiResponse<GenerateReportsResponse> generateByTest(
 			@PathVariable long classId,
 			@PathVariable long testId) {
 		int created = diligenceReportService.generateReportsForTest(classId, testId);
 		return ApiResponse.ok(new GenerateReportsResponse(testId, created));
+	}
+
+	@PostMapping("/archive")
+	public ResponseEntity<Resource> downloadPeriodPdfArchive(
+			@PathVariable long classId,
+			@Valid @RequestBody ReportPeriodArchiveRequest request) {
+		var archive = diligenceReportService.loadPeriodPdfArchive(
+				classId,
+				request.periodStart(),
+				request.periodEnd());
+		return ResponseEntity.ok()
+				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + archive.filename() + "\"")
+				.contentType(MediaType.parseMediaType("application/zip"))
+				.body(archive.resource());
 	}
 
 	@GetMapping("/tests/{testId}/pdf-archive")

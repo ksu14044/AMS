@@ -1,39 +1,53 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { fetchStudyRecordStudents } from '../../api/studyRecordsApi'
 import {
+  createReportPeriodPreset,
+  deleteReportPeriodPreset,
+  downloadPeriodReportsArchive,
   downloadReportPdf,
-  downloadTestReportsArchive,
   fetchClassReports,
   fetchReportDetail,
-  fetchReportGenerationTargets,
+  fetchReportPeriodPresets,
+  formatLocalDate,
   formatReportPeriod,
-  generateClassReports,
+  generateReports,
   updateReportComment,
+  updateReportPeriodPreset,
 } from '../../api/reportsApi'
+import StudentTargetPicker from '../../components/StudentTargetPicker'
+import { createInitialTarget } from '../../utils/assignmentTargets'
 
-function groupReportsByTest(reports, targets) {
-  const testAtById = Object.fromEntries(
-    (targets || []).map((t) => [String(t.testId), t.testAt]),
-  )
+function groupReportsByPeriod(reports) {
   const map = new Map()
   for (const r of reports) {
-    if (!map.has(r.testId)) {
-      map.set(r.testId, {
-        testId: r.testId,
-        testTitle: r.testTitle,
-        testAt: testAtById[String(r.testId)] ?? r.createdAt,
+    const key = `${r.periodStart}|${r.periodEnd}|${r.periodLabel || r.testTitle || ''}`
+    if (!map.has(key)) {
+      map.set(key, {
+        periodStart: r.periodStart,
+        periodEnd: r.periodEnd,
+        periodLabel: r.periodLabel || r.testTitle || '성실도 보고서',
         reports: [],
       })
     }
-    map.get(r.testId).reports.push(r)
+    map.get(key).reports.push(r)
   }
   return [...map.values()].sort(
-    (a, b) => new Date(b.testAt).getTime() - new Date(a.testAt).getTime(),
+    (a, b) => new Date(b.periodEnd).getTime() - new Date(a.periodEnd).getTime(),
   )
 }
 
-function archiveZipFilename(testTitle) {
-  const safe = (testTitle || 'reports').replace(/[\\/:*?"<>|]/g, '_').trim()
+function archiveZipFilename(periodLabel) {
+  const safe = (periodLabel || 'reports').replace(/[\\/:*?"<>|]/g, '_').trim()
   return `${safe || 'reports'}.zip`
+}
+
+function toDateInputValue(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
 
 function MetricBar({ label, rate }) {
@@ -98,16 +112,6 @@ function TestScoreMetricBar({ rawScore }) {
       <span className="ams-report-modal__metric-pct">{label}</span>
     </li>
   )
-}
-
-function formatTestWhen(iso) {
-  if (!iso) return ''
-  return new Date(iso).toLocaleString('ko-KR', {
-    month: 'numeric',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
 }
 
 function ReportDetailModal({ reportId, canManage, onClose, onError }) {
@@ -212,7 +216,8 @@ function ReportDetailModal({ reportId, canManage, onClose, onError }) {
 
       <section className="ams-report-modal__hero">
         <p className="ams-report-modal__hero-meta">
-          {period} · {detail.testTitle}
+          {period}
+          {detail.periodLabel || detail.testTitle ? ` · ${detail.periodLabel || detail.testTitle}` : ''}
         </p>
         <p className="ams-report-modal__hero-score">
           <strong>{detail.totalScore}점</strong>
@@ -275,7 +280,11 @@ function ReportDetailModal({ reportId, canManage, onClose, onError }) {
           <strong>{detail.testRawScore ?? '—'}</strong>
           <span>
             점수
-            {detail.testUpperRankPct != null ? ` · 상위 ${detail.testUpperRankPct}%` : ''}
+            {detail.testRank != null
+              ? ` · ${detail.testRank}등`
+              : detail.testUpperRankPct != null
+                ? ` · 상위 ${detail.testUpperRankPct}%`
+                : ''}
           </span>
         </li>
       </ul>
@@ -290,17 +299,23 @@ function ReportDetailModal({ reportId, canManage, onClose, onError }) {
 
 export default function ClassReportsSection({ classId, canManage, isStudent, onError }) {
   const [reports, setReports] = useState([])
-  const [targets, setTargets] = useState([])
+  const [presets, setPresets] = useState([])
   const [selectedId, setSelectedId] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [generatingTestId, setGeneratingTestId] = useState(null)
-  const [expandedTestIds, setExpandedTestIds] = useState(() => new Set())
-  const [downloadingArchiveTestId, setDownloadingArchiveTestId] = useState(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [expandedKeys, setExpandedKeys] = useState(() => new Set())
+  const [downloadingKey, setDownloadingKey] = useState('')
+  const [showGenerate, setShowGenerate] = useState(false)
+  const [generateForm, setGenerateForm] = useState({
+    periodStart: '',
+    periodEnd: '',
+    presetId: '',
+  })
+  const [studentTarget, setStudentTarget] = useState(() => createInitialTarget(true))
+  const [presetForm, setPresetForm] = useState({ name: '', periodStart: '', periodEnd: '' })
+  const [editingPresetId, setEditingPresetId] = useState(null)
 
-  const reportGroups = useMemo(
-    () => groupReportsByTest(reports, targets),
-    [reports, targets],
-  )
+  const reportGroups = useMemo(() => groupReportsByPeriod(reports), [reports])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -309,14 +324,14 @@ export default function ClassReportsSection({ classId, canManage, isStudent, onE
       const list = await fetchClassReports(classId)
       setReports(list)
       if (canManage) {
-        setTargets(await fetchReportGenerationTargets(classId))
+        setPresets(await fetchReportPeriodPresets(classId))
       } else {
-        setTargets([])
+        setPresets([])
       }
     } catch (err) {
       onError(err.message)
       setReports([])
-      setTargets([])
+      setPresets([])
     } finally {
       setLoading(false)
     }
@@ -327,59 +342,129 @@ export default function ClassReportsSection({ classId, canManage, isStudent, onE
   }, [load])
 
   useEffect(() => {
-    if (reportGroups.length === 0) {
-      return
-    }
-    setExpandedTestIds((prev) => {
-      if (prev.size > 0) {
-        return prev
-      }
-      return new Set([reportGroups[0].testId])
+    if (reportGroups.length === 0) return
+    setExpandedKeys((prev) => {
+      if (prev.size > 0) return prev
+      const g = reportGroups[0]
+      return new Set([`${g.periodStart}|${g.periodEnd}|${g.periodLabel}`])
     })
   }, [reportGroups])
 
-  function toggleTestGroup(testId) {
-    setExpandedTestIds((prev) => {
+  function groupKey(group) {
+    return `${group.periodStart}|${group.periodEnd}|${group.periodLabel}`
+  }
+
+  function toggleGroup(key) {
+    setExpandedKeys((prev) => {
       const next = new Set(prev)
-      if (next.has(testId)) {
-        next.delete(testId)
-      } else {
-        next.add(testId)
-      }
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
       return next
     })
   }
 
+  function applyPreset(presetId) {
+    const preset = presets.find((p) => String(p.presetId) === presetId)
+    if (!preset) {
+      setGenerateForm((f) => ({ ...f, presetId: '' }))
+      return
+    }
+    setGenerateForm({
+      periodStart: preset.periodStart,
+      periodEnd: preset.periodEnd,
+      presetId: String(preset.presetId),
+    })
+  }
+
   async function handleArchiveDownload(group) {
-    setDownloadingArchiveTestId(group.testId)
+    const key = groupKey(group)
+    setDownloadingKey(key)
     onError('')
     try {
-      await downloadTestReportsArchive(classId, group.testId, archiveZipFilename(group.testTitle))
+      await downloadPeriodReportsArchive(
+        classId,
+        toDateInputValue(group.periodStart),
+        toDateInputValue(group.periodEnd),
+        archiveZipFilename(group.periodLabel) + '.zip',
+      )
     } catch (err) {
       onError(err.message)
     } finally {
-      setDownloadingArchiveTestId(null)
+      setDownloadingKey('')
     }
   }
 
-  async function handleGenerate(testId, reportGenerated) {
+  async function handleGenerate(e) {
+    e.preventDefault()
+    if (!generateForm.periodStart || !generateForm.periodEnd) return
+    if (studentTarget.mode === 'custom' && studentTarget.studentIds.length === 0) {
+      onError('학생을 한 명 이상 선택하세요.')
+      return
+    }
     if (
-      reportGenerated &&
       !window.confirm(
-        '기존 보고서를 삭제하고 다시 만듭니다. PDF·집계 수치가 갱신되며 학생 알림이 다시 발송될 수 있습니다. 계속할까요?',
+        '선택한 기간·학생에 대해 보고서를 생성합니다. 같은 기간의 기존 보고서는 덮어씁니다. 계속할까요?',
       )
     ) {
       return
     }
-    setGeneratingTestId(testId)
+    setSubmitting(true)
     onError('')
     try {
-      await generateClassReports(classId, testId)
+      const resolvedIds =
+        studentTarget.mode === 'all'
+          ? (await fetchStudyRecordStudents(classId)).map((s) => s.studentId)
+          : studentTarget.studentIds
+      const body = {
+        periodStart: generateForm.periodStart,
+        periodEnd: generateForm.periodEnd,
+        studentIds: resolvedIds,
+        presetId: generateForm.presetId ? Number(generateForm.presetId) : null,
+      }
+      await generateReports(classId, body)
+      setShowGenerate(false)
       await load()
     } catch (err) {
       onError(err.message)
     } finally {
-      setGeneratingTestId(null)
+      setSubmitting(false)
+    }
+  }
+
+  async function handleSavePreset(e) {
+    e.preventDefault()
+    if (!presetForm.name.trim() || !presetForm.periodStart || !presetForm.periodEnd) return
+    setSubmitting(true)
+    onError('')
+    try {
+      const body = {
+        name: presetForm.name.trim(),
+        periodStart: presetForm.periodStart,
+        periodEnd: presetForm.periodEnd,
+      }
+      if (editingPresetId) {
+        await updateReportPeriodPreset(classId, editingPresetId, body)
+      } else {
+        await createReportPeriodPreset(classId, body)
+      }
+      setPresetForm({ name: '', periodStart: '', periodEnd: '' })
+      setEditingPresetId(null)
+      await load()
+    } catch (err) {
+      onError(err.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleDeletePreset(presetId) {
+    if (!window.confirm('이 기간 프리셋을 삭제할까요?')) return
+    onError('')
+    try {
+      await deleteReportPeriodPreset(classId, presetId)
+      await load()
+    } catch (err) {
+      onError(err.message)
     }
   }
 
@@ -387,84 +472,205 @@ export default function ClassReportsSection({ classId, canManage, isStudent, onE
     return <p className="ams-class-detail__empty">불러오는 중…</p>
   }
 
-  const pendingTargets = targets.filter((t) => !t.reportGenerated)
   const hasReports = reports.length > 0
 
   return (
     <section className="ams-reports">
-      {canManage && targets.length > 0 && (
-        <div className="ams-reports-generate">
-          <h3 className="ams-class-detail__heading">보고서 생성</h3>
-          <p className="ams-class-detail__hint-inline">
-            테스트 점수 저장(시험 완료) 후, 숙제·클리닉·영상 정리가 끝난 뒤 생성하세요. 시험 예정
-            시각 이후에 생성하면 집계에 유리합니다.
-          </p>
-          <ul className="ams-reports-generate__list">
-            {targets.map((t) => (
-              <li key={t.testId} className="ams-reports-generate__item">
-                <div className="ams-reports-generate__body">
-                  <strong>{t.title}</strong>
-                  <span className="ams-reports-generate__meta">
-                    시험 {formatTestWhen(t.testAt)}
-                    {t.completedAt ? ` · 채점 ${formatTestWhen(t.completedAt)}` : ''}
-                  </span>
-                  {t.reportGenerated ? (
-                    <span className="ams-reports-generate__badge">생성됨</span>
-                  ) : (
-                    <span className="ams-reports-generate__badge ams-reports-generate__badge--pending">
-                      미생성
-                    </span>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  className={
-                    t.reportGenerated
-                      ? 'ams-btn ams-btn--ghost ams-btn--sm'
-                      : 'ams-btn ams-btn--primary ams-btn--sm'
-                  }
-                  disabled={generatingTestId != null}
-                  onClick={() => handleGenerate(t.testId, t.reportGenerated)}
-                >
-                  {generatingTestId === t.testId
-                    ? '처리 중…'
-                    : t.reportGenerated
-                      ? '재생성'
-                      : '보고서 생성'}
-                </button>
-              </li>
-            ))}
-          </ul>
-          {pendingTargets.length > 0 && (
-            <p className="ams-reports-generate__note">
-              미생성 테스트 {pendingTargets.length}건
+      {canManage && (
+        <>
+          <div className="ams-reports-presets ams-card ams-card--elevated">
+            <h3 className="ams-class-detail__heading">기간 프리셋</h3>
+            <p className="ams-class-detail__hint-inline">
+              자주 쓰는 보고 기간을 저장해 두고 생성 시 불러올 수 있습니다.
             </p>
-          )}
-        </div>
+            <form className="ams-reports-preset-form" onSubmit={handleSavePreset}>
+              <label className="ams-field ams-field--compact">
+                <span className="ams-field__label">이름</span>
+                <input
+                  className="ams-field__input"
+                  value={presetForm.name}
+                  onChange={(e) => setPresetForm({ ...presetForm, name: e.target.value })}
+                  placeholder="예: 1학기 기말"
+                  maxLength={100}
+                  required
+                />
+              </label>
+              <label className="ams-field ams-field--compact">
+                <span className="ams-field__label">시작일</span>
+                <input
+                  className="ams-field__input"
+                  type="date"
+                  value={presetForm.periodStart}
+                  onChange={(e) => setPresetForm({ ...presetForm, periodStart: e.target.value })}
+                  required
+                />
+              </label>
+              <label className="ams-field ams-field--compact">
+                <span className="ams-field__label">종료일</span>
+                <input
+                  className="ams-field__input"
+                  type="date"
+                  value={presetForm.periodEnd}
+                  onChange={(e) => setPresetForm({ ...presetForm, periodEnd: e.target.value })}
+                  required
+                />
+              </label>
+              <div className="ams-reports-preset-form__actions">
+                {editingPresetId && (
+                  <button
+                    type="button"
+                    className="ams-btn ams-btn--ghost ams-btn--sm"
+                    onClick={() => {
+                      setEditingPresetId(null)
+                      setPresetForm({ name: '', periodStart: '', periodEnd: '' })
+                    }}
+                  >
+                    취소
+                  </button>
+                )}
+                <button type="submit" className="ams-btn ams-btn--primary ams-btn--sm" disabled={submitting}>
+                  {editingPresetId ? '수정' : '프리셋 추가'}
+                </button>
+              </div>
+            </form>
+            {presets.length > 0 ? (
+              <ul className="ams-reports-preset-list">
+                {presets.map((p) => (
+                  <li key={p.presetId} className="ams-reports-preset-list__item">
+                    <span>
+                      <strong>{p.name}</strong>
+                      <span className="ams-reports-preset-list__dates">
+                        {formatLocalDate(p.periodStart)} ~ {formatLocalDate(p.periodEnd)}
+                      </span>
+                    </span>
+                    <span className="ams-reports-preset-list__actions">
+                      <button
+                        type="button"
+                        className="ams-btn ams-btn--ghost ams-btn--sm"
+                        onClick={() => {
+                          setEditingPresetId(p.presetId)
+                          setPresetForm({
+                            name: p.name,
+                            periodStart: p.periodStart,
+                            periodEnd: p.periodEnd,
+                          })
+                        }}
+                      >
+                        수정
+                      </button>
+                      <button
+                        type="button"
+                        className="ams-btn ams-btn--ghost ams-btn--sm"
+                        onClick={() => handleDeletePreset(p.presetId)}
+                      >
+                        삭제
+                      </button>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="ams-class-detail__empty">등록된 프리셋이 없습니다.</p>
+            )}
+          </div>
+
+          <div className="ams-reports-generate">
+            <div className="ams-reports-generate__head">
+              <h3 className="ams-class-detail__heading">보고서 생성</h3>
+              <button
+                type="button"
+                className={`ams-btn ams-btn--sm${showGenerate ? ' ams-btn--ghost' : ' ams-btn--primary'}`}
+                onClick={() => setShowGenerate((v) => !v)}
+              >
+                {showGenerate ? '닫기' : '+ 보고서 생성'}
+              </button>
+            </div>
+            {showGenerate && (
+              <form className="ams-reports-generate__form ams-card ams-card--elevated" onSubmit={handleGenerate}>
+                <p className="ams-class-detail__hint-inline">
+                  설정한 기간 안의 숙제·클리닉·영상·완료된 테스트를 모두 집계해 학생별 PDF를 만듭니다.
+                </p>
+                <div className="ams-reports-generate__grid">
+                  <label className="ams-field ams-field--compact">
+                    <span className="ams-field__label">프리셋 불러오기</span>
+                    <select
+                      className="ams-field__input"
+                      value={generateForm.presetId}
+                      onChange={(e) => applyPreset(e.target.value)}
+                    >
+                      <option value="">직접 입력</option>
+                      {presets.map((p) => (
+                        <option key={p.presetId} value={p.presetId}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="ams-field ams-field--compact">
+                    <span className="ams-field__label">시작일</span>
+                    <input
+                      className="ams-field__input"
+                      type="date"
+                      value={generateForm.periodStart}
+                      onChange={(e) =>
+                        setGenerateForm({ ...generateForm, periodStart: e.target.value, presetId: '' })
+                      }
+                      required
+                    />
+                  </label>
+                  <label className="ams-field ams-field--compact">
+                    <span className="ams-field__label">종료일</span>
+                    <input
+                      className="ams-field__input"
+                      type="date"
+                      value={generateForm.periodEnd}
+                      onChange={(e) =>
+                        setGenerateForm({ ...generateForm, periodEnd: e.target.value, presetId: '' })
+                      }
+                      required
+                    />
+                  </label>
+                </div>
+                <StudentTargetPicker
+                  classId={classId}
+                  allByDefault
+                  value={studentTarget}
+                  onChange={setStudentTarget}
+                  disabled={submitting}
+                  label="보고서 대상 학생"
+                />
+                <div className="ams-reports-generate__foot">
+                  <button type="submit" className="ams-btn ams-btn--primary ams-btn--sm" disabled={submitting}>
+                    {submitting ? '생성 중…' : '보고서 생성'}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </>
       )}
 
-      <h3 className="ams-class-detail__heading">
-        {canManage && targets.length > 0 ? '생성된 보고서' : '성실도 보고서'}
-      </h3>
+      <h3 className="ams-class-detail__heading">성실도 보고서</h3>
 
       {!hasReports ? (
         <p className="ams-class-detail__empty">
           {canManage
-            ? '생성된 보고서가 없습니다. 완료된 테스트가 있으면 위에서 보고서를 생성할 수 있습니다.'
+            ? '생성된 보고서가 없습니다. 기간과 학생을 선택해 보고서를 생성하세요.'
             : '생성된 성실도 보고서가 없습니다.'}
         </p>
       ) : (
         <ul className="ams-reports-groups">
           {reportGroups.map((group) => {
-            const expanded = expandedTestIds.has(group.testId)
+            const key = groupKey(group)
+            const expanded = expandedKeys.has(key)
             return (
-              <li key={group.testId} className="ams-reports-group">
+              <li key={key} className="ams-reports-group">
                 <div className="ams-reports-group__header">
                   <button
                     type="button"
                     className="ams-reports-group__toggle"
                     aria-expanded={expanded}
-                    onClick={() => toggleTestGroup(group.testId)}
+                    onClick={() => toggleGroup(key)}
                   >
                     <span
                       className={`ams-reports-group__chevron${expanded ? ' ams-reports-group__chevron--open' : ''}`}
@@ -473,10 +679,10 @@ export default function ClassReportsSection({ classId, canManage, isStudent, onE
                       ▶
                     </span>
                     <span className="ams-reports-group__title-wrap">
-                      <strong className="ams-reports-group__title">{group.testTitle}</strong>
+                      <strong className="ams-reports-group__title">{group.periodLabel}</strong>
                       <span className="ams-reports-group__meta">
-                        {group.testAt ? `시험 ${formatTestWhen(group.testAt)} · ` : ''}
-                        보고서 {group.reports.length}명
+                        {formatReportPeriod(group.periodStart, group.periodEnd)} · 보고서{' '}
+                        {group.reports.length}명
                       </span>
                     </span>
                   </button>
@@ -484,10 +690,10 @@ export default function ClassReportsSection({ classId, canManage, isStudent, onE
                     <button
                       type="button"
                       className="ams-btn ams-btn--ghost ams-btn--sm"
-                      disabled={downloadingArchiveTestId != null}
+                      disabled={downloadingKey !== ''}
                       onClick={() => handleArchiveDownload(group)}
                     >
-                      {downloadingArchiveTestId === group.testId ? '다운로드 중…' : 'PDF 전체'}
+                      {downloadingKey === key ? '다운로드 중…' : 'PDF ZIP'}
                     </button>
                   )}
                 </div>
@@ -501,8 +707,7 @@ export default function ClassReportsSection({ classId, canManage, isStudent, onE
                           onClick={() => setSelectedId(r.reportId)}
                         >
                           {!isStudent && <strong>{r.studentName}</strong>}
-                          {isStudent && <strong>{r.testTitle}</strong>}
-                          <span>{formatReportPeriod(r.periodStart, r.periodEnd)}</span>
+                          {isStudent && <strong>{r.periodLabel || r.testTitle}</strong>}
                           <span className="ams-reports__score">
                             종합 {r.totalScore}점 · {r.overallGrade}
                           </span>

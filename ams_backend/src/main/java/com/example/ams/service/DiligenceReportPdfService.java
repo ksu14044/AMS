@@ -179,6 +179,9 @@ public class DiligenceReportPdfService {
 		if (report.testRawScore() == null) {
 			return "등급 -";
 		}
+		if (report.testRank() != null) {
+			return report.testRank() + "등  |  등급 " + nullSafe(report.testGrade());
+		}
 		return "상위 " + (report.testUpperRankPct() != null ? report.testUpperRankPct() : "-")
 				+ "%  |  등급 " + nullSafe(report.testGrade());
 	}

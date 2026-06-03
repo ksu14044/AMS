@@ -186,6 +186,24 @@ public class TestExamRepository {
 		jdbcTemplate.update("UPDATE test SET class_average = ? WHERE test_id = ?", classAverage, testId);
 	}
 
+	public Optional<TestExam> findLatestCompletedRootInPeriod(long classId, Instant periodStart, Instant periodEnd) {
+		return jdbcTemplate.query(
+				"""
+						SELECT * FROM test
+						WHERE class_id = ? AND status = 'COMPLETED'
+						  AND parent_test_id IS NULL
+						  AND test_at >= ? AND test_at <= ?
+						ORDER BY test_at DESC, test_id DESC
+						LIMIT 1
+						""",
+				ROW_MAPPER,
+				classId,
+				java.sql.Timestamp.from(periodStart),
+				java.sql.Timestamp.from(periodEnd))
+				.stream()
+				.findFirst();
+	}
+
 	public Optional<TestExam> findPreviousCompleted(long classId, Instant beforeTestAt) {
 		return jdbcTemplate.query(
 				"""

@@ -23,6 +23,8 @@ import com.example.ams.domain.clazz.DayOfWeek;
 import com.example.ams.repository.ClinicReservationRepository;
 import com.example.ams.repository.HomeworkRepository;
 import com.example.ams.repository.HomeworkSubmissionRepository;
+import com.example.ams.repository.TestExamRepository;
+import com.example.ams.repository.TestScoreRepository;
 import com.example.ams.repository.VideoCertificationRepository;
 import com.example.ams.repository.VideoLessonRepository;
 
@@ -41,6 +43,10 @@ class StudyRecordPeriodCalculatorTest {
 	private VideoLessonRepository videoLessonRepository;
 	@Mock
 	private VideoCertificationRepository videoCertificationRepository;
+	@Mock
+	private TestExamRepository testExamRepository;
+	@Mock
+	private TestScoreRepository testScoreRepository;
 
 	private StudyRecordPeriodCalculator calculator;
 
@@ -51,7 +57,9 @@ class StudyRecordPeriodCalculatorTest {
 				homeworkSubmissionRepository,
 				clinicReservationRepository,
 				videoLessonRepository,
-				videoCertificationRepository);
+				videoCertificationRepository,
+				testExamRepository,
+				testScoreRepository);
 	}
 
 	@Test

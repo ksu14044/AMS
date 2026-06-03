@@ -6,8 +6,9 @@ import com.example.ams.service.DiligenceReportService.ReportListRow;
 
 public record DiligenceReportListResponse(
 		long reportId,
-		long testId,
+		Long testId,
 		String testTitle,
+		String periodLabel,
 		long studentId,
 		String studentName,
 		Instant periodStart,
@@ -21,6 +22,7 @@ public record DiligenceReportListResponse(
 				row.reportId(),
 				row.testId(),
 				row.testTitle(),
+				row.periodLabel(),
 				row.studentId(),
 				row.studentName(),
 				row.periodStart(),

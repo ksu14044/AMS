@@ -2564,6 +2564,101 @@
   color: var(--ams-color-text-secondary);
 }
 
+.ams-reports-presets {
+  margin-bottom: var(--ams-space-4);
+  padding: var(--ams-space-4);
+}
+
+.ams-reports-preset-form {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--ams-space-3);
+  margin-top: var(--ams-space-3);
+}
+
+@media (min-width: 640px) {
+  .ams-reports-preset-form {
+    grid-template-columns: 1.2fr repeat(2, minmax(120px, 1fr)) auto;
+    align-items: end;
+  }
+}
+
+.ams-reports-preset-form__actions {
+  display: flex;
+  gap: var(--ams-space-2);
+  justify-content: flex-end;
+}
+
+.ams-reports-preset-list {
+  list-style: none;
+  margin: var(--ams-space-3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-2);
+}
+
+.ams-reports-preset-list__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ams-space-3);
+  padding: var(--ams-space-3) var(--ams-space-4);
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-md);
+  background: var(--ams-color-surface-muted, #fafafa);
+}
+
+.ams-reports-preset-list__dates {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--ams-font-size-xs);
+  color: var(--ams-color-text-secondary);
+}
+
+.ams-reports-preset-list__actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: var(--ams-space-1);
+}
+
+.ams-reports-generate__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ams-space-3);
+  margin-bottom: var(--ams-space-2);
+}
+
+.ams-reports-generate__form {
+  padding: var(--ams-space-4);
+  margin-top: var(--ams-space-3);
+}
+
+.ams-reports-generate__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--ams-space-3);
+  margin-bottom: var(--ams-space-3);
+}
+
+@media (min-width: 640px) {
+  .ams-reports-generate__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .ams-reports-generate__full {
+    grid-column: 1 / -1;
+  }
+}
+
+.ams-reports-generate__foot {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--ams-space-2);
+  border-top: var(--ams-border-width) solid var(--ams-color-border);
+}
+
 .ams-reports-groups {
   list-style: none;
   margin: 0;

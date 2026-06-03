@@ -21,9 +21,11 @@ public class DiligenceReportRepository {
 			rs.getLong("report_id"),
 			rs.getLong("class_id"),
 			rs.getLong("student_id"),
-			rs.getLong("test_id"),
+			rs.getObject("test_id") != null ? rs.getLong("test_id") : null,
 			rs.getTimestamp("period_start").toInstant(),
 			rs.getTimestamp("period_end").toInstant(),
+			rs.getString("period_label"),
+			rs.getObject("period_preset_id") != null ? rs.getLong("period_preset_id") : null,
 			rs.getInt("homework_submitted"),
 			rs.getInt("homework_total"),
 			rs.getObject("homework_rate") != null ? rs.getInt("homework_rate") : null,
@@ -36,6 +38,7 @@ public class DiligenceReportRepository {
 			rs.getBigDecimal("test_class_avg"),
 			rs.getObject("test_upper_rank_pct") != null ? rs.getInt("test_upper_rank_pct") : null,
 			rs.getObject("test_percentile_rank") != null ? rs.getInt("test_percentile_rank") : null,
+			rs.getObject("test_rank") != null ? rs.getInt("test_rank") : null,
 			rs.getString("test_grade"),
 			rs.getInt("video_certified"),
 			rs.getInt("video_total"),
@@ -91,8 +94,47 @@ public class DiligenceReportRepository {
 				testId);
 	}
 
+	public List<DiligenceReport> findByClassIdAndPeriod(long classId, Instant periodStart, Instant periodEnd) {
+		return jdbcTemplate.query(
+				"""
+						SELECT r.* FROM diligence_report r
+						INNER JOIN `user` u ON r.student_id = u.user_id
+						WHERE r.class_id = ? AND r.period_start = ? AND r.period_end = ?
+						ORDER BY u.name ASC
+						""",
+				ROW_MAPPER,
+				classId,
+				Timestamp.from(periodStart),
+				Timestamp.from(periodEnd));
+	}
+
 	public void deleteByTestId(long testId) {
 		jdbcTemplate.update("DELETE FROM diligence_report WHERE test_id = ?", testId);
+	}
+
+	public void deleteByClassIdAndPeriodAndStudentIds(
+			long classId,
+			Instant periodStart,
+			Instant periodEnd,
+			List<Long> studentIds) {
+		if (studentIds.isEmpty()) {
+			return;
+		}
+		String placeholders = String.join(",", studentIds.stream().map(id -> "?").toList());
+		Object[] args = new Object[3 + studentIds.size()];
+		args[0] = classId;
+		args[1] = Timestamp.from(periodStart);
+		args[2] = Timestamp.from(periodEnd);
+		for (int i = 0; i < studentIds.size(); i++) {
+			args[3 + i] = studentIds.get(i);
+		}
+		jdbcTemplate.update(
+				"""
+						DELETE FROM diligence_report
+						WHERE class_id = ? AND period_start = ? AND period_end = ?
+						  AND student_id IN (%s)
+						""".formatted(placeholders),
+				args);
 	}
 
 	public boolean existsByTestId(long testId) {
@@ -107,12 +149,13 @@ public class DiligenceReportRepository {
 		String sql = """
 				INSERT INTO diligence_report (
 				  class_id, student_id, test_id, period_start, period_end,
+				  period_label, period_preset_id,
 				  homework_submitted, homework_total, homework_rate, homework_grade,
 				  clinic_attended, clinic_total, clinic_rate, clinic_grade,
-				  test_raw_score, test_class_avg, test_upper_rank_pct, test_percentile_rank, test_grade,
+				  test_raw_score, test_class_avg, test_upper_rank_pct, test_percentile_rank, test_rank, test_grade,
 				  video_certified, video_total, video_rate, video_grade,
 				  total_score, overall_grade, teacher_comment, pdf_path
-				) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+				) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 				""";
 		KeyHolder keyHolder = new GeneratedKeyHolder();
 		jdbcTemplate.update(connection -> {
@@ -120,9 +163,11 @@ public class DiligenceReportRepository {
 			int i = 1;
 			ps.setLong(i++, row.classId());
 			ps.setLong(i++, row.studentId());
-			ps.setLong(i++, row.testId());
+			setLong(ps, i++, row.testId());
 			ps.setTimestamp(i++, Timestamp.from(row.periodStart()));
 			ps.setTimestamp(i++, Timestamp.from(row.periodEnd()));
+			ps.setString(i++, row.periodLabel());
+			setLong(ps, i++, row.periodPresetId());
 			ps.setInt(i++, row.homeworkSubmitted());
 			ps.setInt(i++, row.homeworkTotal());
 			setInteger(ps, i++, row.homeworkRate());
@@ -135,6 +180,7 @@ public class DiligenceReportRepository {
 			ps.setBigDecimal(i++, row.testClassAvg());
 			setInteger(ps, i++, row.testUpperRankPct());
 			setInteger(ps, i++, row.testPercentileRank());
+			setInteger(ps, i++, row.testRank());
 			ps.setString(i++, row.testGrade());
 			ps.setInt(i++, row.videoCertified());
 			ps.setInt(i++, row.videoTotal());
@@ -168,9 +214,17 @@ public class DiligenceReportRepository {
 		}
 	}
 
+	private static void setLong(java.sql.PreparedStatement ps, int index, Long value) throws java.sql.SQLException {
+		if (value == null) {
+			ps.setNull(index, java.sql.Types.BIGINT);
+		} else {
+			ps.setLong(index, value);
+		}
+	}
+
 	private static void setString(java.sql.PreparedStatement ps, int index, String value) throws java.sql.SQLException {
 		if (value == null) {
-			ps.setNull(index, java.sql.Types.CHAR);
+			ps.setNull(index, java.sql.Types.VARCHAR);
 		} else {
 			ps.setString(index, value);
 		}
@@ -179,9 +233,11 @@ public class DiligenceReportRepository {
 	public record ReportInsert(
 			long classId,
 			long studentId,
-			long testId,
+			Long testId,
 			Instant periodStart,
 			Instant periodEnd,
+			String periodLabel,
+			Long periodPresetId,
 			int homeworkSubmitted,
 			int homeworkTotal,
 			Integer homeworkRate,
@@ -194,6 +250,7 @@ public class DiligenceReportRepository {
 			BigDecimal testClassAvg,
 			Integer testUpperRankPct,
 			Integer testPercentileRank,
+			Integer testRank,
 			String testGrade,
 			int videoCertified,
 			int videoTotal,

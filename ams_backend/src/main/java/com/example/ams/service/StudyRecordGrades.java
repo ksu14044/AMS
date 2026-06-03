@@ -58,7 +58,7 @@ public final class StudyRecordGrades {
 
 	/**
 	 * 종합: 데이터 있는 항목만 가중치 합산 후 비율로 환산.
-	 * 테스트(0.3)는 보고서 트리거 시험이므로 항상 포함.
+	 * 테스트(0.3)는 기간 내 채점된 시험이 있을 때만 포함.
 	 */
 	public static int weightedTotalPercent(
 			Integer homeworkRate,

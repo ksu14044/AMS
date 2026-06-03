@@ -14,6 +14,12 @@ Spring Boot API 서버 (Phase 0: 인증·테넌트).
 
 기본 프로필: `local` · Flyway가 `db/migration/V1__init_academy_user.sql` 적용
 
+### DB 마이그레이션 추가 시
+
+- 가이드: [`src/main/resources/db/migration/README.md`](src/main/resources/db/migration/README.md)
+- **CI는 H2**로 Flyway 전체를 돌린다 → `mvn test` 통과 필수 (`AFTER`, `UPDATE JOIN` 등 MySQL 전용 문법 금지)
+- 예시 템플릿: `db/migration/_TEMPLATE.example.sql`
+
 ## API (Phase 0)
 
 | Method | Path | 설명 |

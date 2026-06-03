@@ -1,0 +1,46 @@
+---
+description: Flyway SQL — MySQL·H2(CI) 동시 호환
+globs: ams_backend/src/main/resources/db/migration/**/*.sql
+alwaysApply: false
+---
+
+# Flyway 마이그레이션 (MySQL 8 + H2 테스트)
+
+CI·`mvn test`는 **H2**(`MODE=MySQL`)로 전체 마이그레이션을 적용한다. 로컬만 MySQL로 검증하면 CI에서 깨질 수 있다.
+
+## 파일 헤더 (필수)
+
+새 `V*.sql` 상단에 한 줄:
+
+```sql
+-- H2(test, MODE=MySQL) 호환: <이번 파일에서 피한 것>
+```
+
+참고: `V29`, `V30`, `V31`.
+
+## H2에서 쓰지 말 것
+
+| 금지 | 대안 |
+|------|------|
+| `ADD COLUMN ... AFTER col` | `ADD COLUMN`만 (컬럼 순서 무관) |
+| `UPDATE t JOIN u ON ...` | 서브쿼리 `UPDATE` (V29) |
+| `RENAME INDEX` | 새 인덱스 생성 + 구 인덱스 DROP (V23) |
+| 한 `ALTER`에 `MODIFY`/`DROP` 여러 컬럼 | 컬럼·문장별 분리 (V15) |
+| MySQL 전용 함수·`IF NOT EXISTS` 컬럼(버전 의존) | 단순 DDL만 |
+
+## FK·인덱스
+
+- UNIQUE 인덱스를 FK가 쓰면 **FK 먼저 DROP** → 인덱스 DROP (V31 `fk_report_test`).
+- `DROP FOREIGN KEY` / `DROP INDEX` 이름은 V14 등 기존 마이그레이션과 일치 확인.
+
+## 작성 후 확인
+
+1. `ams_backend`: `.\mvnw.cmd test` (최소 `AmsApplicationTests` = Flyway 전체 적용)
+2. 로컬 MySQL: 앱 기동 또는 해당 버전만 검증
+
+## 수정·배포
+
+- **이미 적용된** `Vn` 파일 내용 변경 시 checksum 불일치 → 로컬 `flyway:repair` (예: `application-local.yaml.example` 참고).
+- 실패한 Vn은 DB 부분 적용 후 **롤백 SQL** 실행 → `flyway_schema_history`에서 해당 version 삭제 → 수정본 재기동.
+
+템플릿: `db/migration/_TEMPLATE.example.sql` · 상세: `db/migration/README.md`

@@ -2,6 +2,8 @@
 
 MySQL 8.0, `ams`. 모든 비즈니스 테이블 `academy_id`.
 
+**Flyway SQL 작성 시**: CI는 H2로 마이그레이션 전체를 검증한다. `ams_backend/src/main/resources/db/migration/README.md` · `.cursor/rules/flyway-migrations.mdc` 참고.
+
 ## Phase 0 — user (v3.0: PARENT)
 
 ```sql

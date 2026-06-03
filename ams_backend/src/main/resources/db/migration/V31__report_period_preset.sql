@@ -1,4 +1,5 @@
 -- Phase 12-8: 보고서 기간 프리셋 · 기간·학생 선택 생성
+-- H2(test, MODE=MySQL) 호환: AFTER 미사용
 -- uk_report_test_student 는 fk_report_test 가 사용하므로 FK를 먼저 제거한다.
 
 CREATE TABLE report_period_preset (
@@ -23,10 +24,9 @@ ALTER TABLE diligence_report
 ALTER TABLE diligence_report
     MODIFY test_id BIGINT NULL;
 
-ALTER TABLE diligence_report
-    ADD COLUMN period_label VARCHAR(200) NULL AFTER period_end,
-    ADD COLUMN period_preset_id BIGINT NULL AFTER period_label,
-    ADD COLUMN test_rank INT NULL AFTER test_percentile_rank;
+ALTER TABLE diligence_report ADD COLUMN period_label VARCHAR(200) NULL;
+ALTER TABLE diligence_report ADD COLUMN period_preset_id BIGINT NULL;
+ALTER TABLE diligence_report ADD COLUMN test_rank INT NULL;
 
 ALTER TABLE diligence_report
     ADD CONSTRAINT fk_report_test FOREIGN KEY (test_id) REFERENCES test (test_id);

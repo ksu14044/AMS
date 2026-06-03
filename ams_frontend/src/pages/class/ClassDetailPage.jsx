@@ -7,8 +7,6 @@ import { subjectLabel } from '../../auth/subjectLabels'
 import ClassHomeSection from './ClassHomeSection'
 import ClassLessonRecordSection from './ClassLessonRecordSection'
 import ClassNoticesSection from './ClassNoticesSection'
-import ClassScheduleSection from './ClassScheduleSection'
-import ClassTextbookSection from './ClassTextbookSection'
 import ClassHomeworkSection from './ClassHomeworkSection'
 import ClassTestSection from './ClassTestSection'
 import ClassVideoSection from './ClassVideoSection'
@@ -21,8 +19,6 @@ import '../../styles/class-detail.css'
 const BASE_TABS = [
   { id: 'lessons', label: '수업기록' },
   { id: 'notices', label: '공지' },
-  { id: 'schedule', label: '수업정보' },
-  { id: 'textbook', label: '교재' },
   { id: 'video', label: '영상' },
   { id: 'homework', label: '숙제 확인' },
   { id: 'test', label: '테스트 확인' },
@@ -85,8 +81,10 @@ export default function ClassDetailPage() {
 
   useEffect(() => {
     if (!tabFromUrl) return
-    if (tabs.some((t) => t.id === tabFromUrl && !t.disabled)) {
-      setActiveTab(tabFromUrl)
+    const resolvedTab =
+      tabFromUrl === 'schedule' || tabFromUrl === 'textbook' ? 'notices' : tabFromUrl
+    if (tabs.some((t) => t.id === resolvedTab && !t.disabled)) {
+      setActiveTab(resolvedTab)
     }
   }, [tabFromUrl, tabs])
 
@@ -198,22 +196,6 @@ export default function ClassDetailPage() {
           canManage={detail.canManageContent}
           notices={notices}
           onNoticesChange={setNotices}
-          onError={setError}
-        />
-      )}
-
-      {activeTab === 'schedule' && (
-        <ClassScheduleSection
-          classId={classId}
-          canManage={detail.canManageContent}
-          onError={setError}
-        />
-      )}
-
-      {activeTab === 'textbook' && (
-        <ClassTextbookSection
-          classId={classId}
-          canManage={detail.canManageContent}
           onError={setError}
         />
       )}

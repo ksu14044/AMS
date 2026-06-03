@@ -1,23 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
-  addLessonRecordLinkedItems,
   createLessonRecord,
-  deleteLessonRecordClinicSlot,
-  deleteLessonRecordHomework,
-  deleteLessonRecordTest,
-  deleteLessonRecordVideo,
   fetchClinicAssistants,
   fetchClinicPresets,
-  fetchLessonRecord,
   fetchLessonRecords,
-  updateLessonRecord,
-  updateLessonRecordClinicSlot,
-  updateLessonRecordHomework,
-  updateLessonRecordTest,
-  updateLessonRecordVideo,
 } from '../../api/classesApi'
 import { AnswerKeyFileField } from '../../components/AssignmentGradingModals'
-import { linkedIdsByType, uploadAnswerKeysForLessonRecord } from '../../utils/answerKeyUpload'
+import { uploadAnswerKeysForLessonRecord } from '../../utils/answerKeyUpload'
 import { dayLabel } from '../../auth/dayLabels'
 import StudentTargetPicker from '../../components/StudentTargetPicker'
 import { ClinicPresetPicker } from '../../components/ClinicPresetSection'
@@ -411,34 +401,20 @@ function OptionCard({ active, label, description, onToggle, children }) {
 }
 
 export default function ClassLessonRecordSection({ classId, canEdit, onError }) {
+  const navigate = useNavigate()
   const [records, setRecords] = useState([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [selectedId, setSelectedId] = useState('')
-  const [detail, setDetail] = useState(null)
-  const [detailLoading, setDetailLoading] = useState(false)
   const [showWrite, setShowWrite] = useState(false)
   const [createForm, setCreateForm] = useState(EMPTY_CREATE)
   const [homeworkTarget, setHomeworkTarget] = useState(() => createInitialTarget(true))
   const [testTarget, setTestTarget] = useState(() => createInitialTarget(true))
   const [videoTarget, setVideoTarget] = useState(() => createInitialTarget(false))
   const [clinicTarget, setClinicTarget] = useState(() => createInitialTarget(true))
-  const [editSummary, setEditSummary] = useState('')
   const [assistants, setAssistants] = useState([])
   const [clinicPresets, setClinicPresets] = useState([])
-  const [showAddLinked, setShowAddLinked] = useState(false)
-  const [addLinkedForm, setAddLinkedForm] = useState(EMPTY_ADD_LINKED)
-  const [addHomeworkTarget, setAddHomeworkTarget] = useState(() => createInitialTarget(true))
-  const [addTestTarget, setAddTestTarget] = useState(() => createInitialTarget(true))
-  const [addVideoTarget, setAddVideoTarget] = useState(() => createInitialTarget(false))
-  const [addClinicTarget, setAddClinicTarget] = useState(() => createInitialTarget(true))
   const [createHomeworkAnswerKeyFile, setCreateHomeworkAnswerKeyFile] = useState(null)
   const [createTestAnswerKeyFile, setCreateTestAnswerKeyFile] = useState(null)
-  const [addHomeworkAnswerKeyFile, setAddHomeworkAnswerKeyFile] = useState(null)
-  const [addTestAnswerKeyFile, setAddTestAnswerKeyFile] = useState(null)
-  const [editingLinkedKey, setEditingLinkedKey] = useState('')
-  const [editDraft, setEditDraft] = useState(null)
-  const [editTarget, setEditTarget] = useState(() => createInitialTarget(true))
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -446,12 +422,6 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
     try {
       const list = await fetchLessonRecords(classId)
       setRecords(list)
-      setSelectedId((prev) => {
-        if (prev && list.some((r) => String(r.lessonRecordId) === prev)) {
-          return prev
-        }
-        return list.length > 0 ? String(list[0].lessonRecordId) : ''
-      })
     } catch (err) {
       onError(err.message)
       setRecords([])
@@ -472,44 +442,10 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
         setClinicPresets(presetList)
         const defaultId = defaultPresetId(presetList)
         setCreateForm((prev) => ({ ...prev, clinicPresetId: prev.clinicPresetId || defaultId }))
-        setAddLinkedForm((prev) => ({ ...prev, clinicPresetId: prev.clinicPresetId || defaultId }))
+
       })
       .catch((err) => onError(err.message))
   }, [classId, canEdit, onError])
-
-  useEffect(() => {
-    if (!selectedId) {
-      setDetail(null)
-      setEditSummary('')
-      setEditingLinkedKey('')
-      setShowAddLinked(false)
-      return
-    }
-    setEditingLinkedKey('')
-    setShowAddLinked(false)
-    let cancelled = false
-    ;(async () => {
-      setDetailLoading(true)
-      onError('')
-      try {
-        const row = await fetchLessonRecord(classId, selectedId)
-        if (!cancelled) {
-          setDetail(row)
-          setEditSummary(row.summary ?? '')
-        }
-      } catch (err) {
-        if (!cancelled) {
-          onError(err.message)
-          setDetail(null)
-        }
-      } finally {
-        if (!cancelled) setDetailLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [classId, selectedId, onError])
 
   const boardRows = useMemo(
     () =>
@@ -537,248 +473,6 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
       item.targetStudentIds = targetStudentIds
     }
     return item
-  }
-
-  function closeLinkedEdit() {
-    setEditingLinkedKey('')
-    setEditDraft(null)
-  }
-
-  function openLinkedEdit(item) {
-    setShowAddLinked(false)
-    setEditingLinkedKey(linkedItemKey(item))
-    setEditDraft(editDraftFromItem(item))
-    setEditTarget(targetFromResponse(item.targets, item.type !== 'video'))
-  }
-
-  async function handleSaveLinkedEdit(item) {
-    if (!selectedId || !editDraft) return
-    const allByDefault = item.type !== 'video'
-    if (item.type !== 'video' && editTarget.mode === 'custom' && editTarget.studentIds.length === 0) {
-      onError(`${linkedTypeLabel(item.type)} 대상 학생을 한 명 이상 선택하세요.`)
-      return
-    }
-
-    let payload
-    if (item.type === 'homework') {
-      payload = appendTargetPayload(
-        { title: editDraft.title.trim(), questionCount: Number(editDraft.questionCount) },
-        editTarget,
-        true,
-      )
-    } else if (item.type === 'test') {
-      payload = appendTargetPayload(
-        {
-          title: editDraft.title.trim(),
-          questionCount: Number(editDraft.questionCount),
-          retakeThresholdCount: Number(editDraft.retakeThresholdCount),
-        },
-        editTarget,
-        true,
-      )
-    } else if (item.type === 'video') {
-      payload = appendTargetPayload(
-        { title: editDraft.title.trim(), youtubeUrl: editDraft.youtubeUrl.trim() },
-        editTarget,
-        false,
-      )
-    } else if (item.type === 'clinic') {
-      if (!editDraft.clinicDate || !editDraft.clinicAssistantId || !editDraft.clinicPresetId) return
-      payload = appendTargetPayload(
-        {
-          clinicDate: editDraft.clinicDate,
-          startTime: editDraft.clinicStartTime,
-          assistantId: Number(editDraft.clinicAssistantId),
-          presetId: Number(editDraft.clinicPresetId),
-          maxCapacity: Number(editDraft.clinicMaxCapacity) || 10,
-        },
-        editTarget,
-        true,
-      )
-    } else {
-      return
-    }
-
-    setSubmitting(true)
-    onError('')
-    try {
-      let updated
-      if (item.type === 'homework') {
-        updated = await updateLessonRecordHomework(classId, selectedId, item.id, payload)
-      } else if (item.type === 'test') {
-        updated = await updateLessonRecordTest(classId, selectedId, item.id, payload)
-      } else if (item.type === 'video') {
-        updated = await updateLessonRecordVideo(classId, selectedId, item.id, payload)
-      } else {
-        updated = await updateLessonRecordClinicSlot(classId, selectedId, item.id, payload)
-      }
-      setDetail(updated)
-      setEditSummary(updated.summary ?? '')
-      await load()
-      closeLinkedEdit()
-    } catch (err) {
-      onError(err.message)
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  async function handleDeleteLinked(item) {
-    if (!selectedId || !item.canDelete) return
-    const label = linkedTypeLabel(item.type)
-    if (!window.confirm(`이 ${label} 항목을 삭제할까요?`)) return
-
-    setSubmitting(true)
-    onError('')
-    try {
-      let updated
-      if (item.type === 'homework') {
-        updated = await deleteLessonRecordHomework(classId, selectedId, item.id)
-      } else if (item.type === 'test') {
-        updated = await deleteLessonRecordTest(classId, selectedId, item.id)
-      } else if (item.type === 'video') {
-        updated = await deleteLessonRecordVideo(classId, selectedId, item.id)
-      } else {
-        updated = await deleteLessonRecordClinicSlot(classId, selectedId, item.id)
-      }
-      setDetail(updated)
-      setEditSummary(updated.summary ?? '')
-      await load()
-      closeLinkedEdit()
-    } catch (err) {
-      onError(err.message)
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  function closeAddLinked() {
-    setShowAddLinked(false)
-    setAddLinkedForm(EMPTY_ADD_LINKED)
-    setAddHomeworkTarget(createInitialTarget(true))
-    setAddTestTarget(createInitialTarget(true))
-    setAddVideoTarget(createInitialTarget(false))
-    setAddClinicTarget(createInitialTarget(true))
-    setAddHomeworkAnswerKeyFile(null)
-    setAddTestAnswerKeyFile(null)
-  }
-
-  async function handleAddLinked(e) {
-    e.preventDefault()
-    if (!selectedId) return
-    if (
-      !addLinkedForm.includeHomework &&
-      !addLinkedForm.includeTest &&
-      !addLinkedForm.includeVideo &&
-      !addLinkedForm.includeClinic
-    ) {
-      onError('추가할 항목을 선택하세요.')
-      return
-    }
-    if (addLinkedForm.includeHomework && !addLinkedForm.homeworkTitle.trim()) return
-    if (addLinkedForm.includeHomework && !addLinkedForm.homeworkQuestionCount) return
-    if (
-      addLinkedForm.includeHomework &&
-      addHomeworkTarget.mode === 'custom' &&
-      addHomeworkTarget.studentIds.length === 0
-    ) {
-      onError('숙제 대상 학생을 한 명 이상 선택하세요.')
-      return
-    }
-    if (addLinkedForm.includeTest && !addLinkedForm.testTitle.trim()) return
-    if (addLinkedForm.includeTest && (!addLinkedForm.testQuestionCount || !addLinkedForm.testRetakeThresholdCount)) {
-      return
-    }
-    if (addLinkedForm.includeTest && addTestTarget.mode === 'custom' && addTestTarget.studentIds.length === 0) {
-      onError('테스트 대상 학생을 한 명 이상 선택하세요.')
-      return
-    }
-    if (addLinkedForm.includeVideo && (!addLinkedForm.videoTitle.trim() || !addLinkedForm.youtubeUrl.trim())) {
-      return
-    }
-    if (addLinkedForm.includeClinic) {
-      if (!addLinkedForm.clinicDate || !addLinkedForm.clinicAssistantId || !addLinkedForm.clinicPresetId) return
-      if (addClinicTarget.mode === 'custom' && addClinicTarget.studentIds.length === 0) {
-        onError('클리닉 대상 학생을 한 명 이상 선택하세요.')
-        return
-      }
-    }
-
-    const payload = {}
-    if (addLinkedForm.includeHomework) {
-      payload.homework = appendTargetPayload(
-        {
-          title: addLinkedForm.homeworkTitle.trim(),
-          questionCount: Number(addLinkedForm.homeworkQuestionCount),
-        },
-        addHomeworkTarget,
-        true,
-      )
-    }
-    if (addLinkedForm.includeTest) {
-      payload.test = appendTargetPayload(
-        {
-          title: addLinkedForm.testTitle.trim(),
-          questionCount: Number(addLinkedForm.testQuestionCount),
-          retakeThresholdCount: Number(addLinkedForm.testRetakeThresholdCount),
-        },
-        addTestTarget,
-        true,
-      )
-    }
-    if (addLinkedForm.includeVideo) {
-      payload.video = appendTargetPayload(
-        {
-          title: addLinkedForm.videoTitle.trim(),
-          youtubeUrl: addLinkedForm.youtubeUrl.trim(),
-        },
-        addVideoTarget,
-        false,
-      )
-    }
-    if (addLinkedForm.includeClinic) {
-      payload.clinic = appendTargetPayload(
-        {
-          clinicDate: addLinkedForm.clinicDate,
-          startTime: addLinkedForm.clinicStartTime,
-          assistantId: Number(addLinkedForm.clinicAssistantId),
-          presetId: Number(addLinkedForm.clinicPresetId),
-          maxCapacity: Number(addLinkedForm.clinicMaxCapacity) || 10,
-        },
-        addClinicTarget,
-        true,
-      )
-    }
-
-    const beforeHomeworkIds = new Set(linkedIdsByType(detail?.linkedItems, 'homework'))
-    const beforeTestIds = new Set(linkedIdsByType(detail?.linkedItems, 'test'))
-
-    setSubmitting(true)
-    onError('')
-    try {
-      const updated = await addLessonRecordLinkedItems(classId, selectedId, payload)
-      if (addLinkedForm.includeHomework || addLinkedForm.includeTest) {
-        await uploadAnswerKeysForLessonRecord(
-          classId,
-          updated.linkedItems,
-          {
-            homeworkFile: addLinkedForm.includeHomework ? addHomeworkAnswerKeyFile : null,
-            homeworkQuestionCount: addLinkedForm.homeworkQuestionCount,
-            testFile: addLinkedForm.includeTest ? addTestAnswerKeyFile : null,
-            testQuestionCount: addLinkedForm.testQuestionCount,
-          },
-          { homework: beforeHomeworkIds, test: beforeTestIds },
-        )
-      }
-      setDetail(updated)
-      setEditSummary(updated.summary ?? '')
-      await load()
-      closeAddLinked()
-    } catch (err) {
-      onError(err.message)
-    } finally {
-      setSubmitting(false)
-    }
   }
 
   async function handleCreate(e) {
@@ -870,23 +564,7 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
       }
       closeWrite()
       await load()
-      setSelectedId(String(created.lessonRecordId))
-    } catch (err) {
-      onError(err.message)
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  async function handleUpdateSummary(e) {
-    e.preventDefault()
-    if (!selectedId || !editSummary.trim()) return
-    setSubmitting(true)
-    onError('')
-    try {
-      const updated = await updateLessonRecord(classId, selectedId, { summary: editSummary.trim() })
-      setDetail(updated)
-      await load()
+      navigate(`/classes/${classId}/lesson-records/${created.lessonRecordId}`)
     } catch (err) {
       onError(err.message)
     } finally {
@@ -911,8 +589,8 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
             <span className="ams-pill ams-pill--muted">{records.length}건</span>
           </div>
           <p className="ams-lesson-board__lead">
-            수업일·요약과 숙제·테스트·영상·클리닉을 한 번에 등록합니다. 숙제·테스트 등록 시
-            정답지 파일을 함께 올릴 수 있습니다. 점수 입력은 숙제·테스트 확인 탭을 이용하세요.
+            수업일·요약과 숙제·테스트·영상·클리닉을 한 번에 등록합니다. 목록에서 항목을 선택하면
+            상세 페이지에서 요약·귀속 항목을 확인·수정할 수 있습니다.
           </p>
         </div>
         {canEdit && (
@@ -1217,474 +895,69 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
         </form>
       )}
 
-      <div className="ams-lesson-board__layout">
-        <div className="ams-lesson-board__list ams-card ams-card--elevated">
-          <div className="ams-lesson-board__list-head">
-            <h4 className="ams-lesson-board__panel-title">목록</h4>
-            <span className="ams-lesson-board__list-meta">최신순</span>
-          </div>
-
-          {records.length === 0 ? (
-            <div className="ams-lesson-board__empty-state">
-              <p className="ams-lesson-board__empty-title">등록된 수업기록이 없습니다</p>
-              <p className="ams-lesson-board__empty-desc">
-                {canEdit
-                  ? '「+ 수업기록 작성」으로 첫 기록을 남겨 보세요.'
-                  : '담당 교직원이 수업기록을 등록하면 여기에 표시됩니다.'}
-              </p>
-            </div>
-          ) : (
-            <div className="ams-lesson-board__table-wrap">
-              <table className="ams-lesson-board__table">
-                <thead>
-                  <tr>
-                    <th scope="col" className="ams-lesson-board__col-no">
-                      번호
-                    </th>
-                    <th scope="col">수업일</th>
-                    <th scope="col">요약</th>
-                    <th scope="col">귀속 항목</th>
-                    <th scope="col">작성자</th>
-                    <th scope="col">등록일</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {boardRows.map((r) => {
-                    const active = selectedId === String(r.lessonRecordId)
-                    return (
-                      <tr
-                        key={r.lessonRecordId}
-                        className={`ams-lesson-board__row${active ? ' ams-lesson-board__row--active' : ''}`}
-                        onClick={() => setSelectedId(String(r.lessonRecordId))}
-                        aria-selected={active}
-                      >
-                        <td className="ams-lesson-board__col-no">
-                          <span className="ams-lesson-board__row-no">{r.rowNo}</span>
-                        </td>
-                        <td className="ams-lesson-board__col-date">{formatLessonDate(r.lessonDate)}</td>
-                        <td className="ams-lesson-board__summary-cell" title={r.summary}>
-                          {r.summary}
-                        </td>
-                        <td>
-                          <LinkedBadgeGroup record={r} />
-                        </td>
-                        <td className="ams-lesson-board__col-author">{r.authorName}</td>
-                        <td className="ams-lesson-board__col-created">{formatDateTime(r.createdAt)}</td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+      <div className="ams-lesson-board__list ams-card ams-card--elevated ams-lesson-board__list--full">
+        <div className="ams-lesson-board__list-head">
+          <h4 className="ams-lesson-board__panel-title">목록</h4>
+          <span className="ams-lesson-board__list-meta">최신순</span>
         </div>
 
-        <aside className="ams-lesson-board__detail ams-card ams-card--elevated">
-          {!selectedId ? (
-            <div className="ams-lesson-board__empty-state ams-lesson-board__empty-state--detail">
-              <p className="ams-lesson-board__empty-title">수업기록을 선택하세요</p>
-              <p className="ams-lesson-board__empty-desc">왼쪽 목록에서 항목을 클릭하면 상세 내용이 표시됩니다.</p>
-            </div>
-          ) : detailLoading ? (
-            <p className="ams-class-detail__empty">불러오는 중…</p>
-          ) : detail ? (
-            <>
-              <div className="ams-lesson-board__detail-head">
-                <time className="ams-lesson-board__detail-date">{formatLessonDate(detail.lessonDate)}</time>
-                <div className="ams-lesson-board__detail-meta">
-                  <span>{detail.authorName}</span>
-                  <span aria-hidden>·</span>
-                  <span>{formatDateTime(detail.createdAt)}</span>
-                </div>
-              </div>
-
-              <LinkedBadgeGroup record={detail} />
-
-              <div className="ams-lesson-board__detail-section">
-                <h5 className="ams-lesson-board__detail-label">수업 요약</h5>
-                {canEdit ? (
-                  <form className="ams-lesson-board__edit-form" onSubmit={handleUpdateSummary}>
-                    <textarea
-                      className="ams-field__textarea ams-lesson-board__detail-textarea"
-                      value={editSummary}
-                      onChange={(e) => setEditSummary(e.target.value)}
-                      rows={8}
-                      required
-                    />
-                    <button
-                      type="submit"
-                      className="ams-btn ams-btn--primary ams-btn--sm"
-                      disabled={submitting}
-                    >
-                      {submitting ? '저장 중…' : '요약 저장'}
-                    </button>
-                  </form>
-                ) : (
-                  <p className="ams-lesson-board__detail-body">{detail.summary}</p>
-                )}
-              </div>
-
-              <div className="ams-lesson-board__detail-section">
-                <div className="ams-lesson-board__detail-section-head">
-                  <h5 className="ams-lesson-board__detail-label">귀속 항목</h5>
-                  {canEdit && (
-                    <button
-                      type="button"
-                      className="ams-btn ams-btn--ghost ams-btn--sm"
-                      onClick={() => {
-                        closeLinkedEdit()
-                        setShowAddLinked((v) => !v)
-                        if (showAddLinked) closeAddLinked()
-                        else {
-                          setAddLinkedForm((f) => ({
-                            ...EMPTY_ADD_LINKED,
-                            clinicDate: detail.lessonDate ?? '',
-                          }))
-                        }
-                      }}
-                    >
-                      {showAddLinked ? '추가 취소' : '+ 항목 추가'}
-                    </button>
-                  )}
-                </div>
-
-                {canEdit && showAddLinked && (
-                  <form className="ams-lesson-board__add-linked" onSubmit={handleAddLinked}>
-                    <p className="ams-lesson-board__compose-desc">이 수업기록에 연결할 항목을 선택하세요.</p>
-                    <div className="ams-lesson-board__options">
-                      <OptionCard
-                        active={addLinkedForm.includeHomework}
-                        label="숙제"
-                        description="기본 반 전원 · 필요 시 학생 선택"
-                        onToggle={() =>
-                          setAddLinkedForm({
-                            ...addLinkedForm,
-                            includeHomework: !addLinkedForm.includeHomework,
-                          })
-                        }
-                      >
-                        <label className="ams-field ams-field--compact">
-                          <span className="ams-field__label">숙제 제목</span>
-                          <input
-                            className="ams-field__input"
-                            value={addLinkedForm.homeworkTitle}
-                            onChange={(e) =>
-                              setAddLinkedForm({ ...addLinkedForm, homeworkTitle: e.target.value })
-                            }
-                            maxLength={200}
-                            required
-                          />
-                        </label>
-                        <label className="ams-field ams-field--compact">
-                          <span className="ams-field__label">문항 수</span>
-                          <input
-                            className="ams-field__input"
-                            type="number"
-                            min={1}
-                            value={addLinkedForm.homeworkQuestionCount}
-                            onChange={(e) =>
-                              setAddLinkedForm({
-                                ...addLinkedForm,
-                                homeworkQuestionCount: e.target.value,
-                              })
-                            }
-                            required
-                          />
-                        </label>
-                        <StudentTargetPicker
-                          classId={classId}
-                          allByDefault
-                          value={addHomeworkTarget}
-                          onChange={setAddHomeworkTarget}
-                          disabled={submitting}
-                        />
-                        <AnswerKeyFileField
-                          compact
-                          file={addHomeworkAnswerKeyFile}
-                          disabled={submitting}
-                          onFileChange={setAddHomeworkAnswerKeyFile}
-                        />
-                      </OptionCard>
-
-                      <OptionCard
-                        active={addLinkedForm.includeTest}
-                        label="테스트"
-                        description="기본 반 전원 · 필요 시 학생 선택"
-                        onToggle={() =>
-                          setAddLinkedForm({ ...addLinkedForm, includeTest: !addLinkedForm.includeTest })
-                        }
-                      >
-                        <label className="ams-field ams-field--compact">
-                          <span className="ams-field__label">테스트 제목</span>
-                          <input
-                            className="ams-field__input"
-                            value={addLinkedForm.testTitle}
-                            onChange={(e) =>
-                              setAddLinkedForm({ ...addLinkedForm, testTitle: e.target.value })
-                            }
-                            maxLength={200}
-                            required
-                          />
-                        </label>
-                        <label className="ams-field ams-field--compact">
-                          <span className="ams-field__label">문항 수</span>
-                          <input
-                            className="ams-field__input"
-                            type="number"
-                            min={1}
-                            value={addLinkedForm.testQuestionCount}
-                            onChange={(e) =>
-                              setAddLinkedForm({ ...addLinkedForm, testQuestionCount: e.target.value })
-                            }
-                            required
-                          />
-                        </label>
-                        <label className="ams-field ams-field--compact">
-                          <span className="ams-field__label">합격 기준 (맞은 문항 수)</span>
-                          <input
-                            className="ams-field__input"
-                            type="number"
-                            min={1}
-                            value={addLinkedForm.testRetakeThresholdCount}
-                            onChange={(e) =>
-                              setAddLinkedForm({
-                                ...addLinkedForm,
-                                testRetakeThresholdCount: e.target.value,
-                              })
-                            }
-                            required
-                          />
-                        </label>
-                        <StudentTargetPicker
-                          classId={classId}
-                          allByDefault
-                          value={addTestTarget}
-                          onChange={setAddTestTarget}
-                          disabled={submitting}
-                        />
-                        <AnswerKeyFileField
-                          compact
-                          file={addTestAnswerKeyFile}
-                          disabled={submitting}
-                          onFileChange={setAddTestAnswerKeyFile}
-                        />
-                      </OptionCard>
-
-                      <OptionCard
-                        active={addLinkedForm.includeVideo}
-                        label="영상"
-                        description="전원 시청 · 인증 대상 선택"
-                        onToggle={() =>
-                          setAddLinkedForm({ ...addLinkedForm, includeVideo: !addLinkedForm.includeVideo })
-                        }
-                      >
-                        <label className="ams-field ams-field--compact">
-                          <span className="ams-field__label">영상 제목</span>
-                          <input
-                            className="ams-field__input"
-                            value={addLinkedForm.videoTitle}
-                            onChange={(e) =>
-                              setAddLinkedForm({ ...addLinkedForm, videoTitle: e.target.value })
-                            }
-                            maxLength={200}
-                            required
-                          />
-                        </label>
-                        <label className="ams-field ams-field--compact">
-                          <span className="ams-field__label">YouTube URL</span>
-                          <input
-                            className="ams-field__input"
-                            type="url"
-                            value={addLinkedForm.youtubeUrl}
-                            onChange={(e) =>
-                              setAddLinkedForm({ ...addLinkedForm, youtubeUrl: e.target.value })
-                            }
-                            required
-                          />
-                        </label>
-                        <StudentTargetPicker
-                          classId={classId}
-                          allByDefault={false}
-                          label="인증 대상 학생"
-                          value={addVideoTarget}
-                          onChange={setAddVideoTarget}
-                          disabled={submitting}
-                        />
-                      </OptionCard>
-
-                      <OptionCard
-                        active={addLinkedForm.includeClinic}
-                        label="클리닉"
-                        description="날짜·시간·조교 슬롯"
-                        onToggle={() =>
-                          setAddLinkedForm({
-                            ...addLinkedForm,
-                            includeClinic: !addLinkedForm.includeClinic,
-                            clinicDate: addLinkedForm.clinicDate || detail.lessonDate || '',
-                          })
-                        }
-                      >
-                        <label className="ams-field ams-field--compact">
-                          <span className="ams-field__label">클리닉 날짜</span>
-                          <input
-                            className="ams-field__input"
-                            type="date"
-                            value={addLinkedForm.clinicDate}
-                            onChange={(e) =>
-                              setAddLinkedForm({ ...addLinkedForm, clinicDate: e.target.value })
-                            }
-                            required
-                          />
-                        </label>
-                        <label className="ams-field ams-field--compact">
-                          <span className="ams-field__label">시작 시각</span>
-                          <input
-                            className="ams-field__input"
-                            type="time"
-                            value={addLinkedForm.clinicStartTime}
-                            onChange={(e) =>
-                              setAddLinkedForm({ ...addLinkedForm, clinicStartTime: e.target.value })
-                            }
-                            required
-                          />
-                        </label>
-                        <label className="ams-field ams-field--compact">
-                          <span className="ams-field__label">담당 조교</span>
-                          <select
-                            className="ams-field__input"
-                            value={addLinkedForm.clinicAssistantId}
-                            onChange={(e) =>
-                              setAddLinkedForm({ ...addLinkedForm, clinicAssistantId: e.target.value })
-                            }
-                            required
-                          >
-                            <option value="">조교 선택</option>
-                            {assistants.map((a) => (
-                              <option key={a.userId} value={a.userId}>
-                                {a.name}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <ClinicPresetPicker
-                          presets={clinicPresets}
-                          value={addLinkedForm.clinicPresetId}
-                          onChange={(e) =>
-                            setAddLinkedForm({ ...addLinkedForm, clinicPresetId: e.target.value })
-                          }
-                          disabled={submitting}
-                        />
-                        <label className="ams-field ams-field--compact">
-                          <span className="ams-field__label">정원</span>
-                          <input
-                            className="ams-field__input"
-                            type="number"
-                            min={1}
-                            max={20}
-                            value={addLinkedForm.clinicMaxCapacity}
-                            onChange={(e) =>
-                              setAddLinkedForm({ ...addLinkedForm, clinicMaxCapacity: e.target.value })
-                            }
-                          />
-                        </label>
-                        <StudentTargetPicker
-                          classId={classId}
-                          allByDefault
-                          value={addClinicTarget}
-                          onChange={setAddClinicTarget}
-                          disabled={submitting}
-                        />
-                      </OptionCard>
-                    </div>
-                    <div className="ams-lesson-board__linked-edit-actions">
-                      <button
-                        type="button"
-                        className="ams-btn ams-btn--ghost ams-btn--sm"
-                        onClick={closeAddLinked}
-                      >
-                        취소
-                      </button>
-                      <button
-                        type="submit"
-                        className="ams-btn ams-btn--primary ams-btn--sm"
-                        disabled={submitting}
-                      >
-                        {submitting ? '추가 중…' : '항목 추가'}
-                      </button>
-                    </div>
-                  </form>
-                )}
-
-                {detail.linkedItems?.length > 0 ? (
-                  <ul className="ams-lesson-board__linked-items">
-                    {detail.linkedItems.map((item) => {
-                      const key = linkedItemKey(item)
-                      const isEditing = editingLinkedKey === key
-                      return (
-                        <li
-                          key={key}
-                          className={`ams-lesson-board__linked-item ams-lesson-board__linked-item--${item.type}${isEditing ? ' ams-lesson-board__linked-item--editing' : ''}`}
-                        >
-                          <div className="ams-lesson-board__linked-item-main">
-                            <span className="ams-lesson-board__linked-item-type">
-                              {linkedTypeLabel(item.type)}
-                            </span>
-                            <span className="ams-lesson-board__linked-item-title">{item.title}</span>
-                            {canEdit && (
-                              <div className="ams-lesson-board__linked-item-actions">
-                                {item.canEdit && (
-                                  <button
-                                    type="button"
-                                    className="ams-btn ams-btn--ghost ams-btn--sm"
-                                    onClick={() =>
-                                      isEditing ? closeLinkedEdit() : openLinkedEdit(item)
-                                    }
-                                    disabled={submitting}
-                                  >
-                                    {isEditing ? '닫기' : '수정'}
-                                  </button>
-                                )}
-                                {item.canDelete && (
-                                  <button
-                                    type="button"
-                                    className="ams-btn ams-btn--ghost ams-btn--sm ams-lesson-board__linked-delete"
-                                    onClick={() => handleDeleteLinked(item)}
-                                    disabled={submitting}
-                                  >
-                                    삭제
-                                  </button>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                          {isEditing && editDraft && (
-                            <LinkedItemEditForm
-                              item={item}
-                              draft={editDraft}
-                              onDraftChange={setEditDraft}
-                              target={editTarget}
-                              onTargetChange={setEditTarget}
-                              classId={classId}
-                              assistants={assistants}
-                              clinicPresets={clinicPresets}
-                              submitting={submitting}
-                              onCancel={closeLinkedEdit}
-                              onSave={() => handleSaveLinkedEdit(item)}
-                            />
-                          )}
-                        </li>
-                      )
-                    })}
-                  </ul>
-                ) : (
-                  !showAddLinked && <p className="ams-lesson-board__empty-tag">연결된 항목 없음</p>
-                )}
-              </div>
-            </>
-          ) : (
-            <p className="ams-class-detail__empty">수업기록을 불러올 수 없습니다.</p>
-          )}
-        </aside>
+        {records.length === 0 ? (
+          <div className="ams-lesson-board__empty-state">
+            <p className="ams-lesson-board__empty-title">등록된 수업기록이 없습니다</p>
+            <p className="ams-lesson-board__empty-desc">
+              {canEdit
+                ? '「+ 수업기록 작성」으로 첫 기록을 남겨 보세요.'
+                : '담당 교직원이 수업기록을 등록하면 여기에 표시됩니다.'}
+            </p>
+          </div>
+        ) : (
+          <div className="ams-lesson-board__table-wrap">
+            <table className="ams-lesson-board__table">
+              <thead>
+                <tr>
+                  <th scope="col" className="ams-lesson-board__col-no">
+                    번호
+                  </th>
+                  <th scope="col">수업일</th>
+                  <th scope="col">요약</th>
+                  <th scope="col">귀속 항목</th>
+                  <th scope="col">작성자</th>
+                  <th scope="col">등록일</th>
+                </tr>
+              </thead>
+              <tbody>
+                {boardRows.map((r) => (
+                  <tr
+                    key={r.lessonRecordId}
+                    className="ams-lesson-board__row ams-lesson-board__row--link"
+                    onClick={() => navigate(`/classes/${classId}/lesson-records/${r.lessonRecordId}`)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        navigate(`/classes/${classId}/lesson-records/${r.lessonRecordId}`)
+                      }
+                    }}
+                    tabIndex={0}
+                    role="link"
+                  >
+                    <td className="ams-lesson-board__col-no">
+                      <span className="ams-lesson-board__row-no">{r.rowNo}</span>
+                    </td>
+                    <td className="ams-lesson-board__col-date">{formatLessonDate(r.lessonDate)}</td>
+                    <td className="ams-lesson-board__summary-cell" title={r.summary}>
+                      {r.summary}
+                    </td>
+                    <td>
+                      <LinkedBadgeGroup record={r} />
+                    </td>
+                    <td className="ams-lesson-board__col-author">{r.authorName}</td>
+                    <td className="ams-lesson-board__col-created">{formatDateTime(r.createdAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </section>
   )

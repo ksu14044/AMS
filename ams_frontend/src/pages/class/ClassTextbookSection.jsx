@@ -3,7 +3,7 @@ import { fetchClassTextbook, updateClassTextbook } from '../../api/classesApi'
 
 const EMPTY_FORM = { title: '', publisher: '', progressNote: '' }
 
-export default function ClassTextbookSection({ classId, canManage, onError }) {
+export default function ClassTextbookSection({ classId, canManage, onError, embedded = false }) {
   const [data, setData] = useState(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [loading, setLoading] = useState(true)
@@ -56,12 +56,22 @@ export default function ClassTextbookSection({ classId, canManage, onError }) {
   }
 
   if (loading) {
-    return <p className="ams-class-detail__empty">불러오는 중…</p>
+    return (
+      <p className={embedded ? 'ams-class-detail__subsection-empty' : 'ams-class-detail__empty'}>
+        불러오는 중…
+      </p>
+    )
   }
 
+  const Wrapper = embedded ? 'div' : 'section'
+  const headingTag = embedded ? 'h4' : 'h3'
+  const Heading = headingTag
+
   return (
-    <section className="ams-class-detail__section">
-      <h3 className="ams-class-detail__heading">교재</h3>
+    <Wrapper className={embedded ? 'ams-class-detail__subsection' : 'ams-class-detail__section'}>
+      <Heading className={embedded ? 'ams-class-detail__subheading' : 'ams-class-detail__heading'}>
+        교재
+      </Heading>
       <p className="ams-class-detail__hint-inline">
         담임·관리자만 수정합니다. 조교·학생은 조회만 가능합니다.
       </p>
@@ -132,6 +142,6 @@ export default function ClassTextbookSection({ classId, canManage, onError }) {
           </button>
         </form>
       )}
-    </section>
+    </Wrapper>
   )
 }

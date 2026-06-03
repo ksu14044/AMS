@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { createClassNotice, fetchClassNotices } from '../../api/classesApi'
+import ClassScheduleSection from './ClassScheduleSection'
+import ClassTextbookSection from './ClassTextbookSection'
 
 export default function ClassNoticesSection({ classId, canManage, notices, onNoticesChange, onError }) {
   const [submitting, setSubmitting] = useState(false)
@@ -26,8 +28,12 @@ export default function ClassNoticesSection({ classId, canManage, notices, onNot
   }
 
   return (
-    <section className="ams-class-detail__section">
+    <div className="ams-class-detail__notices-hub">
+      <section className="ams-class-detail__section">
       <h3 className="ams-class-detail__heading">반 공지</h3>
+      <p className="ams-class-detail__hint-inline">
+        반 공지와 함께 수업 정보·교재를 확인·등록할 수 있습니다.
+      </p>
 
       {canManage && (
         <form className="ams-notice-form" onSubmit={handleCreateNotice}>
@@ -90,6 +96,10 @@ export default function ClassNoticesSection({ classId, canManage, notices, onNot
           ))}
         </ul>
       )}
-    </section>
+      </section>
+
+      <ClassScheduleSection classId={classId} canManage={canManage} onError={onError} embedded />
+      <ClassTextbookSection classId={classId} canManage={canManage} onError={onError} embedded />
+    </div>
   )
 }

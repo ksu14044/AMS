@@ -204,7 +204,7 @@ export default function ClassHomeSection({ classId, notices, onGoTab, onError })
         )}
       </section>
 
-      <HomeCard title="수업 정보" actionLabel="더보기 →" onAction={() => onGoTab('schedule')}>
+      <HomeCard title="수업 정보" actionLabel="더보기 →" onAction={() => onGoTab('notices')}>
         <p className="ams-class-home__text">{formatScheduleSummary(schedule)}</p>
       </HomeCard>
 

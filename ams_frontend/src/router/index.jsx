@@ -13,6 +13,9 @@ import NotificationsPage from '../pages/notifications/NotificationsPage'
 import PendingTasksPage from '../pages/notifications/PendingTasksPage'
 import AdminHomePage from '../pages/admin/AdminHomePage'
 import ClassDetailPage from '../pages/class/ClassDetailPage'
+import ClassHomeworkDetailPage from '../pages/class/ClassHomeworkDetailPage'
+import ClassTestDetailPage from '../pages/class/ClassTestDetailPage'
+import ClassLessonRecordDetailPage from '../pages/class/ClassLessonRecordDetailPage'
 import StudentHomePage from '../pages/student/StudentHomePage'
 import StudentClinicPage from '../pages/student/StudentClinicPage'
 import StudentRecordsPage from '../pages/student/StudentRecordsPage'
@@ -57,6 +60,18 @@ export default function AppRouter() {
             </Route>
             <Route element={<AppLayout title="반 상세" />}>
               <Route path="/classes/:classId" element={<ClassDetailPage />} />
+            </Route>
+            <Route element={<AppLayout title="숙제 상세" />}>
+              <Route path="/classes/:classId/homeworks/:homeworkId" element={<ClassHomeworkDetailPage />} />
+            </Route>
+            <Route element={<AppLayout title="테스트 상세" />}>
+              <Route path="/classes/:classId/tests/:testId" element={<ClassTestDetailPage />} />
+            </Route>
+            <Route element={<AppLayout title="수업기록 상세" />}>
+              <Route
+                path="/classes/:classId/lesson-records/:lessonRecordId"
+                element={<ClassLessonRecordDetailPage />}
+              />
             </Route>
           </Route>
 

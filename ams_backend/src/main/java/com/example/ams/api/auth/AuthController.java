@@ -15,6 +15,7 @@ import com.example.ams.api.dto.RefreshTokenRequest;
 import com.example.ams.api.dto.SignupAcademyRequest;
 import com.example.ams.api.dto.SignupInvitePreviewResponse;
 import com.example.ams.api.dto.SignupInviteResponse;
+import com.example.ams.api.dto.SignupParentRequest;
 import com.example.ams.api.dto.SignupStaffRequest;
 import com.example.ams.api.dto.SignupStudentRequest;
 import com.example.ams.api.dto.TokenResponse;
@@ -91,6 +92,18 @@ public class AuthController {
 				request.phoneNumber(),
 				request.role(),
 				request.subject());
+		return ApiResponse.ok(toTokenResponse(user));
+	}
+
+	@PostMapping("/signup/parent")
+	public ApiResponse<TokenResponse> signupParent(@Valid @RequestBody SignupParentRequest request) {
+		User user = authService.signupParent(
+				request.inviteToken(),
+				request.academyCode(),
+				request.name(),
+				request.email(),
+				request.password(),
+				request.phoneNumber());
 		return ApiResponse.ok(toTokenResponse(user));
 	}
 

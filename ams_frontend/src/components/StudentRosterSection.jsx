@@ -40,6 +40,7 @@ export default function StudentRosterSection({
   title = '학생부',
   description,
   variant = 'table',
+  onManageParentLinks,
 }) {
   const [rows, setRows] = useState([])
   const [search, setSearch] = useState('')
@@ -129,6 +130,7 @@ export default function StudentRosterSection({
                 <th scope="col">전화번호</th>
                 <th scope="col">가입일</th>
                 <th scope="col">상태</th>
+                {onManageParentLinks && <th scope="col">학부모</th>}
               </tr>
             </thead>
             <tbody>
@@ -146,6 +148,17 @@ export default function StudentRosterSection({
                   <td>
                     <StatusPill status={row.status} />
                   </td>
+                  {onManageParentLinks && (
+                    <td>
+                      <button
+                        type="button"
+                        className="ams-btn ams-btn--ghost ams-btn--sm"
+                        onClick={() => onManageParentLinks(row)}
+                      >
+                        연결
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

@@ -118,6 +118,7 @@ V29__clinic_result_preset.sql
 V24__parent_role.sql
 V25__notification_dismissed.sql
 V31__report_period_preset.sql
+V32__parent_student_link.sql
 ```
 
 [ROADMAP.md](../ROADMAP.md) Phase 12.

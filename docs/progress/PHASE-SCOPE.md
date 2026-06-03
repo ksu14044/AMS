@@ -32,7 +32,7 @@
 | 12-6 | 알림 ACTIVE/DISMISSED · D-1 제거 · 홈 미완료 | 🔲 | V25 |
 | 12-7 | `clinic_result_preset` · 시작시각 only | 🔲 | V23 |
 | 12-8 | 보고서 기간·프리셋·학생 선택 | ✅ | V31 |
-| 12-9 | `PARENT` · `parent_student_link` · `/parent/*` | 🔲 | V24 |
+| 12-9 | `PARENT` · `parent_student_link` · `/parent/*` | ✅ | V32 |
 
 **v2.0 대비 주요 변경**
 

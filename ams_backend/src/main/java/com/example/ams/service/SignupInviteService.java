@@ -105,6 +105,20 @@ public class SignupInviteService {
 		return toResponse(payload);
 	}
 
+	public SignupInviteResponse createParentInvite(long academyId) {
+		Academy academy = academyRepository.findById(academyId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REQUEST));
+		Instant expiresAt = Instant.now().plusMillis(jwtProperties.signupInviteExpirationMs());
+		SignupInvitePayload payload = new SignupInvitePayload(
+				SignupInviteKind.PARENT,
+				academy.academyId(),
+				academy.code(),
+				UserRole.PARENT,
+				null,
+				expiresAt);
+		return toResponse(payload);
+	}
+
 	public SignupInviteResponse createStudentInvite(long academyId) {
 		Academy academy = academyRepository.findById(academyId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REQUEST));
@@ -138,6 +152,7 @@ public class SignupInviteService {
 			case ACADEMY -> "/signup/academy";
 			case STAFF -> "/signup/staff";
 			case STUDENT -> "/signup/student";
+			case PARENT -> "/signup/parent";
 		};
 	}
 
@@ -154,6 +169,7 @@ public class SignupInviteService {
 			case ASSISTANT_EN -> "영어 조교";
 			case ASSISTANT_MATH -> "수학 조교";
 			case STUDENT -> "학생";
+			case PARENT -> "학부모";
 			case ACADEMY_ADMIN -> "원장·관리자";
 		};
 	}

@@ -65,6 +65,7 @@ public class DiligenceReportService {
 	private final AmsUploadProperties uploadProperties;
 	private final ApplicationEventPublisher eventPublisher;
 	private final ReportPeriodPresetService reportPeriodPresetService;
+	private final ParentStudentLinkService parentStudentLinkService;
 
 	public DiligenceReportService(
 			DiligenceReportRepository reportRepository,
@@ -79,7 +80,8 @@ public class DiligenceReportService {
 			DiligenceReportPdfService pdfService,
 			AmsUploadProperties uploadProperties,
 			ApplicationEventPublisher eventPublisher,
-			ReportPeriodPresetService reportPeriodPresetService) {
+			ReportPeriodPresetService reportPeriodPresetService,
+			ParentStudentLinkService parentStudentLinkService) {
 		this.reportRepository = reportRepository;
 		this.testExamRepository = testExamRepository;
 		this.testScoreRepository = testScoreRepository;
@@ -93,6 +95,7 @@ public class DiligenceReportService {
 		this.uploadProperties = uploadProperties;
 		this.eventPublisher = eventPublisher;
 		this.reportPeriodPresetService = reportPeriodPresetService;
+		this.parentStudentLinkService = parentStudentLinkService;
 	}
 
 	public List<ReportListRow> listByClass(long classId) {
@@ -469,10 +472,21 @@ public class DiligenceReportService {
 	private DiligenceReport requireReadableReport(long reportId) {
 		DiligenceReport report = reportRepository.findById(reportId)
 				.orElseThrow(() -> new BusinessException(ErrorCode.REPORT_NOT_FOUND));
+		UserRole role = currentUserService.requireRole();
+		long userId = currentUserService.requireUserId();
+
+		if (role == UserRole.PARENT) {
+			parentStudentLinkService.requireParentCanAccessClass(
+					userId, report.studentId(), report.classId());
+			Clazz clazz = clazzRepository.findById(report.classId())
+					.orElseThrow(() -> new BusinessException(ErrorCode.CLASS_NOT_FOUND));
+			currentUserService.assertSameAcademy(clazz.academyId());
+			return report;
+		}
+
 		Clazz clazz = classAccessService.requireReadableClass(report.classId());
 		requireCanViewReports(clazz);
-		if (currentUserService.requireRole() == UserRole.STUDENT
-				&& report.studentId() != currentUserService.requireUserId()) {
+		if (role == UserRole.STUDENT && report.studentId() != userId) {
 			throw new BusinessException(ErrorCode.FORBIDDEN);
 		}
 		return report;

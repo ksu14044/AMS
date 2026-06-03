@@ -43,6 +43,7 @@ public class AdminSignupInviteController {
 				yield ApiResponse.ok(signupInviteService.createStaffInvite(academyId, request.role()));
 			}
 			case STUDENT -> ApiResponse.ok(signupInviteService.createStudentInvite(academyId));
+			case PARENT -> ApiResponse.ok(signupInviteService.createParentInvite(academyId));
 			case ACADEMY -> throw new BusinessException(
 					ErrorCode.INVALID_REQUEST,
 					"학원 개설 링크는 플랫폼에서 발급합니다.");

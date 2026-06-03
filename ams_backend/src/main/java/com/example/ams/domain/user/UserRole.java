@@ -9,10 +9,15 @@ public enum UserRole {
 	ASSISTANT_KO,
 	ASSISTANT_EN,
 	ASSISTANT_MATH,
-	STUDENT;
+	STUDENT,
+	PARENT;
 
 	public boolean isStaffSignupRole() {
-		return this != ACADEMY_ADMIN && this != STUDENT;
+		return this != ACADEMY_ADMIN && this != STUDENT && this != PARENT;
+	}
+
+	public boolean isParent() {
+		return this == PARENT;
 	}
 
 	public boolean requiresSubject() {

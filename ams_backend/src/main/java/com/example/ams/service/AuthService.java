@@ -104,6 +104,30 @@ public class AuthService {
 	}
 
 	@Transactional
+	public User signupParent(
+			String inviteToken,
+			String academyCode,
+			String name,
+			String email,
+			String password,
+			String phoneNumber) {
+		SignupInvitePayload invite = signupInviteService.requireKind(inviteToken, SignupInviteKind.PARENT);
+		Academy academy = signupInviteService.requireAcademy(invite);
+		assertAcademyCodeMatches(invite, academyCode);
+		ensureEmailAvailable(academy.academyId(), email);
+		return userRepository.insert(
+				academy.academyId(),
+				email,
+				passwordEncoder.encode(password),
+				name,
+				UserRole.PARENT,
+				null,
+				UserStatus.ACTIVE,
+				normalizePhoneNumber(phoneNumber),
+				Instant.now());
+	}
+
+	@Transactional
 	public User signupStudent(
 			String inviteToken,
 			String academyCode,

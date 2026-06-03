@@ -25,6 +25,8 @@ function formatExpiresAt(iso) {
 export default function AdminSignupInvitesSection() {
   const [studentUrl, setStudentUrl] = useState('')
   const [studentExpiresAt, setStudentExpiresAt] = useState('')
+  const [parentUrl, setParentUrl] = useState('')
+  const [parentExpiresAt, setParentExpiresAt] = useState('')
   const [staffRole, setStaffRole] = useState('TEACHER_KO')
   const [staffUrl, setStaffUrl] = useState('')
   const [staffExpiresAt, setStaffExpiresAt] = useState('')
@@ -59,6 +61,22 @@ export default function AdminSignupInvitesSection() {
       setStaffUrl(result.url)
       setStaffExpiresAt(result.expiresAt)
       setMessage(`${result.roleLabel} 가입 링크가 생성되었습니다.`)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoadingKind(null)
+    }
+  }
+
+  async function issueParentLink() {
+    setLoadingKind('PARENT')
+    setError('')
+    setMessage('')
+    try {
+      const result = await createSignupInvite({ kind: 'PARENT' })
+      setParentUrl(result.url)
+      setParentExpiresAt(result.expiresAt)
+      setMessage('학부모 가입 링크가 생성되었습니다.')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -104,6 +122,35 @@ export default function AdminSignupInvitesSection() {
                   type="button"
                   className="ams-btn ams-btn--ghost-sm"
                   onClick={() => handleCopy(studentUrl, '학생')}
+                >
+                  복사
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="ams-signup-invites__block">
+          <h3 className="ams-signup-invites__title">학부모</h3>
+          <button
+            type="button"
+            className="ams-btn ams-btn--primary"
+            disabled={loadingKind === 'PARENT'}
+            onClick={issueParentLink}
+          >
+            {loadingKind === 'PARENT' ? '생성 중…' : '학부모 가입 링크 생성'}
+          </button>
+          {parentUrl && (
+            <>
+              <p className="ams-signup-invites__expiry">
+                만료: {formatExpiresAt(parentExpiresAt)}까지
+              </p>
+              <div className="ams-signup-invites__url">
+                <input type="text" readOnly value={parentUrl} />
+                <button
+                  type="button"
+                  className="ams-btn ams-btn--ghost-sm"
+                  onClick={() => handleCopy(parentUrl, '학부모')}
                 >
                   복사
                 </button>

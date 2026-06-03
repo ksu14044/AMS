@@ -22,6 +22,7 @@ export default function AppLayout({ title }) {
   const location = useLocation()
 
   const isStudent = user?.role === 'STUDENT'
+  const isParent = user?.role === 'PARENT'
   const isRosterPage = ROSTER_PATHS.includes(location.pathname)
   const isClassDetailPage = location.pathname.startsWith('/classes/')
   const isStudentTab = isStudent && STUDENT_TAB_PATHS.includes(location.pathname)
@@ -29,7 +30,8 @@ export default function AppLayout({ title }) {
     isStudent &&
     !isClassDetailPage &&
     location.pathname !== '/notifications'
-  const useWideLayout = isClassDetailPage || isRosterPage || (!isStudent && !isStudentTab)
+  const useWideLayout =
+    isClassDetailPage || isRosterPage || isParent || (!isStudent && !isStudentTab)
 
   const pageTitle = useMemo(() => {
     if (STUDENT_TAB_TITLES[location.pathname]) return STUDENT_TAB_TITLES[location.pathname]

@@ -301,9 +301,9 @@
 
 ### 12-9. 학부모 (§19)
 
-- [ ] `PARENT` · parent-links · `/parent/*`
+- [x] `PARENT` · parent-links · `/parent/*`
 
-DB: V21~V31 ([schema-overview](./database/schema-overview.md))
+DB: V21~V32 ([schema-overview](./database/schema-overview.md))
 
 ---
 

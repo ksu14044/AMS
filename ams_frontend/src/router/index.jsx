@@ -9,6 +9,11 @@ import PendingApprovalPage from '../pages/auth/PendingApprovalPage'
 import SignupAcademyPage from '../pages/auth/SignupAcademyPage'
 import SignupStaffPage from '../pages/auth/SignupStaffPage'
 import SignupStudentPage from '../pages/auth/SignupStudentPage'
+import SignupParentPage from '../pages/auth/SignupParentPage'
+import ParentChildrenPage from '../pages/parent/ParentChildrenPage'
+import ParentChildHomePage from '../pages/parent/ParentChildHomePage'
+import ParentClassViewPage from '../pages/parent/ParentClassViewPage'
+import ParentChildReportsPage from '../pages/parent/ParentChildReportsPage'
 import NotificationsPage from '../pages/notifications/NotificationsPage'
 import PendingTasksPage from '../pages/notifications/PendingTasksPage'
 import AdminHomePage from '../pages/admin/AdminHomePage'
@@ -44,6 +49,7 @@ export default function AppRouter() {
               <Route path="/signup/academy" element={<SignupAcademyPage />} />
               <Route path="/signup/staff" element={<SignupStaffPage />} />
               <Route path="/signup/student" element={<SignupStudentPage />} />
+              <Route path="/signup/parent" element={<SignupParentPage />} />
             </Route>
           </Route>
 
@@ -115,6 +121,24 @@ export default function AppRouter() {
               <Route path="/student/clinic" element={<StudentClinicPage />} />
               <Route path="/student/records" element={<StudentRecordsPage />} />
               <Route path="/student/my" element={<StudentMyPage />} />
+            </Route>
+          </Route>
+
+          <Route element={<ProtectedRoute allowedRoles={['PARENT']} />}>
+            <Route element={<AppLayout title="내 자녀" />}>
+              <Route path="/parent" element={<ParentChildrenPage />} />
+            </Route>
+            <Route element={<AppLayout title="자녀 홈" />}>
+              <Route path="/parent/children/:studentId" element={<ParentChildHomePage />} />
+            </Route>
+            <Route element={<AppLayout title="공부기록" />}>
+              <Route
+                path="/parent/children/:studentId/classes/:classId"
+                element={<ParentClassViewPage />}
+              />
+            </Route>
+            <Route element={<AppLayout title="성실도 보고서" />}>
+              <Route path="/parent/children/:studentId/reports" element={<ParentChildReportsPage />} />
             </Route>
           </Route>
 

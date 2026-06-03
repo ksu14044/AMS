@@ -14,12 +14,14 @@ export function roleLabel(role) {
   const map = {
     ACADEMY_ADMIN: '원장·관리자',
     STUDENT: '학생',
+    PARENT: '학부모',
   }
   return map[role] || role
 }
 
 export function homePathForRole(role) {
   if (role === 'STUDENT') return '/student'
+  if (role === 'PARENT') return '/parent'
   if (role === 'ACADEMY_ADMIN') return '/admin'
   if (role.startsWith('ASSISTANT_')) return '/assistant'
   return '/teacher'

@@ -96,6 +96,14 @@ export function AuthProvider({ children }) {
     return applySession(data)
   }, [applySession])
 
+  const signupParent = useCallback(async (payload) => {
+    const data = await apiRequest('/auth/signup/parent', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+    return applySession(data)
+  }, [applySession])
+
   const logout = useCallback(() => {
     clearSession()
     setUser(null)
@@ -113,6 +121,7 @@ export function AuthProvider({ children }) {
       signupAcademy,
       signupStaff,
       signupStudent,
+      signupParent,
       logout,
       homePath,
     }),
@@ -124,6 +133,7 @@ export function AuthProvider({ children }) {
       signupAcademy,
       signupStaff,
       signupStudent,
+      signupParent,
       logout,
       homePath,
     ],

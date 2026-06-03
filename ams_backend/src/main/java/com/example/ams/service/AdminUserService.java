@@ -38,7 +38,7 @@ public class AdminUserService {
 		if (user.status() != UserStatus.PENDING) {
 			throw new BusinessException(ErrorCode.USER_NOT_PENDING);
 		}
-		if (role == UserRole.STUDENT || role == UserRole.ACADEMY_ADMIN) {
+		if (role == UserRole.STUDENT || role == UserRole.PARENT || role == UserRole.ACADEMY_ADMIN) {
 			throw new BusinessException(ErrorCode.INVALID_REQUEST, "승인 시 교직원 역할만 지정할 수 있습니다.");
 		}
 		if (role.requiresSubject() && subject == null) {

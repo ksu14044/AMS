@@ -104,6 +104,14 @@ public class StudyRecordService {
 		return buildRecord(classId, studentId);
 	}
 
+	/** 학부모 포털: 연결·수강 검증은 호출 측에서 수행 */
+	public StudyRecordResponse buildRecordForParentView(long classId, long studentId) {
+		assertEnrolled(classId, studentId);
+		User student = userRepository.findById(studentId).orElseThrow();
+		currentUserService.assertSameAcademy(student.academyId());
+		return buildRecord(classId, studentId);
+	}
+
 	public List<StudyRecordStudentOptionResponse> listStudentOptions(long classId) {
 		classAccessService.requireReadableClass(classId);
 		UserRole role = currentUserService.requireRole();

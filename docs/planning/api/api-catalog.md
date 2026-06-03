@@ -95,6 +95,17 @@ Base URL: `/api/v1`. Bearer JWT.
 
 완료 시 내부 `DISMISSED`.
 
+## Parent (v3.0, §19)
+
+| Method | Path |
+|--------|------|
+| POST | `/auth/signup/parent` |
+| GET | `/parent/children` |
+| GET | `/parent/children/{studentId}/pending-tasks` |
+| GET | `/parent/children/{studentId}/classes/{classId}/study-records` |
+| GET | `/parent/children/{studentId}/reports` |
+| POST/DELETE | `/parent-links` · GET `/parent-links/by-student/{studentId}` |
+
 ## Class · 기존 (Phase 1~2)
 
 공지·일정·교재·클리닉 예약·영상 인증 등 — Phase 12에서 lesson-record 경로로 점진 이전.

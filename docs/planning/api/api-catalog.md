@@ -75,11 +75,16 @@ Base URL: `/api/v1`. Bearer JWT.
 | Method | Path |
 |--------|------|
 | GET/POST | `/classes/{id}/report-period-presets` |
+| PATCH/DELETE | `/classes/{id}/report-period-presets/{presetId}` |
+| GET | `/classes/{id}/reports` |
 | POST | `/classes/{id}/reports/generate` |
+| POST | `/classes/{id}/reports/archive` |
+| GET | `/reports/{id}` · PATCH comment · GET pdf |
 
-body: `{ periodStart, periodEnd, studentIds[] }`
+`POST …/generate` body: `{ periodStart, periodEnd, studentIds[], presetId? }`  
+기간 내 숙제·클리닉·영상·**완료 시험 전체**(루트별 최신 재시험 % 평균) 집계.
 
-~~POST …/generate/{testId}~~ — 대체.
+~~POST …/generate/{testId}~~ — deprecated (v2).
 
 ## Notification (v3.0)
 

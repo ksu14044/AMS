@@ -297,13 +297,13 @@
 
 ### 12-8. 보고서 (§18)
 
-- [ ] period preset · 학생 선택 · ZIP
+- [x] period preset · 학생 선택 · 기간 집계 · ZIP
 
 ### 12-9. 학부모 (§19)
 
 - [ ] `PARENT` · parent-links · `/parent/*`
 
-DB: V21~V29 ([schema-overview](./database/schema-overview.md))
+DB: V21~V31 ([schema-overview](./database/schema-overview.md))
 
 ---
 

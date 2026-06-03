@@ -1,16 +1,16 @@
 # AMS 진행 현황 (라이브)
 
-> **마지막 갱신:** 2026-06-03 (12-8 보고서 착수)  
+> **마지막 갱신:** 2026-06-03 (12-8 보고서 ✅)  
 > Phase 경계: [PHASE-SCOPE.md](./PHASE-SCOPE.md) · 기획: [DECISIONS §10~§19](../planning/DECISIONS.md)
 
 ## 한눈에 보기
 
 | 항목 | 상태 |
 |---|---|
-| **현재 Phase** | **12-8** 보고서 🟡 |
-| **다음 Phase** | 12-8~12-9 |
+| **현재 Phase** | **12-9** 학부모 🔲 |
+| **다음 Phase** | 12-9 |
 | **최종 Phase** | **11 운영** |
-| **전체 진행** | Phase 0~10 ✅ / **12-1~12-7 ✅** / 12-8~9·11 🔲 |
+| **전체 진행** | Phase 0~10 ✅ / **12-1~12-8 ✅** / 12-9·11 🔲 |
 
 ## 실행 순서 (2026-05-30 확정)
 
@@ -91,8 +91,8 @@ Phase 0~10 ✅  →  10.2 (BE, 선택)  →  12 v3.0  →  11 운영 (최종)
 | **12-5** 조회 시작일 | ✅ | V27 · 수업기록/숙제/테스트/영상 학생 노출 필터 |
 | **12-6** 알림 | ✅ | V28 · pending-count · 미완료 목록 · 홈 카드 |
 | **12-7** 클리닉 프리셋 | ✅ | V29 · preset CRUD · result_json · 동적 결과 폼 |
-| **12-8** 보고서 | 🟡 | period preset · 학생 선택 · ZIP |
-| 12-9 | 🔲 | |
+| **12-8** 보고서 | ✅ | V31 · 기간·프리셋·학생 선택 · ZIP |
+| **12-9** 학부모 | 🔲 | PARENT · parent_student_link |
 
 ### 12-1 완료 ✅
 
@@ -148,6 +148,17 @@ Phase 0~10 ✅  →  10.2 (BE, 선택)  →  12 v3.0  →  11 운영 (최종)
 - 후속: 결과 테이블 UX (열 정렬 · 2줄 textarea · 긴 텍스트 펼치기)
 - V29 H2 호환 SQL (CI) · 로컬 checksum mismatch 시 `flyway:repair` 1회 (`application-local.yaml.example` 참고)
 
+### 12-8 완료 ✅
+
+- `V31__report_period_preset.sql` — `report_period_preset` · `diligence_report.period_label/preset_id/test_rank` · `test_id` nullable
+- `ReportPeriodPresetService` · `GET/POST/PATCH/DELETE .../report-period-presets`
+- `POST .../reports/generate` — `{ periodStart, periodEnd, studentIds[], presetId? }` · 기간 내 숙제·클리닉·영상·**완료 시험 전체** 집계
+- `StudyRecordPeriodCalculator.computeTestMetrics` — 루트별 최신 재시험 % 평균 · 석차=기간 내 최근 시험
+- `POST .../reports/archive` — 기간별 PDF ZIP · 목록 기간 그룹
+- FE: `ClassReportsSection` — 프리셋 CRUD · 생성(학생 일괄) · 기간 ZIP · 상세 모달(석차)
+- v2 `POST .../generate/{testId}` — deprecated 유지
+- Flyway: H2 `AFTER` 제거 · FK 선삭제 · `scripts/flyway-repair-local.ps1`
+
 ---
 
 ### 수업기록 귀속 항목 CRUD ✅ (12-1 보완)
@@ -176,15 +187,12 @@ Phase 0~10 ✅  →  10.2 (BE, 선택)  →  12 v3.0  →  11 운영 (최종)
 
 ## 오늘 할 일 (2026-06-03)
 
-1. **12-8** — 보고서 v3.0 착수
-   - BE: `report_period_preset` CRUD · `POST .../reports/generate` `{ periodStart, periodEnd, studentIds[] }`
-   - FE: 기간 직접/프리셋 · 학생 일괄 선택 · PDF/ZIP
-   - v2 `generate/{testId}` → 신규 API로 전환 (석차 표기 반영)
-2. 수업기록 귀속 항목 CRUD 실사용 QA (병행)
+1. ~~**12-8** 보고서 v3.0~~ ✅
+2. **12-9** — 학부모 (`PARENT` · `parent_student_link`) 착수
 
 ## 다음 할 일
 
-1. **12-9** — 학부모 (`PARENT` · `parent_student_link`)
+1. **12-9** — 학부모 가입·연결·자녀 읽기 전용 UI/API
 2. ~~Phase 11~~ — 12 완료 후
 
 ---
@@ -198,7 +206,7 @@ Phase 0~10 ✅  →  10.2 (BE, 선택)  →  12 v3.0  →  11 운영 (최종)
 | 9 | UI | ✅ | |
 | 10 | 디자인 | ✅ | 10.1 포함 |
 | 10.2 | BE 정합 | 🔲 | 선택 |
-| **12** | **v3.0** | 🟡 | **12-1~12-7 ✅** |
+| **12** | **v3.0** | 🟡 | **12-1~12-8 ✅** · 12-9 🔲 |
 | **11** | **운영** | 🔲 | **최종** |
 
 ---
@@ -207,7 +215,7 @@ Phase 0~10 ✅  →  10.2 (BE, 선택)  →  12 v3.0  →  11 운영 (최종)
 
 | 날짜 | 요약 |
 |------|------|
-| [2026-06-03](./daily/2026-06-03.md) | 12-8 보고서 착수 |
+| [2026-06-03](./daily/2026-06-03.md) | 12-8 보고서 v3.0 ✅ · Flyway/CI |
 | [2026-06-01](./daily/2026-06-01.md) | 12-5~12-7 · 알림·클리닉 프리셋 · V29/Flyway·CI 정리 |
 | [2026-05-30](./daily/2026-05-30.md) | Phase 12-1 수업기록 API·UI |
 | [2026-05-29](./daily/2026-05-29.md) | 조교 클리닉·학생부 · 인사·로그아웃 |

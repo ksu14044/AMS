@@ -20,6 +20,7 @@ public class HomeworkRepository {
 			rs.getLong("class_id"),
 			rs.getString("title"),
 			rs.getObject("question_count") != null ? rs.getInt("question_count") : null,
+			rs.getString("answer_key_pdf_path"),
 			AssignmentStatus.valueOf(rs.getString("status")),
 			rs.getTimestamp("created_at").toInstant());
 
@@ -76,6 +77,10 @@ public class HomeworkRepository {
 
 	public void updateQuestionCount(long homeworkId, int questionCount) {
 		jdbcTemplate.update("UPDATE homework SET question_count = ? WHERE homework_id = ?", questionCount, homeworkId);
+	}
+
+	public void updateAnswerKeyPdfPath(long homeworkId, String path) {
+		jdbcTemplate.update("UPDATE homework SET answer_key_pdf_path = ? WHERE homework_id = ?", path, homeworkId);
 	}
 
 	public void updateMetadata(long homeworkId, String title, Integer questionCount) {

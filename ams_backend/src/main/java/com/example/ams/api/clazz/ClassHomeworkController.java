@@ -2,6 +2,10 @@ package com.example.ams.api.clazz;
 
 import java.util.List;
 
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -9,15 +13,17 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.example.ams.api.dto.CreateHomeworkRequest;
-import com.example.ams.api.dto.GradeHomeworkSubmissionRequest;
 import com.example.ams.api.dto.HomeworkAnswerKeyResponse;
 import com.example.ams.api.dto.HomeworkResponse;
 import com.example.ams.api.dto.HomeworkSubmissionResponse;
+import com.example.ams.api.dto.RecordSubmissionResultRequest;
 import com.example.ams.api.dto.SaveAssignmentTargetRequest;
-import com.example.ams.api.dto.SaveHomeworkAnswerKeyRequest;
 import com.example.ams.api.dto.UpdateHomeworkSubmissionRequest;
 import com.example.ams.common.ApiResponse;
 import com.example.ams.domain.clazz.Homework;
@@ -65,19 +71,25 @@ public class ClassHomeworkController {
 
 	@GetMapping("/{homeworkId}/answer-keys")
 	public ApiResponse<HomeworkAnswerKeyResponse> getAnswerKeys(@PathVariable long homeworkId) {
-		var homework = homeworkService.getHomework(homeworkId);
-		return ApiResponse.ok(HomeworkAnswerKeyResponse.from(
-				homework, homeworkService.getAnswerKeys(homeworkId)));
+		return ApiResponse.ok(HomeworkAnswerKeyResponse.from(homeworkService.getHomework(homeworkId)));
 	}
 
-	@PutMapping("/{homeworkId}/answer-keys")
-	public ApiResponse<HomeworkAnswerKeyResponse> saveAnswerKeys(
+	@PostMapping(value = "/{homeworkId}/answer-keys", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public ApiResponse<HomeworkAnswerKeyResponse> uploadAnswerKey(
 			@PathVariable long homeworkId,
-			@Valid @RequestBody SaveHomeworkAnswerKeyRequest request) {
-		var homework = homeworkService.saveAnswerKeys(
-				homeworkId, request.questionCount(), request.answers());
-		return ApiResponse.ok(HomeworkAnswerKeyResponse.from(
-				homework, homeworkService.getAnswerKeys(homeworkId)));
+			@RequestPart("file") MultipartFile file,
+			@RequestParam("questionCount") int questionCount) {
+		Homework homework = homeworkService.uploadAnswerKeyPdf(homeworkId, questionCount, file);
+		return ApiResponse.ok(HomeworkAnswerKeyResponse.from(homework));
+	}
+
+	@GetMapping("/{homeworkId}/answer-keys/pdf")
+	public ResponseEntity<Resource> downloadAnswerKeyPdf(@PathVariable long homeworkId) {
+		Resource resource = homeworkService.loadAnswerKeyPdf(homeworkId);
+		return ResponseEntity.ok()
+				.header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"homework-" + homeworkId + "-answer-key.pdf\"")
+				.contentType(MediaType.APPLICATION_PDF)
+				.body(resource);
 	}
 
 	@GetMapping("/{homeworkId}/submissions")
@@ -109,11 +121,14 @@ public class ClassHomeworkController {
 	}
 
 	@PatchMapping("/{homeworkId}/submissions/{studentId}/grade")
-	public ApiResponse<HomeworkSubmissionResponse> gradeSubmission(
+	public ApiResponse<HomeworkSubmissionResponse> recordSubmissionResult(
 			@PathVariable long homeworkId,
 			@PathVariable long studentId,
-			@Valid @RequestBody GradeHomeworkSubmissionRequest request) {
-		homeworkService.gradeSubmission(homeworkId, studentId, request.answers());
+			@Valid @RequestBody RecordSubmissionResultRequest request) {
+		homeworkService.recordSubmissionResult(
+				homeworkId,
+				studentId,
+				request.wrongQuestionNos());
 		var row = homeworkService.listSubmissionRows(homeworkId).stream()
 				.filter(r -> r.studentId() == studentId)
 				.findFirst()

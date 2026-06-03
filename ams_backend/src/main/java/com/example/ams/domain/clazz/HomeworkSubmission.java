@@ -15,5 +15,6 @@ public record HomeworkSubmission(
 		String memo,
 		List<String> answers,
 		Integer correctCount,
+		List<Integer> wrongQuestionNos,
 		Instant completedAt) {
 }

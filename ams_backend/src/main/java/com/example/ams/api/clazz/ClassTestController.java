@@ -2,19 +2,24 @@ package com.example.ams.api.clazz;
 
 import java.util.List;
 
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.example.ams.api.dto.CreateTestRequest;
 import com.example.ams.api.dto.CreateTestRetakeRequest;
-import com.example.ams.api.dto.GradeHomeworkSubmissionRequest;
-import com.example.ams.api.dto.SaveHomeworkAnswerKeyRequest;
+import com.example.ams.api.dto.RecordSubmissionResultRequest;
 import com.example.ams.api.dto.TestAnswerKeyResponse;
 import com.example.ams.api.dto.TestExamResponse;
 import com.example.ams.api.dto.TestScoreResponse;
@@ -67,19 +72,25 @@ public class ClassTestController {
 
 	@GetMapping("/{testId}/answer-keys")
 	public ApiResponse<TestAnswerKeyResponse> getAnswerKeys(@PathVariable long testId) {
-		var test = testExamService.getTest(testId);
-		return ApiResponse.ok(TestAnswerKeyResponse.from(
-				test, testExamService.getAnswerKeys(testId)));
+		return ApiResponse.ok(testExamService.getAnswerKeyInfo(testId));
 	}
 
-	@PutMapping("/{testId}/answer-keys")
-	public ApiResponse<TestAnswerKeyResponse> saveAnswerKeys(
+	@PostMapping(value = "/{testId}/answer-keys", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public ApiResponse<TestAnswerKeyResponse> uploadAnswerKey(
 			@PathVariable long testId,
-			@Valid @RequestBody SaveHomeworkAnswerKeyRequest request) {
-		var test = testExamService.saveAnswerKeys(
-				testId, request.questionCount(), request.answers());
-		return ApiResponse.ok(TestAnswerKeyResponse.from(
-				test, testExamService.getAnswerKeys(testId)));
+			@RequestPart("file") MultipartFile file,
+			@RequestParam("questionCount") int questionCount) {
+		TestExam test = testExamService.uploadAnswerKeyPdf(testId, questionCount, file);
+		return ApiResponse.ok(TestAnswerKeyResponse.from(test));
+	}
+
+	@GetMapping("/{testId}/answer-keys/pdf")
+	public ResponseEntity<Resource> downloadAnswerKeyPdf(@PathVariable long testId) {
+		Resource resource = testExamService.loadAnswerKeyPdf(testId);
+		return ResponseEntity.ok()
+				.header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"test-" + testId + "-answer-key.pdf\"")
+				.contentType(MediaType.APPLICATION_PDF)
+				.body(resource);
 	}
 
 	@GetMapping("/{testId}/scores")
@@ -102,11 +113,14 @@ public class ClassTestController {
 	}
 
 	@PatchMapping("/{testId}/scores/{studentId}/grade")
-	public ApiResponse<TestScoreResponse> gradeScore(
+	public ApiResponse<TestScoreResponse> recordScoreResult(
 			@PathVariable long testId,
 			@PathVariable long studentId,
-			@Valid @RequestBody GradeHomeworkSubmissionRequest request) {
-		testExamService.gradeScore(testId, studentId, request.answers());
+			@Valid @RequestBody RecordSubmissionResultRequest request) {
+		testExamService.recordScoreResult(
+				testId,
+				studentId,
+				request.wrongQuestionNos());
 		TestExam test = testExamService.getTest(testId);
 		var row = testExamService.listScoreRows(testId).stream()
 				.filter(r -> r.studentId() == studentId)

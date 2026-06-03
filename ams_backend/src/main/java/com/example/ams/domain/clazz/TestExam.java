@@ -14,6 +14,7 @@ public record TestExam(
 		Instant createdAt,
 		Integer questionCount,
 		Integer retakeThresholdCount,
+		String answerKeyPdfPath,
 		Long parentTestId,
 		int retakeAttemptNo) {
 

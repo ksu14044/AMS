@@ -15,8 +15,8 @@ public record HomeworkSubmissionResponse(
 		BigDecimal score,
 		String grade,
 		String memo,
-		List<String> answers,
 		Integer correctCount,
+		List<Integer> wrongQuestionNos,
 		Instant completedAt) {
 
 	public static HomeworkSubmissionResponse from(SubmissionRow row) {
@@ -29,8 +29,8 @@ public record HomeworkSubmissionResponse(
 				s.score(),
 				s.grade(),
 				s.memo(),
-				s.answers(),
 				s.correctCount(),
+				s.wrongQuestionNos(),
 				s.completedAt());
 	}
 }

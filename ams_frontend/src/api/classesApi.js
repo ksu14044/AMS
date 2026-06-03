@@ -1,4 +1,6 @@
-import { apiRequest } from './client'
+import { apiRequest, fetchWithAuth } from './client'
+
+const API_BASE = '/api/v1'
 
 /** 역할별 반 목록 (담임·학생·관리자 등) */
 export function fetchClasses() {
@@ -265,11 +267,23 @@ export function fetchHomeworkAnswerKeys(classId, homeworkId) {
   return apiRequest(`/classes/${classId}/homeworks/${homeworkId}/answer-keys`)
 }
 
-export function saveHomeworkAnswerKeys(classId, homeworkId, payload) {
-  return apiRequest(`/classes/${classId}/homeworks/${homeworkId}/answer-keys`, {
-    method: 'PUT',
-    body: JSON.stringify(payload),
+export async function uploadHomeworkAnswerKey(classId, homeworkId, file, questionCount) {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('questionCount', String(questionCount))
+  const response = await fetchWithAuth(`${API_BASE}/classes/${classId}/homeworks/${homeworkId}/answer-keys`, {
+    method: 'POST',
+    body: formData,
   })
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok || body.success === false) {
+    throw new Error(body.message || '정답지 업로드에 실패했습니다.')
+  }
+  return body.data
+}
+
+export function homeworkAnswerKeyPdfPath(classId, homeworkId) {
+  return `/classes/${classId}/homeworks/${homeworkId}/answer-keys/pdf`
 }
 
 export function gradeHomeworkSubmission(classId, homeworkId, studentId, payload) {
@@ -298,11 +312,23 @@ export function fetchTestAnswerKeys(classId, testId) {
   return apiRequest(`/classes/${classId}/tests/${testId}/answer-keys`)
 }
 
-export function saveTestAnswerKeys(classId, testId, payload) {
-  return apiRequest(`/classes/${classId}/tests/${testId}/answer-keys`, {
-    method: 'PUT',
-    body: JSON.stringify(payload),
+export async function uploadTestAnswerKey(classId, testId, file, questionCount) {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('questionCount', String(questionCount))
+  const response = await fetchWithAuth(`${API_BASE}/classes/${classId}/tests/${testId}/answer-keys`, {
+    method: 'POST',
+    body: formData,
   })
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok || body.success === false) {
+    throw new Error(body.message || '정답지 업로드에 실패했습니다.')
+  }
+  return body.data
+}
+
+export function testAnswerKeyPdfPath(classId, testId) {
+  return `/classes/${classId}/tests/${testId}/answer-keys/pdf`
 }
 
 export function gradeTestScore(classId, testId, studentId, payload) {

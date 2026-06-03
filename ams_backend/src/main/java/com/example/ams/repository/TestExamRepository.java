@@ -28,6 +28,7 @@ public class TestExamRepository {
 			rs.getTimestamp("created_at").toInstant(),
 			rs.getObject("question_count") != null ? rs.getInt("question_count") : null,
 			rs.getObject("retake_threshold_count") != null ? rs.getInt("retake_threshold_count") : null,
+			rs.getString("answer_key_pdf_path"),
 			rs.getObject("parent_test_id") != null ? rs.getLong("parent_test_id") : null,
 			rs.getInt("retake_attempt_no"));
 
@@ -151,6 +152,10 @@ public class TestExamRepository {
 
 	public void updateQuestionCount(long testId, int questionCount) {
 		jdbcTemplate.update("UPDATE test SET question_count = ? WHERE test_id = ?", questionCount, testId);
+	}
+
+	public void updateAnswerKeyPdfPath(long testId, String path) {
+		jdbcTemplate.update("UPDATE test SET answer_key_pdf_path = ? WHERE test_id = ?", path, testId);
 	}
 
 	public void updateMetadata(long testId, String title, Integer questionCount, Integer retakeThresholdCount) {

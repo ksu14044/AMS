@@ -719,6 +719,45 @@
   min-width: 120px;
 }
 
+.ams-homework-modal__field--file input[type='file'] {
+  width: 100%;
+  font-size: 0.875rem;
+}
+
+.ams-wrong-question-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 8px;
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.ams-wrong-question-grid__item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 40px;
+  padding: 6px 8px;
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-sm);
+  font-size: 0.875rem;
+  background: var(--ams-color-surface);
+}
+
+.ams-wrong-question-grid__item--wrong {
+  border-color: var(--ams-color-primary);
+  background: var(--ams-color-primary-light);
+  color: var(--ams-color-primary);
+  font-weight: var(--ams-font-weight-medium);
+}
+
+.ams-wrong-question-grid__item--readonly {
+  display: block;
+  text-align: center;
+}
+
 .ams-homework-answer-key {
   margin: 16px 0;
   padding: 12px;

@@ -10,16 +10,17 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import com.example.ams.api.dto.TestAnswerKeyResponse;
 import com.example.ams.common.BusinessException;
 import com.example.ams.common.ErrorCode;
-import com.example.ams.common.HomeworkAnswersJson;
 import com.example.ams.domain.clazz.AssignmentEntityType;
 import com.example.ams.domain.clazz.AssignmentStatus;
 import com.example.ams.domain.clazz.Clazz;
-import com.example.ams.domain.clazz.TestAnswerKey;
 import com.example.ams.domain.clazz.TestExam;
 import com.example.ams.domain.clazz.TestScore;
 import com.example.ams.domain.user.User;
@@ -28,7 +29,6 @@ import com.example.ams.event.TestExamCreatedEvent;
 import com.example.ams.event.TestResultUpdatedEvent;
 import com.example.ams.repository.ClassEnrollmentRepository;
 import com.example.ams.repository.LessonRecordRepository;
-import com.example.ams.repository.TestAnswerKeyRepository;
 import com.example.ams.repository.TestExamRepository;
 import com.example.ams.repository.TestScoreRepository;
 import com.example.ams.repository.UserRepository;
@@ -41,35 +41,35 @@ public class TestExamService {
 
 	private final TestExamRepository testRepository;
 	private final TestScoreRepository scoreRepository;
-	private final TestAnswerKeyRepository answerKeyRepository;
 	private final LessonRecordRepository lessonRecordRepository;
 	private final ClassEnrollmentRepository enrollmentRepository;
 	private final UserRepository userRepository;
 	private final ClassAccessService classAccessService;
 	private final CurrentUserService currentUserService;
 	private final AssignmentTargetService assignmentTargetService;
+	private final AnswerKeyPdfStorageService answerKeyPdfStorageService;
 	private final ApplicationEventPublisher eventPublisher;
 
 	public TestExamService(
 			TestExamRepository testRepository,
 			TestScoreRepository scoreRepository,
-			TestAnswerKeyRepository answerKeyRepository,
 			LessonRecordRepository lessonRecordRepository,
 			ClassEnrollmentRepository enrollmentRepository,
 			UserRepository userRepository,
 			ClassAccessService classAccessService,
 			CurrentUserService currentUserService,
 			AssignmentTargetService assignmentTargetService,
+			AnswerKeyPdfStorageService answerKeyPdfStorageService,
 			ApplicationEventPublisher eventPublisher) {
 		this.testRepository = testRepository;
 		this.scoreRepository = scoreRepository;
-		this.answerKeyRepository = answerKeyRepository;
 		this.lessonRecordRepository = lessonRecordRepository;
 		this.enrollmentRepository = enrollmentRepository;
 		this.userRepository = userRepository;
 		this.classAccessService = classAccessService;
 		this.currentUserService = currentUserService;
 		this.assignmentTargetService = assignmentTargetService;
+		this.answerKeyPdfStorageService = answerKeyPdfStorageService;
 		this.eventPublisher = eventPublisher;
 	}
 
@@ -132,6 +132,86 @@ public class TestExamService {
 				.orElseThrow(() -> new BusinessException(ErrorCode.TEST_NOT_FOUND));
 		classAccessService.requireReadableClass(test.classId());
 		return test;
+	}
+
+	@Transactional
+	public TestExam uploadAnswerKeyPdf(long testId, int questionCount, MultipartFile file) {
+		TestExam test = getTest(testId);
+		if (test.isRetake()) {
+			throw new BusinessException(ErrorCode.INVALID_REQUEST, "재시험에는 정답지를 등록할 수 없습니다.");
+		}
+		Clazz clazz = classAccessService.requireReadableClass(test.classId());
+		classAccessService.requireEditClassContent(clazz);
+		if (questionCount <= 0) {
+			throw new BusinessException(ErrorCode.INVALID_REQUEST, "문항 수를 1 이상 입력하세요.");
+		}
+		String path = answerKeyPdfStorageService.storeTestAnswerKey(
+				clazz.academyId(), test.classId(), testId, file);
+		answerKeyPdfStorageService.deleteIfExists(test.answerKeyPdfPath());
+		testRepository.updateAnswerKeyPdfPath(testId, path);
+		testRepository.updateQuestionCount(testId, questionCount);
+		return testRepository.findById(testId).orElseThrow();
+	}
+
+	public Resource loadAnswerKeyPdf(long testId) {
+		TestExam test = getTest(testId);
+		classAccessService.requireReadableClass(test.classId());
+		TestExam source = resolveAnswerKeySource(test);
+		return answerKeyPdfStorageService.load(source.answerKeyPdfPath());
+	}
+
+	private TestExam resolveAnswerKeySource(TestExam test) {
+		if (!test.isRetake()) {
+			return test;
+		}
+		TestExam root = testRepository.findById(test.rootTestId()).orElseThrow();
+		if (root.answerKeyPdfPath() == null || root.answerKeyPdfPath().isBlank()) {
+			throw new BusinessException(ErrorCode.INVALID_REQUEST, "본시험 정답지가 등록되지 않았습니다.");
+		}
+		return root;
+	}
+
+	@Transactional
+	public TestScore recordScoreResult(
+			long testId,
+			long studentId,
+			List<Integer> wrongQuestionNos) {
+		TestExam test = getTest(testId);
+		Clazz clazz = classAccessService.requireReadableClass(test.classId());
+		classAccessService.requireEditClassContent(clazz);
+		TestExam answerKeySource = test.isRetake() ? resolveAnswerKeySource(test) : test;
+		if (answerKeySource.answerKeyPdfPath() == null || answerKeySource.answerKeyPdfPath().isBlank()) {
+			throw new BusinessException(ErrorCode.INVALID_REQUEST, "정답지를 먼저 업로드하세요.");
+		}
+		if (!enrollmentRepository.existsByClassIdAndStudentId(test.classId(), studentId)) {
+			throw new BusinessException(ErrorCode.INVALID_REQUEST, "수강생만 결과를 입력할 수 있습니다.");
+		}
+		Integer questionCount = test.questionCount();
+		if (questionCount == null || questionCount <= 0) {
+			throw new BusinessException(ErrorCode.INVALID_REQUEST, "문항 수가 설정되지 않았습니다.");
+		}
+		SubmissionResultValidator.Result result = SubmissionResultValidator.fromWrongQuestions(
+				questionCount, wrongQuestionNos);
+		int correctCount = result.correctCount();
+		List<Integer> normalizedWrong = result.wrongQuestionNos();
+		BigDecimal rawScore = HomeworkScoreCalculator.computeScore(questionCount, correctCount);
+		var existing = scoreRepository.findByTestIdAndStudentId(testId, studentId).orElse(null);
+		TestScore updated = scoreRepository.upsertGraded(
+				testId,
+				studentId,
+				correctCount,
+				normalizedWrong,
+				rawScore,
+				Instant.now());
+		if (test.status() == AssignmentStatus.COMPLETED) {
+			refreshRanksAndClassAverage(testId);
+			updated = scoreRepository.findByTestIdAndStudentId(testId, studentId).orElseThrow();
+		}
+		if (shouldNotifyGradedResult(existing, rawScore)) {
+			eventPublisher.publishEvent(new TestResultUpdatedEvent(
+					test.classId(), testId, studentId, test.title()));
+		}
+		return updated;
 	}
 
 	public List<ScoreRow> listScoreRows(long testId) {
@@ -229,6 +309,17 @@ public class TestExamService {
 		return test;
 	}
 
+	public TestAnswerKeyResponse getAnswerKeyInfo(long testId) {
+		TestExam test = getTest(testId);
+		TestExam source = test;
+		if (test.isRetake()) {
+			source = testRepository.findById(test.rootTestId()).orElseThrow();
+		}
+		int count = test.questionCount() != null ? test.questionCount() : 0;
+		boolean hasFile = source.answerKeyPdfPath() != null && !source.answerKeyPdfPath().isBlank();
+		return new TestAnswerKeyResponse(count, hasFile);
+	}
+
 	@Transactional
 	public TestExam createRetake(long testId, Instant testAt) {
 		TestExam reference = getTest(testId);
@@ -271,74 +362,6 @@ public class TestExamService {
 		}
 		eventPublisher.publishEvent(new TestExamCreatedEvent(root.classId(), retake.testId(), title));
 		return retake;
-	}
-
-	public List<TestAnswerKey> getAnswerKeys(long testId) {
-		TestExam test = getTest(testId);
-		return answerKeyRepository.findByTestId(test.testId());
-	}
-
-	@Transactional
-	public TestExam saveAnswerKeys(long testId, int questionCount, List<String> answers) {
-		TestExam test = getTest(testId);
-		classAccessService.requireEditClassContent(
-				classAccessService.requireReadableClass(test.classId()));
-		if (answers.size() != questionCount) {
-			throw new BusinessException(ErrorCode.INVALID_REQUEST, "정답 개수가 문항 수와 일치하지 않습니다.");
-		}
-		List<TestAnswerKey> keys = new ArrayList<>();
-		for (int i = 0; i < questionCount; i++) {
-			String answer = answers.get(i);
-			if (answer == null || answer.isBlank()) {
-				throw new BusinessException(ErrorCode.INVALID_REQUEST, (i + 1) + "번 문항 정답을 입력하세요.");
-			}
-			keys.add(new TestAnswerKey(testId, i + 1, answer.trim()));
-		}
-		answerKeyRepository.replaceAll(testId, keys);
-		testRepository.updateQuestionCount(testId, questionCount);
-		return testRepository.findById(testId).orElseThrow();
-	}
-
-	@Transactional
-	public TestScore gradeScore(long testId, long studentId, List<String> answers) {
-		TestExam test = getTest(testId);
-		Clazz clazz = classAccessService.requireReadableClass(test.classId());
-		classAccessService.requireEditClassContent(clazz);
-		if (!enrollmentRepository.existsByClassIdAndStudentId(test.classId(), studentId)) {
-			throw new BusinessException(ErrorCode.INVALID_REQUEST, "수강생만 채점할 수 있습니다.");
-		}
-		Integer questionCount = test.questionCount();
-		if (questionCount == null || questionCount <= 0) {
-			throw new BusinessException(ErrorCode.INVALID_REQUEST, "문항 수가 설정되지 않았습니다.");
-		}
-		List<TestAnswerKey> keys = answerKeyRepository.findByTestId(testId);
-		if (keys.isEmpty()) {
-			throw new BusinessException(ErrorCode.INVALID_REQUEST, "정답지를 먼저 저장하세요.");
-		}
-		List<String> correctAnswers = keys.stream()
-				.sorted(java.util.Comparator.comparingInt(TestAnswerKey::questionNo))
-				.map(TestAnswerKey::correctAnswer)
-				.toList();
-		List<String> normalizedAnswers = HomeworkAnswersJson.normalizeToCount(answers, questionCount);
-		int correctCount = HomeworkScoreCalculator.countCorrect(normalizedAnswers, correctAnswers);
-		BigDecimal rawScore = HomeworkScoreCalculator.computeScore(questionCount, correctCount);
-		var existing = scoreRepository.findByTestIdAndStudentId(testId, studentId).orElse(null);
-		TestScore updated = scoreRepository.upsertGraded(
-				testId,
-				studentId,
-				normalizedAnswers,
-				correctCount,
-				rawScore,
-				Instant.now());
-		if (test.status() == AssignmentStatus.COMPLETED) {
-			refreshRanksAndClassAverage(testId);
-			updated = scoreRepository.findByTestIdAndStudentId(testId, studentId).orElseThrow();
-		}
-		if (shouldNotifyGradedResult(existing, rawScore)) {
-			eventPublisher.publishEvent(new TestResultUpdatedEvent(
-					test.classId(), testId, studentId, test.title()));
-		}
-		return updated;
 	}
 
 	@Transactional
@@ -517,7 +540,7 @@ public class TestExamService {
 		}
 		assignmentTargetService.clearTargets(AssignmentEntityType.TEST, testId);
 		scoreRepository.deleteByTestId(testId);
-		answerKeyRepository.deleteByTestId(testId);
+		answerKeyPdfStorageService.deleteIfExists(test.answerKeyPdfPath());
 		testRepository.deleteById(testId);
 	}
 

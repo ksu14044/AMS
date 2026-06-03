@@ -8,7 +8,7 @@ import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-import com.example.ams.common.HomeworkAnswersJson;
+import com.example.ams.common.WrongQuestionNosJson;
 import com.example.ams.domain.clazz.TestScore;
 
 @Repository
@@ -21,11 +21,6 @@ public class TestScoreRepository {
 	}
 
 	private TestScore mapRow(java.sql.ResultSet rs, int rowNum) throws java.sql.SQLException {
-		String answersJson = rs.getString("answers");
-		Integer questionCount = rs.getObject("question_count") != null
-				? rs.getInt("question_count")
-				: null;
-		int count = questionCount != null ? questionCount : 0;
 		return new TestScore(
 				rs.getLong("score_id"),
 				rs.getLong("test_id"),
@@ -36,8 +31,9 @@ public class TestScoreRepository {
 				rs.getObject("rank") != null ? rs.getInt("rank") : null,
 				rs.getObject("upper_rank_pct") != null ? rs.getInt("upper_rank_pct") : null,
 				rs.getObject("percentile_rank") != null ? rs.getInt("percentile_rank") : null,
-				HomeworkAnswersJson.fromJson(answersJson, count),
+				null,
 				rs.getObject("correct_count") != null ? rs.getInt("correct_count") : null,
+				WrongQuestionNosJson.fromJson(rs.getString("wrong_question_nos")),
 				rs.getTimestamp("graded_at") != null ? rs.getTimestamp("graded_at").toInstant() : null);
 	}
 
@@ -114,8 +110,8 @@ public class TestScoreRepository {
 	public TestScore upsertGraded(
 			long testId,
 			long studentId,
-			List<String> answers,
 			int correctCount,
+			List<Integer> wrongQuestionNos,
 			BigDecimal rawScore,
 			Instant gradedAt) {
 		if (findByTestIdAndStudentId(testId, studentId).isEmpty()) {
@@ -124,11 +120,12 @@ public class TestScoreRepository {
 		jdbcTemplate.update(
 				"""
 						UPDATE test_score
-						SET answers = ?, correct_count = ?, raw_score = ?, graded_at = ?
+						SET answers = NULL, correct_count = ?, wrong_question_nos = ?,
+						    raw_score = ?, graded_at = ?
 						WHERE test_id = ? AND student_id = ?
 						""",
-				HomeworkAnswersJson.toJson(answers),
 				correctCount,
+				WrongQuestionNosJson.toJson(wrongQuestionNos),
 				rawScore,
 				gradedAt != null ? java.sql.Timestamp.from(gradedAt) : null,
 				testId,

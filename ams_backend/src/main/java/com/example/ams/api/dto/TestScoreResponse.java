@@ -17,8 +17,8 @@ public record TestScoreResponse(
 		String grade,
 		BigDecimal classAvg,
 		Integer rank,
-		List<String> answers,
 		Integer correctCount,
+		List<Integer> wrongQuestionNos,
 		Instant gradedAt,
 		Boolean needsRetake) {
 
@@ -31,8 +31,8 @@ public record TestScoreResponse(
 				s.grade(),
 				s.classAvg(),
 				s.rank(),
-				s.answers(),
 				s.correctCount(),
+				s.wrongQuestionNos(),
 				s.gradedAt(),
 				resolveNeedsRetake(test, s));
 	}

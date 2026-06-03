@@ -11,7 +11,7 @@ import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
-import com.example.ams.common.HomeworkAnswersJson;
+import com.example.ams.common.WrongQuestionNosJson;
 import com.example.ams.domain.clazz.HomeworkSubmission;
 
 @Repository
@@ -24,11 +24,6 @@ public class HomeworkSubmissionRepository {
 	}
 
 	private HomeworkSubmission mapRow(java.sql.ResultSet rs, int rowNum) throws java.sql.SQLException {
-		String answersJson = rs.getString("answers");
-		Integer questionCount = rs.getObject("question_count") != null
-				? rs.getInt("question_count")
-				: null;
-		int count = questionCount != null ? questionCount : 0;
 		return new HomeworkSubmission(
 				rs.getLong("submission_id"),
 				rs.getLong("homework_id"),
@@ -38,8 +33,9 @@ public class HomeworkSubmissionRepository {
 				rs.getBigDecimal("score"),
 				rs.getString("grade"),
 				rs.getString("memo"),
-				HomeworkAnswersJson.fromJson(answersJson, count),
+				null,
 				rs.getObject("correct_count") != null ? rs.getInt("correct_count") : null,
+				WrongQuestionNosJson.fromJson(rs.getString("wrong_question_nos")),
 				rs.getTimestamp("completed_at") != null ? rs.getTimestamp("completed_at").toInstant() : null);
 	}
 
@@ -123,8 +119,8 @@ public class HomeworkSubmissionRepository {
 	public HomeworkSubmission upsertGraded(
 			long homeworkId,
 			long studentId,
-			List<String> answers,
 			int correctCount,
+			List<Integer> wrongQuestionNos,
 			BigDecimal score,
 			Instant completedAt) {
 		if (findByHomeworkIdAndStudentId(homeworkId, studentId).isEmpty()) {
@@ -133,11 +129,12 @@ public class HomeworkSubmissionRepository {
 		jdbcTemplate.update(
 				"""
 						UPDATE homework_submission
-						SET answers = ?, correct_count = ?, score = ?, submitted = ?, completed_at = ?
+						SET answers = NULL, correct_count = ?, wrong_question_nos = ?,
+						    score = ?, submitted = ?, completed_at = ?
 						WHERE homework_id = ? AND student_id = ?
 						""",
-				HomeworkAnswersJson.toJson(answers),
 				correctCount,
+				WrongQuestionNosJson.toJson(wrongQuestionNos),
 				score,
 				score != null,
 				completedAt != null ? java.sql.Timestamp.from(completedAt) : null,

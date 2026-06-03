@@ -7,6 +7,7 @@ public record Homework(
 		long classId,
 		String title,
 		Integer questionCount,
+		String answerKeyPdfPath,
 		AssignmentStatus status,
 		Instant createdAt) {
 }

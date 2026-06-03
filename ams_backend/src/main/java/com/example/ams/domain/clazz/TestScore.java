@@ -16,5 +16,6 @@ public record TestScore(
 		Integer percentileRank,
 		List<String> answers,
 		Integer correctCount,
+		List<Integer> wrongQuestionNos,
 		Instant gradedAt) {
 }

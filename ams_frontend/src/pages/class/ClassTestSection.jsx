@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
+  AnswerKeyFileField,
+  AnswerKeyUploadModal,
+  openAnswerKeyPdf,
+  SubmissionResultModal,
+} from '../../components/AssignmentGradingModals'
+import {
   completeTest,
   createTest,
   createTestRetake,
@@ -7,8 +13,9 @@ import {
   fetchTestScores,
   fetchTests,
   gradeTestScore,
-  saveTestAnswerKeys,
+  testAnswerKeyPdfPath,
   toInstant,
+  uploadTestAnswerKey,
 } from '../../api/classesApi'
 import StudentTargetPicker from '../../components/StudentTargetPicker'
 import {
@@ -19,199 +26,13 @@ import {
 
 const STATUS_LABEL = { SCHEDULED: '예정', COMPLETED: '완료' }
 
-function emptyAnswers(count) {
-  return Array.from({ length: Math.max(count, 0) }, () => '')
-}
-
-function answersFromKeyResponse(data) {
-  const count = data?.questionCount ?? 0
-  const items = data?.items ?? []
-  const answers = emptyAnswers(count)
-  for (const item of items) {
-    const idx = item.questionNo - 1
-    if (idx >= 0 && idx < answers.length) {
-      answers[idx] = item.correctAnswer ?? ''
-    }
-  }
-  return answers
-}
-
-function answersFromRow(row, count) {
-  if (Array.isArray(row?.answers) && row.answers.length > 0) {
-    const normalized = emptyAnswers(count)
-    for (let i = 0; i < count; i++) {
-      normalized[i] = row.answers[i] ?? ''
-    }
-    return normalized
-  }
-  return emptyAnswers(count)
-}
-
-function answersEqual(a, b) {
-  if (!a || !b || a.length !== b.length) return false
-  return a.every((value, index) => (value ?? '') === (b[index] ?? ''))
-}
-
-function TestModalBackdrop({ wide, label, onClose, children }) {
+function TestModalBackdrop({ label, onClose, children }) {
   return (
     <div className="ams-homework-modal-backdrop" onClick={onClose}>
-      <div
-        className={`ams-homework-modal${wide ? ' ams-homework-modal--wide' : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-label={label}
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="ams-homework-modal" role="dialog" aria-modal="true" aria-label={label} onClick={(e) => e.stopPropagation()}>
         {children}
       </div>
     </div>
-  )
-}
-
-function AnswerKeyModal({
-  testTitle,
-  questionCount,
-  answerKeyDraft,
-  submitting,
-  answerKeyDirty,
-  onQuestionCountChange,
-  onAnswerChange,
-  onSave,
-  onClose,
-}) {
-  return (
-    <TestModalBackdrop label="정답지 설정" onClose={onClose}>
-      <header className="ams-homework-modal__header">
-        <h4 className="ams-homework-modal__title">정답지 설정</h4>
-        <button type="button" className="ams-homework-modal__close" onClick={onClose} aria-label="닫기">
-          ×
-        </button>
-      </header>
-      <p className="ams-homework-modal__meta">{testTitle}</p>
-
-      <form className="ams-homework-modal__body" onSubmit={onSave}>
-        <label className="ams-homework-modal__count">
-          문항 수
-          <input
-            type="number"
-            min={1}
-            value={questionCount || ''}
-            disabled={submitting}
-            onChange={(e) => onQuestionCountChange(e.target.value)}
-          />
-        </label>
-
-        {questionCount > 0 && (
-          <div className="ams-homework-modal__grid">
-            {Array.from({ length: questionCount }, (_, i) => (
-              <label key={i} className="ams-homework-modal__field">
-                <span>{i + 1}번 정답</span>
-                <input
-                  type="text"
-                  maxLength={500}
-                  value={answerKeyDraft.answers[i] ?? ''}
-                  disabled={submitting}
-                  onChange={(e) => onAnswerChange(i, e.target.value)}
-                />
-              </label>
-            ))}
-          </div>
-        )}
-
-        <footer className="ams-homework-modal__footer">
-          <button type="button" className="ams-btn ams-btn--ghost" disabled={submitting} onClick={onClose}>
-            취소
-          </button>
-          <button
-            type="submit"
-            className="ams-btn ams-btn--primary"
-            disabled={submitting || !answerKeyDirty || questionCount <= 0}
-          >
-            {submitting ? '저장 중…' : '정답지 저장'}
-          </button>
-        </footer>
-      </form>
-    </TestModalBackdrop>
-  )
-}
-
-function GradeModal({
-  studentName,
-  testTitle,
-  questionCount,
-  correctAnswers,
-  draft,
-  canManage,
-  grading,
-  dirty,
-  onDraftChange,
-  onGrade,
-  onClose,
-}) {
-  return (
-    <TestModalBackdrop wide label={`${studentName} 답안`} onClose={onClose}>
-      <header className="ams-homework-modal__header">
-        <h4 className="ams-homework-modal__title">{canManage ? '답안 입력·채점' : '내 답안'}</h4>
-        <button type="button" className="ams-homework-modal__close" onClick={onClose} aria-label="닫기">
-          ×
-        </button>
-      </header>
-      <p className="ams-homework-modal__meta">
-        {studentName} · {testTitle}
-      </p>
-
-      <div className="ams-homework-modal__body">
-        <table className="ams-homework-grade-table">
-          <thead>
-            <tr>
-              <th>문항</th>
-              {canManage && correctAnswers.length > 0 && <th>정답</th>}
-              <th>{canManage ? '학생 답안' : '답안'}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Array.from({ length: questionCount }, (_, i) => (
-              <tr key={i}>
-                <td>{i + 1}번</td>
-                {canManage && correctAnswers.length > 0 && (
-                  <td className="ams-homework-grade-table__correct">{correctAnswers[i] || '—'}</td>
-                )}
-                <td>
-                  {canManage ? (
-                    <input
-                      type="text"
-                      className="ams-homework-grade-table__input"
-                      maxLength={500}
-                      value={draft[i] ?? ''}
-                      disabled={grading}
-                      onChange={(e) => onDraftChange(i, e.target.value)}
-                    />
-                  ) : (
-                    <span>{draft[i]?.trim() ? draft[i] : '—'}</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <footer className="ams-homework-modal__footer">
-        <button type="button" className="ams-btn ams-btn--ghost" disabled={grading} onClick={onClose}>
-          {canManage ? '취소' : '닫기'}
-        </button>
-        {canManage && (
-          <button
-            type="button"
-            className="ams-btn ams-btn--primary"
-            disabled={grading || !dirty}
-            onClick={onGrade}
-          >
-            {grading ? '채점 중…' : '채점'}
-          </button>
-        )}
-      </footer>
-    </TestModalBackdrop>
   )
 }
 
@@ -225,14 +46,11 @@ export default function ClassTestSection({ classId, canManage, verifyOnly = fals
   const [selectedId, setSelectedId] = useState('')
   const [scores, setScores] = useState([])
   const [questionCount, setQuestionCount] = useState(0)
-  const [answerKeyDraft, setAnswerKeyDraft] = useState({ questionCount: 0, answers: [] })
-  const [savedAnswerKey, setSavedAnswerKey] = useState({ questionCount: 0, answers: [] })
-  const [studentAnswerDraft, setStudentAnswerDraft] = useState({})
+  const [hasAnswerKeyFile, setHasAnswerKeyFile] = useState(false)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [grading, setGrading] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [modal, setModal] = useState(null)
-  const [gradeModalDraft, setGradeModalDraft] = useState([])
   const [retakeOpen, setRetakeOpen] = useState(false)
   const [retakeForm, setRetakeForm] = useState({ testDate: '', testTime: '14:00' })
   const [form, setForm] = useState({
@@ -242,6 +60,7 @@ export default function ClassTestSection({ classId, canManage, verifyOnly = fals
     questionCount: '',
     retakeThresholdCount: '',
   })
+  const [createAnswerKeyFile, setCreateAnswerKeyFile] = useState(null)
   const [createTarget, setCreateTarget] = useState(() => createInitialTarget(true))
 
   const selectedTest = useMemo(
@@ -257,18 +76,12 @@ export default function ClassTestSection({ classId, canManage, verifyOnly = fals
     ? tests.filter((t) => t.parentTestId === rootTest.testId).length
     : 0
 
-  const hasAnswerKey = savedAnswerKey.answers.some((a) => a.trim() !== '')
+  const isRetake = Boolean(selectedTest?.parentTestId)
 
-  const gradingStudent = useMemo(() => {
-    if (modal?.type !== 'grade') return null
+  const resultStudent = useMemo(() => {
+    if (modal?.type !== 'result') return null
     return scores.find((s) => s.studentId === modal.studentId) ?? null
   }, [modal, scores])
-
-  const gradeModalDirty = useMemo(() => {
-    if (!gradingStudent) return false
-    const saved = answersFromRow(gradingStudent, questionCount)
-    return !answersEqual(saved, gradeModalDraft)
-  }, [gradingStudent, questionCount, gradeModalDraft])
 
   const canScheduleRetake =
     canManage &&
@@ -291,36 +104,25 @@ export default function ClassTestSection({ classId, canManage, verifyOnly = fals
     }
   }, [classId, selectedId])
 
-  const loadAnswerKeys = useCallback(async () => {
+  const loadAnswerKeyMeta = useCallback(async () => {
     if (!selectedId) {
       setQuestionCount(0)
-      setAnswerKeyDraft({ questionCount: 0, answers: [] })
-      setSavedAnswerKey({ questionCount: 0, answers: [] })
+      setHasAnswerKeyFile(false)
       return
     }
     const data = await fetchTestAnswerKeys(classId, selectedId)
-    const count = data.questionCount || selectedTest?.questionCount || 0
-    const answers = answersFromKeyResponse(data)
-    setQuestionCount(count)
-    setAnswerKeyDraft({ questionCount: count, answers: [...answers] })
-    setSavedAnswerKey({ questionCount: count, answers: [...answers] })
+    setQuestionCount(data.questionCount || selectedTest?.questionCount || 0)
+    setHasAnswerKeyFile(Boolean(data.hasAnswerKeyFile))
   }, [classId, selectedId, selectedTest?.questionCount])
 
   const loadScores = useCallback(async () => {
     if (!selectedId) {
       setScores([])
-      setStudentAnswerDraft({})
       return
     }
     const rows = await fetchTestScores(classId, selectedId)
     setScores(rows)
-    const count = questionCount || selectedTest?.questionCount || 0
-    const draft = {}
-    for (const row of rows) {
-      draft[row.studentId] = answersFromRow(row, count)
-    }
-    setStudentAnswerDraft(draft)
-  }, [classId, selectedId, questionCount, selectedTest?.questionCount])
+  }, [classId, selectedId])
 
   useEffect(() => {
     ;(async () => {
@@ -337,15 +139,8 @@ export default function ClassTestSection({ classId, canManage, verifyOnly = fals
   }, [loadTests, onError])
 
   useEffect(() => {
-    ;(async () => {
-      onError('')
-      try {
-        await loadAnswerKeys()
-      } catch (err) {
-        onError(err.message)
-      }
-    })()
-  }, [loadAnswerKeys, onError])
+    loadAnswerKeyMeta().catch((err) => onError(err.message))
+  }, [loadAnswerKeyMeta, onError])
 
   useEffect(() => {
     loadScores().catch((err) => onError(err.message))
@@ -353,74 +148,17 @@ export default function ClassTestSection({ classId, canManage, verifyOnly = fals
 
   useEffect(() => {
     setModal(null)
-    setGradeModalDraft([])
   }, [selectedId])
 
-  function resetAnswerKeyDraft() {
-    setQuestionCount(savedAnswerKey.questionCount)
-    setAnswerKeyDraft({
-      questionCount: savedAnswerKey.questionCount,
-      answers: [...savedAnswerKey.answers],
-    })
-  }
-
-  function openAnswerKeyModal() {
-    resetAnswerKeyDraft()
-    setModal({ type: 'answer-key' })
-  }
-
-  function closeAnswerKeyModal() {
-    resetAnswerKeyDraft()
-    setModal(null)
-  }
-
-  function openGradeModal(studentId) {
-    const answers = studentAnswerDraft[studentId] ?? emptyAnswers(questionCount)
-    setGradeModalDraft([...answers])
-    setModal({ type: 'grade', studentId })
-  }
-
-  function closeGradeModal() {
-    setModal(null)
-    setGradeModalDraft([])
-  }
-
-  function handleQuestionCountChange(value) {
-    const count = Math.max(0, Number(value) || 0)
-    setQuestionCount(count)
-    setAnswerKeyDraft((prev) => ({
-      questionCount: count,
-      answers: emptyAnswers(count).map((_, i) => prev.answers[i] ?? ''),
-    }))
-  }
-
-  function handleAnswerKeyChange(index, value) {
-    setAnswerKeyDraft((prev) => {
-      const answers = [...prev.answers]
-      answers[index] = value
-      return { ...prev, answers }
-    })
-  }
-
-  async function handleSaveAnswerKey(e) {
-    e.preventDefault()
-    if (questionCount <= 0) {
-      onError('문항 수를 1 이상 입력하세요.')
-      return
-    }
+  async function handleUploadAnswerKey(file, count) {
+    const uploadTestId = isRetake ? rootTest?.testId : selectedId
+    if (!uploadTestId) return
     setSubmitting(true)
     onError('')
     try {
-      const saved = await saveTestAnswerKeys(classId, selectedId, {
-        questionCount,
-        answers: answerKeyDraft.answers,
-      })
-      const answers = answersFromKeyResponse(saved)
-      setQuestionCount(saved.questionCount)
-      setAnswerKeyDraft({ questionCount: saved.questionCount, answers: [...answers] })
-      setSavedAnswerKey({ questionCount: saved.questionCount, answers: [...answers] })
+      await uploadTestAnswerKey(classId, uploadTestId, file, count)
+      await loadAnswerKeyMeta()
       await loadTests()
-      await loadScores()
       setModal(null)
     } catch (err) {
       onError(err.message)
@@ -429,25 +167,30 @@ export default function ClassTestSection({ classId, canManage, verifyOnly = fals
     }
   }
 
-  async function handleGradeFromModal() {
-    if (!gradingStudent || !hasAnswerKey) return
-    const studentId = gradingStudent.studentId
-    const saved = answersFromRow(gradingStudent, questionCount)
-    if (answersEqual(saved, gradeModalDraft)) return
-
-    setGrading(true)
+  async function handleViewAnswerKeyPdf() {
     onError('')
     try {
-      await gradeTestScore(classId, selectedId, studentId, {
-        answers: gradeModalDraft,
+      await openAnswerKeyPdf(testAnswerKeyPdfPath(classId, selectedId))
+    } catch (err) {
+      onError(err.message)
+    }
+  }
+
+  async function handleSaveResult(wrongQuestionNos) {
+    if (!resultStudent) return
+    setSaving(true)
+    onError('')
+    try {
+      await gradeTestScore(classId, selectedId, resultStudent.studentId, {
+        wrongQuestionNos,
       })
       await loadTests()
       await loadScores()
-      closeGradeModal()
+      setModal(null)
     } catch (err) {
       onError(err.message)
     } finally {
-      setGrading(false)
+      setSaving(false)
     }
   }
 
@@ -488,6 +231,13 @@ export default function ClassTestSection({ classId, canManage, verifyOnly = fals
         payload.targetStudentIds = targetStudentIds
       }
       const created = await createTest(classId, payload)
+      if (createAnswerKeyFile) {
+        const count = Number(form.questionCount)
+        if (!count) {
+          throw new Error('정답지 업로드 시 문항 수를 입력하세요.')
+        }
+        await uploadTestAnswerKey(classId, created.testId, createAnswerKeyFile, count)
+      }
       setForm({
         title: '',
         testDate: '',
@@ -495,6 +245,7 @@ export default function ClassTestSection({ classId, canManage, verifyOnly = fals
         questionCount: '',
         retakeThresholdCount: '',
       })
+      setCreateAnswerKeyFile(null)
       setCreateTarget(createInitialTarget(true))
       await loadTests()
       setSelectedId(String(created.testId))
@@ -525,10 +276,6 @@ export default function ClassTestSection({ classId, canManage, verifyOnly = fals
     }
   }
 
-  const answerKeyDirty =
-    questionCount !== savedAnswerKey.questionCount ||
-    !answersEqual(answerKeyDraft.answers, savedAnswerKey.answers)
-
   if (loading) {
     return <p className="ams-class-detail__empty">불러오는 중…</p>
   }
@@ -538,8 +285,8 @@ export default function ClassTestSection({ classId, canManage, verifyOnly = fals
       <h3 className="ams-class-detail__heading">{verifyOnly ? '테스트 확인' : '테스트'}</h3>
       <p className="ams-class-detail__hint-inline">
         {verifyOnly
-          ? '정답지를 설정한 뒤 학생별 「답안 입력」에서 답을 입력하고 채점하세요. 시험 완료 시 석차가 계산됩니다.'
-          : '문항 수·합격 기준을 설정하면 재시험 대상이 자동 판정됩니다.'}
+          ? '정답지 PDF를 업로드한 뒤 학생별 맞은 문항 수·틀린 문항을 입력하세요. 시험 완료 시 석차가 계산됩니다.'
+          : '정답지 PDF 업로드 후 종이 채점 결과를 입력합니다.'}
       </p>
 
       {canManage && !verifyOnly && (
@@ -596,6 +343,11 @@ export default function ClassTestSection({ classId, canManage, verifyOnly = fals
             onChange={setCreateTarget}
             disabled={submitting}
           />
+          <AnswerKeyFileField
+            file={createAnswerKeyFile}
+            disabled={submitting}
+            onFileChange={setCreateAnswerKeyFile}
+          />
           <button type="submit" className="ams-btn ams-btn--primary" disabled={submitting}>
             테스트 등록
           </button>
@@ -634,16 +386,23 @@ export default function ClassTestSection({ classId, canManage, verifyOnly = fals
             <div className="ams-homework-toolbar">
               {canManage && (
                 <>
-                  <button
-                    type="button"
-                    className="ams-btn ams-btn--primary"
-                    onClick={openAnswerKeyModal}
-                  >
-                    정답지 설정
-                    {hasAnswerKey && (
-                      <span className="ams-homework-toolbar__badge">등록됨</span>
-                    )}
-                  </button>
+                  {!isRetake && (
+                    <button
+                      type="button"
+                      className="ams-btn ams-btn--primary"
+                      onClick={() => setModal({ type: 'answer-key' })}
+                    >
+                      정답지 {hasAnswerKeyFile ? '관리' : '업로드'}
+                      {hasAnswerKeyFile && (
+                        <span className="ams-homework-toolbar__badge">등록됨</span>
+                      )}
+                    </button>
+                  )}
+                  {hasAnswerKeyFile && (
+                    <button type="button" className="ams-btn ams-btn--ghost" onClick={handleViewAnswerKeyPdf}>
+                      정답지 보기
+                    </button>
+                  )}
                   {selectedTest?.status !== 'COMPLETED' && (
                     <button
                       type="button"
@@ -680,7 +439,7 @@ export default function ClassTestSection({ classId, canManage, verifyOnly = fals
                     <th>석차</th>
                     {showRetakeColumn && <th>재시험</th>}
                     <th>상태</th>
-                    <th>{canManage ? '답안' : '확인'}</th>
+                    <th>{canManage ? '결과' : '확인'}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -690,7 +449,7 @@ export default function ClassTestSection({ classId, canManage, verifyOnly = fals
                       <td>
                         {s.correctCount != null ? `${s.correctCount}/${questionCount || '?'}` : '—'}
                       </td>
-                      <td>{s.rawScore != null ? `${s.rawScore}점` : '—'}</td>
+                      <td>{s.rawScore != null ? `${s.rawScore}%` : '—'}</td>
                       <td>{s.rank != null ? `${s.rank}등` : '—'}</td>
                       {showRetakeColumn && (
                         <td>
@@ -707,15 +466,15 @@ export default function ClassTestSection({ classId, canManage, verifyOnly = fals
                           </span>
                         </td>
                       )}
-                      <td>{s.gradedAt ? '채점됨' : hasAnswerKey ? '미채점' : '—'}</td>
+                      <td>{s.gradedAt ? '입력됨' : hasAnswerKeyFile ? '미입력' : '—'}</td>
                       <td>
-                        {(canManage && hasAnswerKey) || (!canManage && s.gradedAt) ? (
+                        {(canManage && hasAnswerKeyFile) || (!canManage && s.gradedAt) ? (
                           <button
                             type="button"
                             className="ams-btn ams-btn--ghost ams-homework-row-btn"
-                            onClick={() => openGradeModal(s.studentId)}
+                            onClick={() => setModal({ type: 'result', studentId: s.studentId })}
                           >
-                            {canManage ? (s.gradedAt ? '수정' : '답안 입력') : '보기'}
+                            {canManage ? (s.gradedAt ? '수정' : '결과 입력') : '보기'}
                           </button>
                         ) : (
                           '—'
@@ -730,39 +489,34 @@ export default function ClassTestSection({ classId, canManage, verifyOnly = fals
         </>
       )}
 
-      {modal?.type === 'answer-key' && canManage && (
-        <AnswerKeyModal
-          testTitle={selectedTest?.title ?? ''}
+      {modal?.type === 'answer-key' && canManage && !isRetake && (
+        <AnswerKeyUploadModal
+          title={selectedTest?.title ?? ''}
           questionCount={questionCount}
-          answerKeyDraft={answerKeyDraft}
+          hasAnswerKeyFile={hasAnswerKeyFile}
           submitting={submitting}
-          answerKeyDirty={answerKeyDirty}
-          onQuestionCountChange={handleQuestionCountChange}
-          onAnswerChange={handleAnswerKeyChange}
-          onSave={handleSaveAnswerKey}
-          onClose={closeAnswerKeyModal}
+          onQuestionCountChange={(value) => setQuestionCount(Math.max(0, Number(value) || 0))}
+          onUpload={handleUploadAnswerKey}
+          onViewPdf={handleViewAnswerKeyPdf}
+          onClose={() => setModal(null)}
         />
       )}
 
-      {modal?.type === 'grade' && gradingStudent && questionCount > 0 && (
-        <GradeModal
-          studentName={gradingStudent.studentName}
-          testTitle={selectedTest?.title ?? ''}
+      {modal?.type === 'result' && resultStudent && questionCount > 0 && (
+        <SubmissionResultModal
+          key={`test-result-${resultStudent.studentId}`}
+          studentName={resultStudent.studentName}
+          assignmentTitle={selectedTest?.title ?? ''}
           questionCount={questionCount}
-          correctAnswers={canManage ? savedAnswerKey.answers : []}
-          draft={gradeModalDraft}
-          canManage={canManage && hasAnswerKey}
-          grading={grading}
-          dirty={gradeModalDirty}
-          onDraftChange={(index, value) => {
-            setGradeModalDraft((prev) => {
-              const next = [...prev]
-              next[index] = value
-              return next
-            })
+          savedRow={{
+            ...resultStudent,
+            score: resultStudent.rawScore,
+            completedAt: resultStudent.gradedAt,
           }}
-          onGrade={handleGradeFromModal}
-          onClose={closeGradeModal}
+          canManage={canManage && hasAnswerKeyFile}
+          saving={saving}
+          onSave={handleSaveResult}
+          onClose={() => setModal(null)}
         />
       )}
 

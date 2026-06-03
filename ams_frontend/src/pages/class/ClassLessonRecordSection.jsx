@@ -16,6 +16,8 @@ import {
   updateLessonRecordTest,
   updateLessonRecordVideo,
 } from '../../api/classesApi'
+import { AnswerKeyFileField } from '../../components/AssignmentGradingModals'
+import { linkedIdsByType, uploadAnswerKeysForLessonRecord } from '../../utils/answerKeyUpload'
 import { dayLabel } from '../../auth/dayLabels'
 import StudentTargetPicker from '../../components/StudentTargetPicker'
 import { ClinicPresetPicker } from '../../components/ClinicPresetSection'
@@ -430,6 +432,10 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
   const [addTestTarget, setAddTestTarget] = useState(() => createInitialTarget(true))
   const [addVideoTarget, setAddVideoTarget] = useState(() => createInitialTarget(false))
   const [addClinicTarget, setAddClinicTarget] = useState(() => createInitialTarget(true))
+  const [createHomeworkAnswerKeyFile, setCreateHomeworkAnswerKeyFile] = useState(null)
+  const [createTestAnswerKeyFile, setCreateTestAnswerKeyFile] = useState(null)
+  const [addHomeworkAnswerKeyFile, setAddHomeworkAnswerKeyFile] = useState(null)
+  const [addTestAnswerKeyFile, setAddTestAnswerKeyFile] = useState(null)
   const [editingLinkedKey, setEditingLinkedKey] = useState('')
   const [editDraft, setEditDraft] = useState(null)
   const [editTarget, setEditTarget] = useState(() => createInitialTarget(true))
@@ -521,6 +527,8 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
     setTestTarget(createInitialTarget(true))
     setVideoTarget(createInitialTarget(false))
     setClinicTarget(createInitialTarget(true))
+    setCreateHomeworkAnswerKeyFile(null)
+    setCreateTestAnswerKeyFile(null)
   }
 
   function appendTargetPayload(item, target, allByDefault) {
@@ -651,6 +659,8 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
     setAddTestTarget(createInitialTarget(true))
     setAddVideoTarget(createInitialTarget(false))
     setAddClinicTarget(createInitialTarget(true))
+    setAddHomeworkAnswerKeyFile(null)
+    setAddTestAnswerKeyFile(null)
   }
 
   async function handleAddLinked(e) {
@@ -740,10 +750,26 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
       )
     }
 
+    const beforeHomeworkIds = new Set(linkedIdsByType(detail?.linkedItems, 'homework'))
+    const beforeTestIds = new Set(linkedIdsByType(detail?.linkedItems, 'test'))
+
     setSubmitting(true)
     onError('')
     try {
       const updated = await addLessonRecordLinkedItems(classId, selectedId, payload)
+      if (addLinkedForm.includeHomework || addLinkedForm.includeTest) {
+        await uploadAnswerKeysForLessonRecord(
+          classId,
+          updated.linkedItems,
+          {
+            homeworkFile: addLinkedForm.includeHomework ? addHomeworkAnswerKeyFile : null,
+            homeworkQuestionCount: addLinkedForm.homeworkQuestionCount,
+            testFile: addLinkedForm.includeTest ? addTestAnswerKeyFile : null,
+            testQuestionCount: addLinkedForm.testQuestionCount,
+          },
+          { homework: beforeHomeworkIds, test: beforeTestIds },
+        )
+      }
       setDetail(updated)
       setEditSummary(updated.summary ?? '')
       await load()
@@ -834,6 +860,14 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
     onError('')
     try {
       const created = await createLessonRecord(classId, payload)
+      if (createForm.includeHomework || createForm.includeTest) {
+        await uploadAnswerKeysForLessonRecord(classId, created.linkedItems, {
+          homeworkFile: createForm.includeHomework ? createHomeworkAnswerKeyFile : null,
+          homeworkQuestionCount: createForm.homeworkQuestionCount,
+          testFile: createForm.includeTest ? createTestAnswerKeyFile : null,
+          testQuestionCount: createForm.testQuestionCount,
+        })
+      }
       closeWrite()
       await load()
       setSelectedId(String(created.lessonRecordId))
@@ -877,8 +911,8 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
             <span className="ams-pill ams-pill--muted">{records.length}건</span>
           </div>
           <p className="ams-lesson-board__lead">
-            수업일·요약과 숙제·테스트·영상·클리닉을 한 번에 등록합니다. 점수 확인은 숙제·테스트
-            탭을 이용하세요.
+            수업일·요약과 숙제·테스트·영상·클리닉을 한 번에 등록합니다. 숙제·테스트 등록 시
+            정답지 파일을 함께 올릴 수 있습니다. 점수 입력은 숙제·테스트 확인 탭을 이용하세요.
           </p>
         </div>
         {canEdit && (
@@ -969,6 +1003,12 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
                     onChange={setHomeworkTarget}
                     disabled={submitting}
                   />
+                  <AnswerKeyFileField
+                    compact
+                    file={createHomeworkAnswerKeyFile}
+                    disabled={submitting}
+                    onFileChange={setCreateHomeworkAnswerKeyFile}
+                  />
                 </OptionCard>
 
                 <OptionCard
@@ -1021,6 +1061,12 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
                     value={testTarget}
                     onChange={setTestTarget}
                     disabled={submitting}
+                  />
+                  <AnswerKeyFileField
+                    compact
+                    file={createTestAnswerKeyFile}
+                    disabled={submitting}
+                    onFileChange={setCreateTestAnswerKeyFile}
                   />
                 </OptionCard>
 
@@ -1352,6 +1398,12 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
                           onChange={setAddHomeworkTarget}
                           disabled={submitting}
                         />
+                        <AnswerKeyFileField
+                          compact
+                          file={addHomeworkAnswerKeyFile}
+                          disabled={submitting}
+                          onFileChange={setAddHomeworkAnswerKeyFile}
+                        />
                       </OptionCard>
 
                       <OptionCard
@@ -1409,6 +1461,12 @@ export default function ClassLessonRecordSection({ classId, canEdit, onError }) 
                           value={addTestTarget}
                           onChange={setAddTestTarget}
                           disabled={submitting}
+                        />
+                        <AnswerKeyFileField
+                          compact
+                          file={addTestAnswerKeyFile}
+                          disabled={submitting}
+                          onFileChange={setAddTestAnswerKeyFile}
                         />
                       </OptionCard>
 

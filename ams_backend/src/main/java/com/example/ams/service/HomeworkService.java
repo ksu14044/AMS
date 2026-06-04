@@ -189,6 +189,13 @@ public class HomeworkService {
 		return SubmissionResultValidator.fromWrongQuestions(questionCount, wrongQuestionNos);
 	}
 
+	public boolean isGradePendingForStudent(long homeworkId, long studentId) {
+		HomeworkSubmission sub = submissionRepository
+				.findByHomeworkIdAndStudentId(homeworkId, studentId)
+				.orElse(null);
+		return sub == null || sub.score() == null;
+	}
+
 	public int countPendingGrades(long homeworkId) {
 		Homework homework = getHomework(homeworkId);
 		List<Long> studentIds = assignmentTargetService.resolveTargetStudentIds(

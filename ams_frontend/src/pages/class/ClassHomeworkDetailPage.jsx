@@ -171,7 +171,7 @@ export default function ClassHomeworkDetailPage() {
               {homework.questionCount ? ` · ${homework.questionCount}문항` : ' · 문항 수 미설정'}
               {homework.targets ? ` · 대상 ${formatTargetSummary(homework.targets)}` : ''}
               {hasAnswerKeyFile ? ' · 정답지 등록됨(참고)' : ''}
-              {gradedSummary ? ` · ${gradedSummary}` : ''}
+              {canManage && gradedSummary ? ` · ${gradedSummary}` : ''}
             </p>
             {!canManage && questionCount <= 0 && (
               <p>문항 수가 설정되지 않았습니다.</p>

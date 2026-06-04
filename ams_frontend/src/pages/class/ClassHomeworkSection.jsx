@@ -10,7 +10,13 @@ import {
 } from '../../utils/assignmentTargets'
 import { toHomeworkBoardItems } from '../../utils/assignmentVerify'
 
-export default function ClassHomeworkSection({ classId, canManage, verifyOnly = false, onError }) {
+export default function ClassHomeworkSection({
+  classId,
+  canManage,
+  verifyOnly = false,
+  forStudent = false,
+  onError,
+}) {
   const { homeworkId: activeHomeworkId } = useParams()
   const [homeworks, setHomeworks] = useState([])
   const [loading, setLoading] = useState(true)
@@ -19,7 +25,10 @@ export default function ClassHomeworkSection({ classId, canManage, verifyOnly = 
   const [createAnswerKeyFile, setCreateAnswerKeyFile] = useState(null)
   const [createTarget, setCreateTarget] = useState(() => createInitialTarget(true))
 
-  const boardItems = useMemo(() => toHomeworkBoardItems(homeworks), [homeworks])
+  const boardItems = useMemo(
+    () => toHomeworkBoardItems(homeworks, { forStudent }),
+    [homeworks, forStudent],
+  )
 
   const loadHomeworks = useCallback(async () => {
     const list = await fetchHomeworks(classId)

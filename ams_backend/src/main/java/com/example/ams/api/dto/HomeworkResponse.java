@@ -16,13 +16,17 @@ public record HomeworkResponse(
 		int pendingGradeCount,
 		AssignmentTargetResponse targets) {
 
-	public static HomeworkResponse from(Homework homework, TargetView targets, int pendingGradeCount) {
+	public static HomeworkResponse from(
+			Homework homework,
+			TargetView targets,
+			AssignmentStatus status,
+			int pendingGradeCount) {
 		return new HomeworkResponse(
 				homework.homeworkId(),
 				homework.classId(),
 				homework.title(),
 				homework.questionCount(),
-				homework.status(),
+				status,
 				homework.createdAt(),
 				pendingGradeCount,
 				AssignmentTargetResponse.from(targets));

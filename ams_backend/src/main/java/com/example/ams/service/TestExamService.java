@@ -232,6 +232,11 @@ public class TestExamService {
 		return updated;
 	}
 
+	public boolean isGradePendingForStudent(long testId, long studentId) {
+		TestScore score = scoreRepository.findByTestIdAndStudentId(testId, studentId).orElse(null);
+		return score == null || score.rawScore() == null;
+	}
+
 	public int countPendingGrades(long testId) {
 		TestExam test = getTest(testId);
 		List<Long> studentIds = assignmentTargetService.resolveTargetStudentIds(

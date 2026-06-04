@@ -25,7 +25,10 @@ import com.example.ams.api.dto.TestExamResponse;
 import com.example.ams.api.dto.TestScoreResponse;
 import com.example.ams.api.dto.UpdateTestScoresRequest;
 import com.example.ams.common.ApiResponse;
+import com.example.ams.domain.clazz.AssignmentStatus;
 import com.example.ams.domain.clazz.TestExam;
+import com.example.ams.domain.user.UserRole;
+import com.example.ams.security.CurrentUserService;
 import com.example.ams.service.AnswerKeyPdfStorageService;
 import com.example.ams.service.TestExamService;
 import com.example.ams.service.TestExamService.ScoreUpdate;
@@ -38,12 +41,15 @@ public class ClassTestController {
 
 	private final TestExamService testExamService;
 	private final AnswerKeyPdfStorageService answerKeyStorageService;
+	private final CurrentUserService currentUserService;
 
 	public ClassTestController(
 			TestExamService testExamService,
-			AnswerKeyPdfStorageService answerKeyStorageService) {
+			AnswerKeyPdfStorageService answerKeyStorageService,
+			CurrentUserService currentUserService) {
 		this.testExamService = testExamService;
 		this.answerKeyStorageService = answerKeyStorageService;
+		this.currentUserService = currentUserService;
 	}
 
 	@GetMapping
@@ -143,10 +149,20 @@ public class ClassTestController {
 	}
 
 	private TestExamResponse toResponse(TestExam test) {
+		long testId = test.testId();
+		AssignmentStatus status = test.status();
+		int pendingGradeCount = testExamService.countPendingGrades(testId);
+		if (currentUserService.requireRole() == UserRole.STUDENT) {
+			long me = currentUserService.requireUserId();
+			boolean minePending = testExamService.isGradePendingForStudent(testId, me);
+			status = minePending ? AssignmentStatus.SCHEDULED : AssignmentStatus.COMPLETED;
+			pendingGradeCount = minePending ? 1 : 0;
+		}
 		return TestExamResponse.from(
 				test,
-				testExamService.getTargets(test.testId()),
-				testExamService.usesCountOnlyGrading(test.testId()),
-				testExamService.countPendingGrades(test.testId()));
+				testExamService.getTargets(testId),
+				status,
+				testExamService.usesCountOnlyGrading(testId),
+				pendingGradeCount);
 	}
 }

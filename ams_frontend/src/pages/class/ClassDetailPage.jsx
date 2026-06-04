@@ -214,6 +214,7 @@ export default function ClassDetailPage() {
           classId={classId}
           canManage={detail.canEditContent}
           verifyOnly
+          forStudent={isStudent}
           onError={setError}
         />
       )}
@@ -223,6 +224,7 @@ export default function ClassDetailPage() {
           classId={classId}
           canManage={detail.canEditContent}
           verifyOnly
+          forStudent={isStudent}
           onError={setError}
         />
       )}

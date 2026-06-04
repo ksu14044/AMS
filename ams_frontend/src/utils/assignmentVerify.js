@@ -9,7 +9,7 @@ function sortByPendingThenDate(items, dateKey) {
   })
 }
 
-export function toHomeworkBoardItems(homeworks) {
+export function toHomeworkBoardItems(homeworks, { forStudent = false } = {}) {
   return sortByPendingThenDate(homeworks, 'createdAt').map((h) => ({
     id: String(h.homeworkId),
     title: h.title,
@@ -23,13 +23,13 @@ export function toHomeworkBoardItems(homeworks) {
         })
       : undefined,
     chips: [
-      (h.pendingGradeCount ?? 0) > 0 ? `미입력 ${h.pendingGradeCount}명` : null,
+      !forStudent && (h.pendingGradeCount ?? 0) > 0 ? `미입력 ${h.pendingGradeCount}명` : null,
       h.questionCount ? `${h.questionCount}문항` : null,
     ].filter(Boolean),
   }))
 }
 
-export function toTestBoardItems(tests) {
+export function toTestBoardItems(tests, { forStudent = false } = {}) {
   return sortByPendingThenDate(tests, 'testAt').map((t) => ({
     id: String(t.testId),
     title: t.title,
@@ -42,7 +42,7 @@ export function toTestBoardItems(tests) {
       minute: '2-digit',
     }),
     chips: [
-      (t.pendingGradeCount ?? 0) > 0 ? `미입력 ${t.pendingGradeCount}명` : null,
+      !forStudent && (t.pendingGradeCount ?? 0) > 0 ? `미입력 ${t.pendingGradeCount}명` : null,
       t.questionCount ? `${t.questionCount}문항` : null,
       t.retakeAttemptNo > 0 ? `재시험 ${t.retakeAttemptNo}회` : null,
       t.countOnlyGrading === false ? '중간·기말' : null,

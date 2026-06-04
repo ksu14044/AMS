@@ -27,6 +27,7 @@ public record TestExamResponse(
 	public static TestExamResponse from(
 			TestExam test,
 			TargetView targets,
+			AssignmentStatus status,
 			boolean countOnlyGrading,
 			int pendingGradeCount) {
 		return new TestExamResponse(
@@ -34,7 +35,7 @@ public record TestExamResponse(
 				test.classId(),
 				test.title(),
 				test.testAt(),
-				test.status(),
+				status,
 				test.classAverage(),
 				test.completedAt(),
 				test.questionCount(),

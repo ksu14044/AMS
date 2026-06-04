@@ -241,8 +241,8 @@ export default function ClassTestDetailPage() {
               : hasAnswerKeyFile
                 ? ' · 정답지 등록됨(참고)'
                 : ''}
-            {gradedSummary ? ` · ${gradedSummary}` : ''}
-            {test.classAverage != null ? ` · 반평균 ${test.classAverage}%` : ''}
+            {canManage && gradedSummary ? ` · ${gradedSummary}` : ''}
+            {canManage && test.classAverage != null ? ` · 반평균 ${test.classAverage}%` : ''}
           </p>
         }
         toolbar={

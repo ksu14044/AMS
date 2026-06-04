@@ -26,7 +26,10 @@ import com.example.ams.api.dto.RecordSubmissionResultRequest;
 import com.example.ams.api.dto.SaveAssignmentTargetRequest;
 import com.example.ams.api.dto.UpdateHomeworkSubmissionRequest;
 import com.example.ams.common.ApiResponse;
+import com.example.ams.domain.clazz.AssignmentStatus;
 import com.example.ams.domain.clazz.Homework;
+import com.example.ams.domain.user.UserRole;
+import com.example.ams.security.CurrentUserService;
 import com.example.ams.service.AnswerKeyPdfStorageService;
 import com.example.ams.service.HomeworkService;
 
@@ -38,12 +41,15 @@ public class ClassHomeworkController {
 
 	private final HomeworkService homeworkService;
 	private final AnswerKeyPdfStorageService answerKeyStorageService;
+	private final CurrentUserService currentUserService;
 
 	public ClassHomeworkController(
 			HomeworkService homeworkService,
-			AnswerKeyPdfStorageService answerKeyStorageService) {
+			AnswerKeyPdfStorageService answerKeyStorageService,
+			CurrentUserService currentUserService) {
 		this.homeworkService = homeworkService;
 		this.answerKeyStorageService = answerKeyStorageService;
+		this.currentUserService = currentUserService;
 	}
 
 	@GetMapping
@@ -151,9 +157,19 @@ public class ClassHomeworkController {
 	}
 
 	private HomeworkResponse toResponse(Homework homework) {
+		long homeworkId = homework.homeworkId();
+		AssignmentStatus status = homework.status();
+		int pendingGradeCount = homeworkService.countPendingGrades(homeworkId);
+		if (currentUserService.requireRole() == UserRole.STUDENT) {
+			long me = currentUserService.requireUserId();
+			boolean minePending = homeworkService.isGradePendingForStudent(homeworkId, me);
+			status = minePending ? AssignmentStatus.SCHEDULED : AssignmentStatus.COMPLETED;
+			pendingGradeCount = minePending ? 1 : 0;
+		}
 		return HomeworkResponse.from(
 				homework,
-				homeworkService.getTargets(homework.homeworkId()),
-				homeworkService.countPendingGrades(homework.homeworkId()));
+				homeworkService.getTargets(homeworkId),
+				status,
+				pendingGradeCount);
 	}
 }

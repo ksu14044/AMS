@@ -145,13 +145,19 @@ function StandaloneTestCreateForm({ classId, canManage, submitting, onSubmitting
   )
 }
 
-export default function ClassTestSection({ classId, canManage, verifyOnly = false, onError }) {
+export default function ClassTestSection({
+  classId,
+  canManage,
+  verifyOnly = false,
+  forStudent = false,
+  onError,
+}) {
   const { testId: activeTestId } = useParams()
   const [tests, setTests] = useState([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
 
-  const boardItems = useMemo(() => toTestBoardItems(tests), [tests])
+  const boardItems = useMemo(() => toTestBoardItems(tests, { forStudent }), [tests, forStudent])
 
   const loadTests = useCallback(async () => {
     const list = await fetchTests(classId)

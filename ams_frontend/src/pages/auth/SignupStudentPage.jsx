@@ -61,9 +61,15 @@ export default function SignupStudentPage() {
             수강반 배정 전까지 반 콘텐츠는 열람할 수 없습니다.
           </p>
           <form className="ams-form" onSubmit={handleSubmit}>
-            <label className="ams-field">
+            <label className="ams-field ams-field--locked">
               <span>학원 코드</span>
-              <input value={resolvedInvite.academyCode} readOnly disabled />
+              <input
+                className="ams-input--locked"
+                value={resolvedInvite.academyCode}
+                readOnly
+                disabled
+                aria-readonly="true"
+              />
             </label>
             <label className="ams-field">
               <span>이름</span>

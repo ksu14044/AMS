@@ -66,9 +66,15 @@ export default function SignupStaffPage() {
             {resolvedInvite.roleLabel} · 원장 승인 후 이용할 수 있습니다.
           </p>
           <form className="ams-form" onSubmit={handleSubmit}>
-            <label className="ams-field">
+            <label className="ams-field ams-field--locked">
               <span>학원 코드</span>
-              <input value={resolvedInvite.academyCode} readOnly disabled />
+              <input
+                className="ams-input--locked"
+                value={resolvedInvite.academyCode}
+                readOnly
+                disabled
+                aria-readonly="true"
+              />
             </label>
             <label className="ams-field">
               <span>역할</span>

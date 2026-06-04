@@ -53,7 +53,9 @@ export default function AppLayout({ title }) {
     <div
       className={`ams-app${showBottomNav ? ' ams-app--with-bottom-nav' : ''}${
         isStudentTab ? ' ams-app--student' : ''
-      }${isRosterPage ? ' ams-app--roster-page' : ''}${useWideLayout ? ' ams-app--wide' : ''}`}
+      }${isRosterPage ? ' ams-app--roster-page' : ''}${
+        isClassDetailPage ? ' ams-app--class-detail' : ''
+      }${useWideLayout ? ' ams-app--wide' : ''}`}
     >
       {isStudentTab ? (
         <header className="ams-app__header ams-app__header--student">

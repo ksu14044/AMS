@@ -70,9 +70,17 @@
 
 .ams-app__main {
   flex: 1;
+  min-height: 0;
   width: 100%;
   display: flex;
   justify-content: center;
+}
+
+/* 학생 하단 탭·반 상세: 본문 세로 스크롤 (미완료 카드·수강반 목록 등) */
+.ams-app--with-bottom-nav .ams-app__main,
+.ams-app--class-detail .ams-app__main {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .ams-app__container {

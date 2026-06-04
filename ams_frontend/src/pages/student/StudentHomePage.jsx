@@ -117,8 +117,8 @@ export default function StudentHomePage() {
           <p className="ams-student-pending__summary">
             아직 완료하지 않은 과제가 {pendingTasks.length}건 있습니다.
           </p>
-          <ul className="ams-student-pending__list">
-            {pendingTasks.slice(0, 3).map((item) => (
+          <ul className="ams-student-pending__list" aria-label="미완료 과제 목록">
+            {pendingTasks.map((item) => (
               <li key={`${item.type}-${item.classId}-${item.entityId}`}>
                 <Link
                   to={`/classes/${item.classId}?tab=${TAB_BY_TYPE[item.type] ?? 'home'}`}

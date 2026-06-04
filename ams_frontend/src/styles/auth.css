@@ -102,6 +102,27 @@
   box-shadow: 0 0 0 3px var(--ams-color-focus-ring);
 }
 
+/* 초대 가입: 학원 코드 고정(읽기 전용) */
+.ams-field--locked > span {
+  color: var(--ams-color-text-secondary);
+}
+
+.ams-field input.ams-input--locked,
+.ams-field input.ams-input--locked:disabled {
+  background: var(--ams-color-surface);
+  border-color: var(--ams-color-border);
+  color: var(--ams-color-text-muted);
+  -webkit-text-fill-color: var(--ams-color-text-muted);
+  cursor: not-allowed;
+  opacity: 1;
+  box-shadow: none;
+}
+
+.ams-field input.ams-input--locked:focus {
+  border-color: var(--ams-color-border);
+  box-shadow: none;
+}
+
 .ams-field__hint {
   margin: 2px 0 0;
   font-size: var(--ams-font-size-xs);

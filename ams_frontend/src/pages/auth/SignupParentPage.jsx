@@ -61,9 +61,15 @@ export default function SignupParentPage() {
             가입 후 학원에서 자녀와 연결해 주시면 공부기록·보고서를 조회할 수 있습니다.
           </p>
           <form className="ams-form" onSubmit={handleSubmit}>
-            <label className="ams-field">
+            <label className="ams-field ams-field--locked">
               <span>학원 코드</span>
-              <input value={resolvedInvite.academyCode} readOnly disabled />
+              <input
+                className="ams-input--locked"
+                value={resolvedInvite.academyCode}
+                readOnly
+                disabled
+                aria-readonly="true"
+              />
             </label>
             <label className="ams-field">
               <span>이름</span>

@@ -1,15 +1,7 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { createSignupInvite } from '../../api/adminApi'
 import { STAFF_ROLES } from '../../auth/roleLabels'
-
-async function copyToClipboard(text) {
-  try {
-    await navigator.clipboard.writeText(text)
-    return true
-  } catch {
-    return false
-  }
-}
+import { copyTextToClipboard } from '../../utils/copyToClipboard'
 
 function formatExpiresAt(iso) {
   if (!iso) return ''
@@ -23,6 +15,9 @@ function formatExpiresAt(iso) {
 }
 
 export default function AdminSignupInvitesSection() {
+  const studentInputRef = useRef(null)
+  const parentInputRef = useRef(null)
+  const staffInputRef = useRef(null)
   const [studentUrl, setStudentUrl] = useState('')
   const [studentExpiresAt, setStudentExpiresAt] = useState('')
   const [parentUrl, setParentUrl] = useState('')
@@ -84,8 +79,8 @@ export default function AdminSignupInvitesSection() {
     }
   }
 
-  async function handleCopy(url, label) {
-    const ok = await copyToClipboard(url)
+  async function handleCopy(url, label, inputEl) {
+    const ok = await copyTextToClipboard(url, inputEl)
     setMessage(ok ? `${label} 링크를 복사했습니다.` : '복사에 실패했습니다. 링크를 직접 선택해 복사해 주세요.')
   }
 
@@ -117,11 +112,11 @@ export default function AdminSignupInvitesSection() {
                 만료: {formatExpiresAt(studentExpiresAt)}까지
               </p>
               <div className="ams-signup-invites__url">
-                <input type="text" readOnly value={studentUrl} />
+                <input ref={studentInputRef} type="text" readOnly value={studentUrl} />
                 <button
                   type="button"
                   className="ams-btn ams-btn--ghost-sm"
-                  onClick={() => handleCopy(studentUrl, '학생')}
+                  onClick={() => handleCopy(studentUrl, '학생', studentInputRef.current)}
                 >
                   복사
                 </button>
@@ -146,11 +141,11 @@ export default function AdminSignupInvitesSection() {
                 만료: {formatExpiresAt(parentExpiresAt)}까지
               </p>
               <div className="ams-signup-invites__url">
-                <input type="text" readOnly value={parentUrl} />
+                <input ref={parentInputRef} type="text" readOnly value={parentUrl} />
                 <button
                   type="button"
                   className="ams-btn ams-btn--ghost-sm"
-                  onClick={() => handleCopy(parentUrl, '학부모')}
+                  onClick={() => handleCopy(parentUrl, '학부모', parentInputRef.current)}
                 >
                   복사
                 </button>
@@ -192,11 +187,11 @@ export default function AdminSignupInvitesSection() {
             <>
               <p className="ams-signup-invites__expiry">만료: {formatExpiresAt(staffExpiresAt)}까지</p>
               <div className="ams-signup-invites__url">
-                <input type="text" readOnly value={staffUrl} />
+                <input ref={staffInputRef} type="text" readOnly value={staffUrl} />
                 <button
                   type="button"
                   className="ams-btn ams-btn--ghost-sm"
-                  onClick={() => handleCopy(staffUrl, staffRoleLabel)}
+                  onClick={() => handleCopy(staffUrl, staffRoleLabel, staffInputRef.current)}
                 >
                   복사
                 </button>

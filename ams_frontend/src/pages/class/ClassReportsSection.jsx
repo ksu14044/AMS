@@ -4,18 +4,17 @@ import {
   createReportPeriodPreset,
   deleteReportPeriodPreset,
   downloadPeriodReportsArchive,
-  downloadReportPdf,
   fetchClassReports,
-  fetchReportDetail,
   fetchReportPeriodPresets,
   formatLocalDate,
   formatReportPeriod,
   generateReports,
-  updateReportComment,
   updateReportPeriodPreset,
 } from '../../api/reportsApi'
+import ReportDetailModal from '../../components/ReportDetailModal'
 import StudentTargetPicker from '../../components/StudentTargetPicker'
 import { createInitialTarget } from '../../utils/assignmentTargets'
+import { captureAndUploadReportImages } from '../../utils/reportImageCapture'
 
 function groupReportsByPeriod(reports) {
   const map = new Map()
@@ -48,254 +47,6 @@ function toDateInputValue(iso) {
   const m = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
   return `${y}-${m}-${day}`
-}
-
-function MetricBar({ label, rate }) {
-  const value = rate ?? 0
-  const tone = value < 60 ? 'low' : 'normal'
-  return (
-    <li className={`ams-report-modal__metric ams-report-modal__metric--${tone}`}>
-      <span className="ams-report-modal__metric-label">{label}</span>
-      <span
-        className="ams-report-modal__metric-bar"
-        role="progressbar"
-        aria-valuenow={value}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label={`${label} ${value}%`}
-      >
-        <span
-          className="ams-report-modal__metric-fill"
-          style={{ width: `${Math.min(100, value)}%` }}
-        />
-      </span>
-      <span className="ams-report-modal__metric-pct">
-        {rate != null ? `${rate}%` : '—'}
-      </span>
-    </li>
-  )
-}
-
-/** 테스트 막대: 종합 환산과 동일한 0~100 스케일, 표기는 점수(점) */
-function TestScoreMetricBar({ rawScore }) {
-  if (rawScore == null) {
-    return (
-      <li className="ams-report-modal__metric">
-        <span className="ams-report-modal__metric-label">테스트</span>
-        <span className="ams-report-modal__metric-bar" aria-hidden />
-        <span className="ams-report-modal__metric-pct">—</span>
-      </li>
-    )
-  }
-  const n = Number(rawScore)
-  const bar = Number.isNaN(n) ? 0 : Math.max(0, Math.min(100, Math.round(n)))
-  const tone = bar < 60 ? 'low' : 'normal'
-  const label = Number.isNaN(n)
-    ? '—'
-    : `${Number.isInteger(n) ? n : parseFloat(n.toFixed(1))}점`
-  return (
-    <li className={`ams-report-modal__metric ams-report-modal__metric--${tone}`}>
-      <span className="ams-report-modal__metric-label">테스트</span>
-      <span
-        className="ams-report-modal__metric-bar"
-        role="progressbar"
-        aria-valuenow={bar}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label={`테스트 ${label}`}
-      >
-        <span
-          className="ams-report-modal__metric-fill"
-          style={{ width: `${bar}%` }}
-        />
-      </span>
-      <span className="ams-report-modal__metric-pct">{label}</span>
-    </li>
-  )
-}
-
-function ReportDetailModal({ reportId, canManage, onClose, onError }) {
-  const [detail, setDetail] = useState(null)
-  const [comment, setComment] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    ;(async () => {
-      setLoading(true)
-      onError('')
-      try {
-        const d = await fetchReportDetail(reportId)
-        setDetail(d)
-        setComment(d.teacherComment || '')
-      } catch (err) {
-        onError(err.message)
-      } finally {
-        setLoading(false)
-      }
-    })()
-  }, [reportId, onError])
-
-  async function handleSaveComment() {
-    setSaving(true)
-    onError('')
-    try {
-      const updated = await updateReportComment(reportId, comment)
-      setDetail(updated)
-    } catch (err) {
-      onError(err.message)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function handlePdf() {
-    onError('')
-    try {
-      await downloadReportPdf(reportId)
-    } catch (err) {
-      onError(err.message)
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="ams-report-modal">
-        <p>불러오는 중…</p>
-      </div>
-    )
-  }
-
-  if (!detail) return null
-
-  const period = formatReportPeriod(detail.periodStart, detail.periodEnd)
-
-  return (
-    <div className="ams-report-modal" role="dialog" aria-modal="true" aria-label="성실도 보고서">
-      <header className="ams-report-modal__header">
-        <button
-          type="button"
-          className="ams-icon-btn"
-          onClick={onClose}
-          aria-label="닫기"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.8}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
-          >
-            <path d="M15 5 8 12l7 7" />
-          </svg>
-        </button>
-        <h3 className="ams-report-modal__title">성실도 보고서</h3>
-        <button
-          type="button"
-          className="ams-icon-btn"
-          onClick={handlePdf}
-          aria-label="PDF 다운로드"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.8}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
-          >
-            <path d="M12 4v11" />
-            <path d="m7 10 5 5 5-5" />
-            <path d="M5 20h14" />
-          </svg>
-        </button>
-      </header>
-
-      <section className="ams-report-modal__hero">
-        <p className="ams-report-modal__hero-meta">
-          {period}
-          {detail.periodLabel || detail.testTitle ? ` · ${detail.periodLabel || detail.testTitle}` : ''}
-        </p>
-        <p className="ams-report-modal__hero-score">
-          <strong>{detail.totalScore}점</strong>
-          <span>{detail.overallGrade}등급</span>
-        </p>
-        <ul className="ams-report-modal__metrics">
-          <MetricBar label="숙제" rate={detail.homeworkRate} />
-          <MetricBar label="클리닉" rate={detail.clinicRate} />
-          <TestScoreMetricBar rawScore={detail.testRawScore} />
-          <MetricBar label="영상인증" rate={detail.videoRate} />
-        </ul>
-      </section>
-
-      {canManage ? (
-        <div className="ams-report-modal__comment">
-          <label htmlFor="ams-report-comment">담임 코멘트</label>
-          <textarea
-            id="ams-report-comment"
-            rows={3}
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            placeholder="학생·학부모에게 전달할 코멘트"
-          />
-          <button
-            type="button"
-            className="ams-btn ams-btn--primary ams-btn--sm"
-            disabled={saving}
-            onClick={handleSaveComment}
-          >
-            {saving ? '저장 중…' : '코멘트 저장'}
-          </button>
-        </div>
-      ) : (
-        detail.teacherComment && (
-          <div className="ams-report-modal__comment-card">
-            <p className="ams-report-modal__comment-label">담임 코멘트</p>
-            <p className="ams-report-modal__comment-body">{detail.teacherComment}</p>
-          </div>
-        )
-      )}
-
-      <ul className="ams-report-modal__stats">
-        <li className="ams-report-modal__stat">
-          <strong>
-            {detail.homeworkTotal > 0
-              ? `${detail.homeworkSubmitted}/${detail.homeworkTotal}`
-              : '—'}
-          </strong>
-          <span>숙제 제출</span>
-        </li>
-        <li className="ams-report-modal__stat">
-          <strong>
-            {detail.clinicTotal > 0
-              ? `${detail.clinicAttended}/${detail.clinicTotal}`
-              : '—'}
-          </strong>
-          <span>클리닉</span>
-        </li>
-        <li className="ams-report-modal__stat ams-report-modal__stat--accent">
-          <strong>{detail.testRawScore ?? '—'}</strong>
-          <span>
-            점수
-            {detail.testRank != null
-              ? ` · ${detail.testRank}등`
-              : detail.testUpperRankPct != null
-                ? ` · 상위 ${detail.testUpperRankPct}%`
-                : ''}
-          </span>
-        </li>
-      </ul>
-
-      <p className="ams-report-modal__note">
-        종합 점수는 기간 내 숙제·클리닉(%), 완료 시험 점수(루트별 최신 재시험 % 평균)를 40·30·30으로
-        합산합니다. 테스트 석차·반 평균은 기간 내 가장 최근 시험 기준이며, 영상 인증은 종합에 포함되지
-        않습니다.
-      </p>
-    </div>
-  )
 }
 
 export default function ClassReportsSection({ classId, canManage, isStudent, onError }) {
@@ -422,7 +173,10 @@ export default function ClassReportsSection({ classId, canManage, isStudent, onE
         studentIds: resolvedIds,
         presetId: generateForm.presetId ? Number(generateForm.presetId) : null,
       }
-      await generateReports(classId, body)
+      const result = await generateReports(classId, body)
+      if (result.reportIds?.length) {
+        await captureAndUploadReportImages(result.reportIds)
+      }
       setShowGenerate(false)
       await load()
     } catch (err) {
@@ -589,7 +343,7 @@ export default function ClassReportsSection({ classId, canManage, isStudent, onE
             {showGenerate && (
               <form className="ams-reports-generate__form ams-card ams-card--elevated" onSubmit={handleGenerate}>
                 <p className="ams-class-detail__hint-inline">
-                  설정한 기간 안의 숙제·클리닉·영상·완료된 테스트를 모두 집계해 학생별 PDF를 만듭니다.
+                  설정한 기간 안의 숙제·클리닉·영상·완료된 테스트를 모두 집계해 학생별 PNG 보고서를 만듭니다.
                 </p>
                 <div className="ams-reports-generate__grid">
                   <label className="ams-field ams-field--compact">
@@ -642,7 +396,7 @@ export default function ClassReportsSection({ classId, canManage, isStudent, onE
                 />
                 <div className="ams-reports-generate__foot">
                   <button type="submit" className="ams-btn ams-btn--primary ams-btn--sm" disabled={submitting}>
-                    {submitting ? '생성 중…' : '보고서 생성'}
+                    {submitting ? '생성·PNG 저장 중…' : '보고서 생성'}
                   </button>
                 </div>
               </form>
@@ -694,7 +448,7 @@ export default function ClassReportsSection({ classId, canManage, isStudent, onE
                       disabled={downloadingKey !== ''}
                       onClick={() => handleArchiveDownload(group)}
                     >
-                      {downloadingKey === key ? '다운로드 중…' : 'PDF ZIP'}
+                      {downloadingKey === key ? '다운로드 중…' : 'PNG ZIP'}
                     </button>
                   )}
                 </div>

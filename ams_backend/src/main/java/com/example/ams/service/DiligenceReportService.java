@@ -21,8 +21,10 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.example.ams.common.BusinessException;
 import com.example.ams.common.ErrorCode;
@@ -61,7 +63,6 @@ public class DiligenceReportService {
 	private final ClassAccessService classAccessService;
 	private final CurrentUserService currentUserService;
 	private final StudyRecordPeriodCalculator periodCalculator;
-	private final DiligenceReportPdfService pdfService;
 	private final AmsUploadProperties uploadProperties;
 	private final ApplicationEventPublisher eventPublisher;
 	private final ReportPeriodPresetService reportPeriodPresetService;
@@ -77,7 +78,6 @@ public class DiligenceReportService {
 			ClassAccessService classAccessService,
 			CurrentUserService currentUserService,
 			StudyRecordPeriodCalculator periodCalculator,
-			DiligenceReportPdfService pdfService,
 			AmsUploadProperties uploadProperties,
 			ApplicationEventPublisher eventPublisher,
 			ReportPeriodPresetService reportPeriodPresetService,
@@ -91,7 +91,6 @@ public class DiligenceReportService {
 		this.classAccessService = classAccessService;
 		this.currentUserService = currentUserService;
 		this.periodCalculator = periodCalculator;
-		this.pdfService = pdfService;
 		this.uploadProperties = uploadProperties;
 		this.eventPublisher = eventPublisher;
 		this.reportPeriodPresetService = reportPeriodPresetService;
@@ -121,13 +120,60 @@ public class DiligenceReportService {
 		return toDetailRow(reportRepository.findById(reportId).orElseThrow());
 	}
 
-	public Resource loadPdfResource(long reportId) {
+	public ResolvedReportFile loadReportFile(long reportId) {
 		requireReadableReport(reportId);
-		java.nio.file.Path path = pdfFilePath(reportId);
-		if (!Files.exists(path)) {
-			throw new BusinessException(ErrorCode.REPORT_NOT_FOUND, "PDF 파일이 없습니다.");
+		java.nio.file.Path path = resolveStoredReportFilePath(reportId);
+		if (path == null) {
+			throw new BusinessException(ErrorCode.REPORT_NOT_FOUND, "보고서 파일이 없습니다. 보고서를 다시 생성하거나 PNG를 업로드하세요.");
 		}
-		return new FileSystemResource(path);
+		String fileName = path.getFileName().toString();
+		boolean pdf = fileName.endsWith(".pdf");
+		MediaType mediaType = pdf ? MediaType.APPLICATION_PDF : MediaType.IMAGE_PNG;
+		String downloadName = "diligence-report-" + reportId + (pdf ? ".pdf" : ".png");
+		return new ResolvedReportFile(new FileSystemResource(path), mediaType, downloadName);
+	}
+
+	public Resource loadImageResource(long reportId) {
+		return loadReportFile(reportId).resource();
+	}
+
+	private java.nio.file.Path resolveStoredReportFilePath(long reportId) {
+		java.nio.file.Path png = imageFilePath(reportId);
+		if (Files.exists(png)) {
+			return png;
+		}
+		return reportRepository.findById(reportId)
+				.map(DiligenceReport::pdfPath)
+				.filter(p -> p != null && !p.isBlank())
+				.map(p -> java.nio.file.Path.of(uploadProperties.dir(), p))
+				.filter(Files::exists)
+				.orElse(null);
+	}
+
+	public record ResolvedReportFile(Resource resource, MediaType mediaType, String downloadFilename) {
+	}
+
+	@Transactional
+	public void storeReportImage(long reportId, MultipartFile file) {
+		DiligenceReport report = reportRepository.findById(reportId)
+				.orElseThrow(() -> new BusinessException(ErrorCode.REPORT_NOT_FOUND));
+		Clazz clazz = clazzRepository.findById(report.classId()).orElseThrow();
+		classAccessService.requireEditClassContent(clazz);
+		if (file == null || file.isEmpty()) {
+			throw new BusinessException(ErrorCode.INVALID_REQUEST, "PNG 파일을 업로드하세요.");
+		}
+		String contentType = file.getContentType();
+		if (contentType != null && !contentType.equalsIgnoreCase(MediaType.IMAGE_PNG_VALUE)) {
+			throw new BusinessException(ErrorCode.INVALID_REQUEST, "PNG 형식만 업로드할 수 있습니다.");
+		}
+		java.nio.file.Path path = imageFilePath(reportId);
+		try {
+			Files.createDirectories(path.getParent());
+			file.transferTo(path);
+			reportRepository.updatePdfPath(reportId, relativeImagePath(reportId));
+		} catch (IOException e) {
+			throw new BusinessException(ErrorCode.INTERNAL_ERROR, "보고서 이미지 저장에 실패했습니다.");
+		}
 	}
 
 	public PdfArchive loadTestPdfArchive(long classId, long testId) {
@@ -147,8 +193,12 @@ public class DiligenceReportService {
 		return buildZipArchive(sanitizeArchiveFileName(clazz.name() + "_" + test.title()), reports);
 	}
 
-	private java.nio.file.Path pdfFilePath(long reportId) {
-		return java.nio.file.Path.of(uploadProperties.dir(), "reports", "report-" + reportId + ".pdf");
+	private java.nio.file.Path imageFilePath(long reportId) {
+		return java.nio.file.Path.of(uploadProperties.dir(), relativeImagePath(reportId));
+	}
+
+	private static String relativeImagePath(long reportId) {
+		return "reports/report-" + reportId + ".png";
 	}
 
 	private static String sanitizeArchiveFileName(String name) {
@@ -224,9 +274,9 @@ public class DiligenceReportService {
 
 		reportRepository.deleteByClassIdAndPeriodAndStudentIds(classId, periodStart, periodEnd, studentIds);
 
-		int created = 0;
+		List<Long> reportIds = new ArrayList<>();
 		for (long studentId : studentIds) {
-			createReportForStudent(
+			long reportId = createReportForStudent(
 					clazz,
 					studentId,
 					null,
@@ -235,9 +285,9 @@ public class DiligenceReportService {
 					periodLabel,
 					presetId,
 					null);
-			created++;
+			reportIds.add(reportId);
 		}
-		return new GenerateReportsV3Result(created, periodStart, periodEnd, periodLabel);
+		return new GenerateReportsV3Result(reportIds.size(), periodStart, periodEnd, periodLabel, reportIds);
 	}
 
 	public PdfArchive loadPeriodPdfArchive(long classId, LocalDate periodStart, LocalDate periodEnd) {
@@ -297,7 +347,7 @@ public class DiligenceReportService {
 		}
 	}
 
-	private void createReportForStudent(
+	private long createReportForStudent(
 			Clazz clazz,
 			long studentId,
 			TestExam test,
@@ -365,16 +415,10 @@ public class DiligenceReportService {
 				null,
 				null));
 
-		String titleForPdf = pdfTestTitle != null ? pdfTestTitle : (periodLabel != null ? periodLabel : "성실도 보고서");
-		try {
-			User student = userRepository.findById(studentId).orElseThrow();
-			String pdfUrl = pdfService.writePdf(saved, clazz.name(), student.name(), titleForPdf);
-			reportRepository.updatePdfPath(saved.reportId(), pdfUrl);
-		} catch (java.io.IOException e) {
-			throw new BusinessException(ErrorCode.INTERNAL_ERROR, "PDF 생성에 실패했습니다.");
-		}
+		String title = pdfTestTitle != null ? pdfTestTitle : (periodLabel != null ? periodLabel : "성실도 보고서");
 		eventPublisher.publishEvent(new DiligenceReportCreatedEvent(
-				clazz.classId(), studentId, saved.reportId(), titleForPdf));
+				clazz.classId(), studentId, saved.reportId(), title));
+		return saved.reportId();
 	}
 
 	private PdfArchive buildZipArchive(String zipBaseName, List<DiligenceReport> reports) {
@@ -383,22 +427,22 @@ public class DiligenceReportService {
 		try (ByteArrayOutputStream buffer = new ByteArrayOutputStream();
 				ZipOutputStream zip = new ZipOutputStream(buffer)) {
 			for (DiligenceReport report : reports) {
-				java.nio.file.Path pdfPath = pdfFilePath(report.reportId());
-				if (!Files.exists(pdfPath)) {
+				java.nio.file.Path imagePath = imageFilePath(report.reportId());
+				if (!Files.exists(imagePath)) {
 					continue;
 				}
 				User student = userRepository.findById(report.studentId()).orElseThrow();
 				String entryName = uniqueZipEntryName(
 						usedEntryNames,
-						sanitizeArchiveFileName(student.name() + "_" + report.reportId()) + ".pdf");
+						sanitizeArchiveFileName(student.name() + "_" + report.reportId()) + ".png");
 				zip.putNextEntry(new ZipEntry(entryName));
-				Files.copy(pdfPath, zip);
+				Files.copy(imagePath, zip);
 				zip.closeEntry();
 				added++;
 			}
 			zip.finish();
 			if (added == 0) {
-				throw new BusinessException(ErrorCode.REPORT_NOT_FOUND, "다운로드할 PDF가 없습니다.");
+				throw new BusinessException(ErrorCode.REPORT_NOT_FOUND, "다운로드할 보고서 이미지가 없습니다.");
 			}
 			return new PdfArchive(zipBaseName + ".zip", new ByteArrayResource(buffer.toByteArray()));
 		} catch (IOException e) {
@@ -573,7 +617,8 @@ public class DiligenceReportService {
 			int created,
 			Instant periodStart,
 			Instant periodEnd,
-			String periodLabel) {
+			String periodLabel,
+			List<Long> reportIds) {
 	}
 
 	public record ReportListRow(

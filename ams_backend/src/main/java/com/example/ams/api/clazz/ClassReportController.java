@@ -60,7 +60,8 @@ public class ClassReportController {
 				result.created(),
 				result.periodStart(),
 				result.periodEnd(),
-				result.periodLabel()));
+				result.periodLabel(),
+				result.reportIds()));
 	}
 
 	/** @deprecated v3.0 — {@link #generate(long, GenerateReportsRequest)} 사용 */

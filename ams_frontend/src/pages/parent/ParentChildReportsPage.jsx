@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { fetchChildReports, fetchParentChildren } from '../../api/parentApi'
-import { downloadReportPdf, formatReportPeriod } from '../../api/reportsApi'
+import { formatReportPeriod } from '../../api/reportsApi'
+import ReportDetailModal from '../../components/ReportDetailModal'
 import '../../styles/class-list.css'
+import '../../styles/class-detail.css'
 import '../../styles/parent.css'
 
 export default function ParentChildReportsPage() {
@@ -12,7 +14,7 @@ export default function ParentChildReportsPage() {
   const [reports, setReports] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [downloadingId, setDownloadingId] = useState(null)
+  const [selectedId, setSelectedId] = useState(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -34,18 +36,6 @@ export default function ParentChildReportsPage() {
     load()
   }, [load])
 
-  async function handlePdf(reportId) {
-    setDownloadingId(reportId)
-    setError('')
-    try {
-      await downloadReportPdf(reportId)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setDownloadingId(null)
-    }
-  }
-
   return (
     <div className="ams-parent">
       <Link to={`/parent/children/${sid}`} className="ams-parent__back">
@@ -56,7 +46,7 @@ export default function ParentChildReportsPage() {
         <h2 className="ams-parent__hero-title">성실도 보고서</h2>
         <p className="ams-parent__hero-desc">
           {studentName ? `${studentName} 학생의 ` : ''}
-          학원에서 생성한 기간별 보고서입니다. PDF로 저장해 보관할 수 있습니다.
+          학원에서 생성한 기간별 보고서입니다. 항목을 눌러 내용을 확인할 수 있습니다.
         </p>
       </section>
 
@@ -90,14 +80,26 @@ export default function ParentChildReportsPage() {
               <button
                 type="button"
                 className="ams-btn ams-btn--primary ams-btn--sm"
-                disabled={downloadingId !== null}
-                onClick={() => handlePdf(r.reportId)}
+                onClick={() => setSelectedId(r.reportId)}
               >
-                {downloadingId === r.reportId ? '다운로드…' : 'PDF'}
+                보기
               </button>
             </li>
           ))}
         </ul>
+      )}
+
+      {selectedId && (
+        <div className="ams-report-modal-backdrop" onClick={() => setSelectedId(null)}>
+          <div onClick={(e) => e.stopPropagation()}>
+            <ReportDetailModal
+              reportId={selectedId}
+              canManage={false}
+              onClose={() => setSelectedId(null)}
+              onError={setError}
+            />
+          </div>
+        </div>
       )}
     </div>
   )

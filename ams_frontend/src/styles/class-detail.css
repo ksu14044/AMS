@@ -2802,7 +2802,7 @@
   padding: var(--ams-space-4);
 }
 
-.ams-report-modal {
+.ams-report-modal-shell {
   background: var(--ams-color-white);
   border-radius: var(--ams-radius-lg);
   padding: var(--ams-space-card);
@@ -2815,12 +2815,76 @@
   gap: var(--ams-space-3);
 }
 
-/* 헤더 (← / 가운데 제목 / ⬇ PDF) */
+.ams-report-modal {
+  background: var(--ams-color-white);
+  border-radius: var(--ams-radius-lg);
+  padding: var(--ams-space-card);
+  max-width: 520px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-3);
+}
+
+.ams-report-modal--capture {
+  padding: 0;
+  max-width: 480px;
+}
+
+.ams-report-capture-host {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: 480px;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.ams-report-modal__toolbar {
+  display: grid;
+  grid-template-columns: var(--ams-touch-target) 1fr var(--ams-touch-target);
+  align-items: center;
+  gap: var(--ams-space-2);
+}
+
+.ams-report-modal__toolbar-title {
+  text-align: center;
+  font-size: var(--ams-font-size-lg);
+  font-weight: var(--ams-font-weight-bold);
+}
+
+/* 헤더 (PNG 캡처용) */
 .ams-report-modal__header {
   display: grid;
   grid-template-columns: var(--ams-touch-target) 1fr var(--ams-touch-target);
   align-items: center;
   gap: var(--ams-space-2);
+}
+
+.ams-report-modal__header--capture {
+  display: block;
+  text-align: center;
+  padding-bottom: var(--ams-space-2);
+  border-bottom: var(--ams-border-width) solid var(--ams-color-border);
+}
+
+.ams-report-modal__subtitle {
+  margin: 4px 0 0;
+  font-size: var(--ams-font-size-xs);
+  color: var(--ams-color-text-secondary);
+  font-weight: var(--ams-font-weight-semibold);
+}
+
+.ams-report-modal__comment-hint {
+  margin: var(--ams-space-2) 0 0;
+  font-size: var(--ams-font-size-xs);
+  color: var(--ams-color-text-muted);
+}
+
+.ams-report-modal__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-3);
 }
 
 .ams-report-modal__title {
@@ -2939,6 +3003,29 @@
   line-height: var(--ams-line-height-normal);
   color: var(--ams-color-text);
   white-space: pre-wrap;
+}
+
+.ams-report-modal__comment-card--edit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-2);
+}
+
+.ams-report-modal__comment-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: var(--ams-border-width) solid var(--ams-color-border);
+  border-radius: var(--ams-radius-sm);
+  background: var(--ams-color-white);
+  font-family: inherit;
+  font-size: var(--ams-font-size-sm);
+  resize: vertical;
+}
+
+.ams-report-modal__comment-input:focus {
+  outline: none;
+  border-color: var(--ams-color-primary);
+  box-shadow: 0 0 0 3px var(--ams-color-focus-ring);
 }
 
 .ams-report-modal__comment {

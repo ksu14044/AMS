@@ -63,12 +63,39 @@ async function downloadBlob(url, filename, errorMessage, options = {}) {
   URL.revokeObjectURL(objectUrl)
 }
 
+export function reportImageUrl(reportId) {
+  return `${API_BASE}/reports/${reportId}/image`
+}
+
+export function downloadReportImage(reportId) {
+  return downloadBlob(
+    reportImageUrl(reportId),
+    `diligence-report-${reportId}.png`,
+    '보고서 다운로드에 실패했습니다.',
+  )
+}
+
+/** @deprecated 구 경로 호환 — `/image`와 동일 */
 export function downloadReportPdf(reportId) {
   return downloadBlob(
     `${API_BASE}/reports/${reportId}/pdf`,
-    `diligence-report-${reportId}.pdf`,
-    'PDF 다운로드에 실패했습니다.',
+    `diligence-report-${reportId}.png`,
+    '보고서 다운로드에 실패했습니다.',
   )
+}
+
+export async function uploadReportImage(reportId, blob) {
+  const formData = new FormData()
+  formData.append('file', blob, `report-${reportId}.png`)
+  const response = await fetchWithAuth(`${API_BASE}/reports/${reportId}/image`, {
+    method: 'POST',
+    body: formData,
+  })
+  const body = await response.json().catch(() => ({}))
+  if (!response.ok || body.success === false) {
+    throw new Error(body.message || '보고서 이미지 업로드에 실패했습니다.')
+  }
+  return body.data
 }
 
 export async function downloadPeriodReportsArchive(classId, periodStart, periodEnd, zipFilename) {
@@ -78,7 +105,7 @@ export async function downloadPeriodReportsArchive(classId, periodStart, periodE
     body: JSON.stringify({ periodStart, periodEnd }),
   })
   if (!response.ok) {
-    throw new Error('PDF 일괄 다운로드에 실패했습니다.')
+    throw new Error('PNG 일괄 다운로드에 실패했습니다.')
   }
   const blob = await response.blob()
   const objectUrl = URL.createObjectURL(blob)

@@ -7,11 +7,11 @@ import {
 import AssignmentDetailPageShell from '../../components/AssignmentDetailPageShell'
 import {
   AnswerKeyUploadModal,
+  CorrectCountResultModal,
   openAnswerKeyPdf,
   SubmissionResultModal,
 } from '../../components/AssignmentGradingModals'
 import {
-  completeTest,
   createTestRetake,
   fetchClassDetail,
   fetchTestAnswerKeys,
@@ -70,6 +70,7 @@ export default function ClassTestDetailPage() {
     ? tests.filter((t) => t.parentTestId === rootTest.testId).length
     : 0
   const isRetake = Boolean(test?.parentTestId)
+  const countOnlyGrading = test?.countOnlyGrading ?? false
 
   const resultStudent = useMemo(() => {
     if (modal?.type !== 'result') return null
@@ -89,7 +90,7 @@ export default function ClassTestDetailPage() {
 
   const gradedSummary = useMemo(() => {
     if (scores.length === 0) return null
-    const done = scores.filter((s) => s.gradedAt).length
+    const done = scores.filter((s) => s.rawScore != null).length
     return `${done}/${scores.length}명 결과 입력`
   }, [scores])
 
@@ -152,31 +153,19 @@ export default function ClassTestDetailPage() {
     }
   }
 
-  async function handleSaveResult(wrongQuestionNos) {
+  async function handleSaveResult(value) {
     if (!resultStudent) return
     setSaving(true)
     setError('')
     try {
-      await gradeTestScore(classId, testId, resultStudent.studentId, { wrongQuestionNos })
+      const payload = countOnlyGrading ? { correctCount: value } : { wrongQuestionNos: value }
+      await gradeTestScore(classId, testId, resultStudent.studentId, payload)
       await load()
       setModal(null)
     } catch (err) {
       setError(err.message)
     } finally {
       setSaving(false)
-    }
-  }
-
-  async function handleCompleteTest() {
-    setSubmitting(true)
-    setError('')
-    try {
-      await completeTest(classId, testId)
-      await load()
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setSubmitting(false)
     }
   }
 
@@ -245,7 +234,13 @@ export default function ClassTestDetailPage() {
             {test.questionCount ? ` · ${test.questionCount}문항` : ' · 문항 수 미설정'}
             {test.retakeThresholdCount ? ` · 합격 ${test.retakeThresholdCount}문항 이상` : ''}
             {test.targets ? ` · 대상 ${formatTargetSummary(test.targets)}` : ''}
-            {hasAnswerKeyFile ? ' · 정답지 등록됨' : ' · 정답지 없음'}
+            {countOnlyGrading
+              ? hasAnswerKeyFile
+                ? ' · 정답지 등록됨(참고)'
+                : ''
+              : hasAnswerKeyFile
+                ? ' · 정답지 등록됨(참고)'
+                : ''}
             {gradedSummary ? ` · ${gradedSummary}` : ''}
             {test.classAverage != null ? ` · 반평균 ${test.classAverage}%` : ''}
           </p>
@@ -273,16 +268,6 @@ export default function ClassTestDetailPage() {
                     정답지 보기
                   </button>
                 )}
-                {test.status !== 'COMPLETED' && (
-                  <button
-                    type="button"
-                    className="ams-btn ams-btn--ghost ams-btn--sm"
-                    disabled={submitting}
-                    onClick={handleCompleteTest}
-                  >
-                    시험 완료 (석차)
-                  </button>
-                )}
               </>
             )}
             {canScheduleRetake && (
@@ -299,7 +284,8 @@ export default function ClassTestDetailPage() {
         }
         students={scores.map((s) => ({ key: s.studentId, row: s }))}
         renderStudentCard={({ row: s }) => {
-          const canOpen = (canManage && hasAnswerKeyFile) || (!canManage && s.gradedAt)
+          const canGrade = questionCount > 0
+          const canOpen = (canManage && canGrade) || (!canManage && s.rawScore != null)
           const stats = []
           if (s.correctCount != null) stats.push(`맞은 수 ${s.correctCount}/${questionCount || '?'}`)
           if (s.rawScore != null) stats.push(`점수 ${s.rawScore}%`)
@@ -309,8 +295,8 @@ export default function ClassTestDetailPage() {
             <AssignmentStudentCard
               name={s.studentName}
               stats={stats}
-              statusLabel={s.gradedAt ? '입력 완료' : hasAnswerKeyFile ? '미입력' : null}
-              statusTone={s.gradedAt ? 'done' : hasAnswerKeyFile ? 'pending' : 'muted'}
+              statusLabel={s.rawScore != null ? '입력 완료' : canGrade ? '미입력' : null}
+              statusTone={s.rawScore != null ? 'done' : canGrade ? 'pending' : 'muted'}
               action={
                 canOpen ? (
                   <button
@@ -318,7 +304,7 @@ export default function ClassTestDetailPage() {
                     className="ams-btn ams-btn--ghost ams-btn--sm"
                     onClick={() => setModal({ type: 'result', studentId: s.studentId })}
                   >
-                    {canManage ? (s.gradedAt ? '수정' : '결과 입력') : '보기'}
+                    {canManage ? (s.rawScore != null ? '수정' : '결과 입력') : '보기'}
                   </button>
                 ) : null
               }
@@ -340,7 +326,24 @@ export default function ClassTestDetailPage() {
         />
       )}
 
-      {modal?.type === 'result' && resultStudent && questionCount > 0 && (
+      {modal?.type === 'result' && resultStudent && questionCount > 0 && countOnlyGrading && (
+        <CorrectCountResultModal
+          key={`test-result-${resultStudent.studentId}`}
+          studentName={resultStudent.studentName}
+          assignmentTitle={test.title}
+          questionCount={questionCount}
+          savedRow={{
+            ...resultStudent,
+            score: resultStudent.rawScore,
+          }}
+          canManage={canManage}
+          saving={saving}
+          onSave={handleSaveResult}
+          onClose={() => setModal(null)}
+        />
+      )}
+
+      {modal?.type === 'result' && resultStudent && questionCount > 0 && !countOnlyGrading && (
         <SubmissionResultModal
           key={`test-result-${resultStudent.studentId}`}
           studentName={resultStudent.studentName}
@@ -351,7 +354,7 @@ export default function ClassTestDetailPage() {
             score: resultStudent.rawScore,
             completedAt: resultStudent.gradedAt,
           }}
-          canManage={canManage && hasAnswerKeyFile}
+          canManage={canManage}
           saving={saving}
           onSave={handleSaveResult}
           onClose={() => setModal(null)}

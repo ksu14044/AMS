@@ -147,13 +147,11 @@ public class HomeworkService {
 	public HomeworkSubmission recordSubmissionResult(
 			long homeworkId,
 			long studentId,
+			Integer correctCount,
 			List<Integer> wrongQuestionNos) {
 		Homework homework = getHomework(homeworkId);
 		Clazz clazz = classAccessService.requireReadableClass(homework.classId());
 		classAccessService.requireEditClassContent(clazz);
-		if (homework.answerKeyPdfPath() == null || homework.answerKeyPdfPath().isBlank()) {
-			throw new BusinessException(ErrorCode.INVALID_REQUEST, "정답지를 먼저 업로드하세요.");
-		}
 		if (!enrollmentRepository.existsByClassIdAndStudentId(homework.classId(), studentId)) {
 			throw new BusinessException(ErrorCode.INVALID_REQUEST, "수강생만 결과를 입력할 수 있습니다.");
 		}
@@ -161,16 +159,15 @@ public class HomeworkService {
 		if (questionCount == null || questionCount <= 0) {
 			throw new BusinessException(ErrorCode.INVALID_REQUEST, "문항 수가 설정되지 않았습니다.");
 		}
-		SubmissionResultValidator.Result result = SubmissionResultValidator.fromWrongQuestions(
-				questionCount, wrongQuestionNos);
-		int correctCount = result.correctCount();
+		SubmissionResultValidator.Result result = resolveHomeworkResult(questionCount, correctCount, wrongQuestionNos);
+		int resolvedCorrectCount = result.correctCount();
 		List<Integer> normalizedWrong = result.wrongQuestionNos();
-		BigDecimal score = HomeworkScoreCalculator.computeScore(questionCount, correctCount);
+		BigDecimal score = HomeworkScoreCalculator.computeScore(questionCount, resolvedCorrectCount);
 		var existing = submissionRepository.findByHomeworkIdAndStudentId(homeworkId, studentId).orElse(null);
 		HomeworkSubmission updated = submissionRepository.upsertGraded(
 				homeworkId,
 				studentId,
-				correctCount,
+				resolvedCorrectCount,
 				normalizedWrong,
 				score,
 				Instant.now());
@@ -178,7 +175,50 @@ public class HomeworkService {
 			eventPublisher.publishEvent(new HomeworkResultUpdatedEvent(
 					homework.classId(), homeworkId, studentId, homework.title()));
 		}
+		maybeAutoCompleteHomework(homeworkId);
 		return updated;
+	}
+
+	private static SubmissionResultValidator.Result resolveHomeworkResult(
+			int questionCount,
+			Integer correctCount,
+			List<Integer> wrongQuestionNos) {
+		if (correctCount != null) {
+			return SubmissionResultValidator.fromCorrectCount(questionCount, correctCount);
+		}
+		return SubmissionResultValidator.fromWrongQuestions(questionCount, wrongQuestionNos);
+	}
+
+	public int countPendingGrades(long homeworkId) {
+		Homework homework = getHomework(homeworkId);
+		List<Long> studentIds = assignmentTargetService.resolveTargetStudentIds(
+				AssignmentEntityType.HOMEWORK, homeworkId, homework.classId());
+		if (studentIds.isEmpty()) {
+			return 0;
+		}
+		Map<Long, HomeworkSubmission> byStudent = submissionRepository.findByHomeworkId(homeworkId).stream()
+				.collect(Collectors.toMap(HomeworkSubmission::studentId, s -> s));
+		int pending = 0;
+		for (long studentId : studentIds) {
+			HomeworkSubmission sub = byStudent.get(studentId);
+			if (sub == null || sub.score() == null) {
+				pending++;
+			}
+		}
+		return pending;
+	}
+
+	private void maybeAutoCompleteHomework(long homeworkId) {
+		Homework homework = homeworkRepository.findById(homeworkId).orElseThrow();
+		if (homework.status() == AssignmentStatus.COMPLETED) {
+			return;
+		}
+		List<Long> studentIds = assignmentTargetService.resolveTargetStudentIds(
+				AssignmentEntityType.HOMEWORK, homeworkId, homework.classId());
+		if (studentIds.isEmpty() || countPendingGrades(homeworkId) > 0) {
+			return;
+		}
+		homeworkRepository.updateStatus(homeworkId, AssignmentStatus.COMPLETED);
 	}
 
 	public List<SubmissionRow> listSubmissionRows(long homeworkId) {
@@ -304,6 +344,9 @@ public class HomeworkService {
 		if (shouldNotifyHomeworkResult(existing, submitted, score, grade)) {
 			eventPublisher.publishEvent(new HomeworkResultUpdatedEvent(
 					homework.classId(), homeworkId, studentId, homework.title()));
+		}
+		if (score != null) {
+			maybeAutoCompleteHomework(homeworkId);
 		}
 		return updated;
 	}

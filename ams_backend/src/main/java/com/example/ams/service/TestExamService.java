@@ -165,6 +165,13 @@ public class TestExamService {
 		return resolveAnswerKeySource(test).answerKeyPdfPath();
 	}
 
+	public boolean usesCountOnlyGrading(long testId) {
+		TestExam test = getTest(testId);
+		long lessonLookupTestId = test.isRetake() ? test.rootTestId() : test.testId();
+		Long lessonRecordId = testRepository.findLessonRecordId(lessonLookupTestId);
+		return lessonRecordId != null;
+	}
+
 	private TestExam resolveAnswerKeySource(TestExam test) {
 		if (!test.isRetake()) {
 			return test;
@@ -180,14 +187,11 @@ public class TestExamService {
 	public TestScore recordScoreResult(
 			long testId,
 			long studentId,
+			Integer correctCount,
 			List<Integer> wrongQuestionNos) {
 		TestExam test = getTest(testId);
 		Clazz clazz = classAccessService.requireReadableClass(test.classId());
 		classAccessService.requireEditClassContent(clazz);
-		TestExam answerKeySource = test.isRetake() ? resolveAnswerKeySource(test) : test;
-		if (answerKeySource.answerKeyPdfPath() == null || answerKeySource.answerKeyPdfPath().isBlank()) {
-			throw new BusinessException(ErrorCode.INVALID_REQUEST, "정답지를 먼저 업로드하세요.");
-		}
 		if (!enrollmentRepository.existsByClassIdAndStudentId(test.classId(), studentId)) {
 			throw new BusinessException(ErrorCode.INVALID_REQUEST, "수강생만 결과를 입력할 수 있습니다.");
 		}
@@ -195,16 +199,24 @@ public class TestExamService {
 		if (questionCount == null || questionCount <= 0) {
 			throw new BusinessException(ErrorCode.INVALID_REQUEST, "문항 수가 설정되지 않았습니다.");
 		}
-		SubmissionResultValidator.Result result = SubmissionResultValidator.fromWrongQuestions(
-				questionCount, wrongQuestionNos);
-		int correctCount = result.correctCount();
+		boolean countOnly = usesCountOnlyGrading(test.testId());
+		SubmissionResultValidator.Result result;
+		if (countOnly) {
+			if (correctCount == null) {
+				throw new BusinessException(ErrorCode.INVALID_REQUEST, "맞은 문항 수를 입력하세요.");
+			}
+			result = SubmissionResultValidator.fromCorrectCount(questionCount, correctCount);
+		} else {
+			result = SubmissionResultValidator.fromWrongQuestions(questionCount, wrongQuestionNos);
+		}
+		int resolvedCorrectCount = result.correctCount();
 		List<Integer> normalizedWrong = result.wrongQuestionNos();
-		BigDecimal rawScore = HomeworkScoreCalculator.computeScore(questionCount, correctCount);
+		BigDecimal rawScore = HomeworkScoreCalculator.computeScore(questionCount, resolvedCorrectCount);
 		var existing = scoreRepository.findByTestIdAndStudentId(testId, studentId).orElse(null);
 		TestScore updated = scoreRepository.upsertGraded(
 				testId,
 				studentId,
-				correctCount,
+				resolvedCorrectCount,
 				normalizedWrong,
 				rawScore,
 				Instant.now());
@@ -216,7 +228,42 @@ public class TestExamService {
 			eventPublisher.publishEvent(new TestResultUpdatedEvent(
 					test.classId(), testId, studentId, test.title()));
 		}
+		maybeAutoCompleteTest(testId);
 		return updated;
+	}
+
+	public int countPendingGrades(long testId) {
+		TestExam test = getTest(testId);
+		List<Long> studentIds = assignmentTargetService.resolveTargetStudentIds(
+				AssignmentEntityType.TEST, testId, test.classId());
+		if (studentIds.isEmpty()) {
+			return 0;
+		}
+		Map<Long, TestScore> byStudent = scoreRepository.findByTestId(testId).stream()
+				.collect(Collectors.toMap(TestScore::studentId, s -> s));
+		int pending = 0;
+		for (long studentId : studentIds) {
+			TestScore score = byStudent.get(studentId);
+			if (score == null || score.rawScore() == null) {
+				pending++;
+			}
+		}
+		return pending;
+	}
+
+	private void maybeAutoCompleteTest(long testId) {
+		TestExam test = testRepository.findById(testId).orElseThrow();
+		if (test.status() == AssignmentStatus.COMPLETED) {
+			refreshRanksAndClassAverage(testId);
+			return;
+		}
+		List<Long> studentIds = assignmentTargetService.resolveTargetStudentIds(
+				AssignmentEntityType.TEST, testId, test.classId());
+		if (studentIds.isEmpty() || countPendingGrades(testId) > 0) {
+			return;
+		}
+		BigDecimal classAverage = refreshRanksAndClassAverage(testId);
+		testRepository.complete(testId, classAverage, Instant.now());
 	}
 
 	public List<ScoreRow> listScoreRows(long testId) {

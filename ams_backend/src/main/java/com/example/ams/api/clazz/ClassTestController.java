@@ -127,6 +127,7 @@ public class ClassTestController {
 		testExamService.recordScoreResult(
 				testId,
 				studentId,
+				request.correctCount(),
 				request.wrongQuestionNos());
 		TestExam test = testExamService.getTest(testId);
 		var row = testExamService.listScoreRows(testId).stream()
@@ -142,6 +143,10 @@ public class ClassTestController {
 	}
 
 	private TestExamResponse toResponse(TestExam test) {
-		return TestExamResponse.from(test, testExamService.getTargets(test.testId()));
+		return TestExamResponse.from(
+				test,
+				testExamService.getTargets(test.testId()),
+				testExamService.usesCountOnlyGrading(test.testId()),
+				testExamService.countPendingGrades(test.testId()));
 	}
 }

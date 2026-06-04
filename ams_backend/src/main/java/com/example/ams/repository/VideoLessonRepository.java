@@ -119,7 +119,13 @@ public class VideoLessonRepository {
 	public Long findLessonRecordId(long videoId) {
 		return jdbcTemplate.query(
 				"SELECT lesson_record_id FROM video_lesson WHERE video_id = ?",
-				rs -> rs.next() ? rs.getLong("lesson_record_id") : null,
+				rs -> {
+					if (!rs.next()) {
+						return null;
+					}
+					long value = rs.getLong("lesson_record_id");
+					return rs.wasNull() ? null : value;
+				},
 				videoId);
 	}
 

@@ -136,6 +136,7 @@ public class ClassHomeworkController {
 		homeworkService.recordSubmissionResult(
 				homeworkId,
 				studentId,
+				request.correctCount(),
 				request.wrongQuestionNos());
 		var row = homeworkService.listSubmissionRows(homeworkId).stream()
 				.filter(r -> r.studentId() == studentId)
@@ -150,6 +151,9 @@ public class ClassHomeworkController {
 	}
 
 	private HomeworkResponse toResponse(Homework homework) {
-		return HomeworkResponse.from(homework, homeworkService.getTargets(homework.homeworkId()));
+		return HomeworkResponse.from(
+				homework,
+				homeworkService.getTargets(homework.homeworkId()),
+				homeworkService.countPendingGrades(homework.homeworkId()));
 	}
 }

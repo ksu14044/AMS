@@ -602,6 +602,20 @@
   border-bottom: var(--ams-border-width) solid var(--ams-color-border);
 }
 
+.ams-assignment-form-wrap {
+  margin-bottom: var(--ams-space-4);
+  padding: var(--ams-space-card);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ams-space-3);
+}
+
+.ams-assignment-form-wrap .ams-assignment-form {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
 .ams-assignment-form label {
   display: flex;
   flex-direction: column;

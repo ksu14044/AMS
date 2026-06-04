@@ -7,11 +7,10 @@ import {
 import AssignmentDetailPageShell from '../../components/AssignmentDetailPageShell'
 import {
   AnswerKeyUploadModal,
+  CorrectCountResultModal,
   openAnswerKeyPdf,
-  SubmissionResultModal,
 } from '../../components/AssignmentGradingModals'
 import {
-  completeHomework,
   fetchClassDetail,
   fetchHomeworkAnswerKeys,
   fetchHomeworkSubmissions,
@@ -45,7 +44,7 @@ export default function ClassHomeworkDetailPage() {
 
   const gradedSummary = useMemo(() => {
     if (submissions.length === 0) return null
-    const done = submissions.filter((s) => s.completedAt).length
+    const done = submissions.filter((s) => s.score != null).length
     return `${done}/${submissions.length}명 결과 입력`
   }, [submissions])
 
@@ -105,33 +104,20 @@ export default function ClassHomeworkDetailPage() {
     }
   }
 
-  async function handleSaveResult(wrongQuestionNos) {
+  async function handleSaveResult(correctCount) {
     if (!resultStudent) return
     setSaving(true)
     setError('')
     try {
       const updated = await gradeHomeworkSubmission(classId, homeworkId, resultStudent.studentId, {
-        wrongQuestionNos,
+        correctCount,
       })
-      setSubmissions((prev) => prev.map((s) => (s.studentId === resultStudent.studentId ? updated : s)))
+      await load()
       setModal(null)
     } catch (err) {
       setError(err.message)
     } finally {
       setSaving(false)
-    }
-  }
-
-  async function handleComplete() {
-    setSubmitting(true)
-    setError('')
-    try {
-      await completeHomework(classId, homeworkId)
-      await load()
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setSubmitting(false)
     }
   }
 
@@ -184,11 +170,11 @@ export default function ClassHomeworkDetailPage() {
               </span>
               {homework.questionCount ? ` · ${homework.questionCount}문항` : ' · 문항 수 미설정'}
               {homework.targets ? ` · 대상 ${formatTargetSummary(homework.targets)}` : ''}
-              {hasAnswerKeyFile ? ' · 정답지 등록됨' : ' · 정답지 없음'}
+              {hasAnswerKeyFile ? ' · 정답지 등록됨(참고)' : ''}
               {gradedSummary ? ` · ${gradedSummary}` : ''}
             </p>
-            {!canManage && !hasAnswerKeyFile && questionCount <= 0 && (
-              <p>아직 정답지가 등록되지 않았습니다.</p>
+            {!canManage && questionCount <= 0 && (
+              <p>문항 수가 설정되지 않았습니다.</p>
             )}
           </>
         }
@@ -212,20 +198,12 @@ export default function ClassHomeworkDetailPage() {
                   정답지 보기
                 </button>
               )}
-              <button
-                type="button"
-                className="ams-btn ams-btn--ghost ams-btn--sm"
-                disabled={submitting}
-                onClick={handleComplete}
-              >
-                완료 처리
-              </button>
             </>
           ) : null
         }
         students={submissions.map((s) => ({ key: s.studentId, row: s }))}
         renderStudentCard={({ row: s }) => {
-          const canOpen = (canManage && hasAnswerKeyFile) || (!canManage && s.completedAt)
+          const canOpen = (canManage && questionCount > 0) || (!canManage && s.score != null)
           const stats = []
           if (s.correctCount != null) stats.push(`맞은 수 ${s.correctCount}/${questionCount || '?'}`)
           if (s.score != null) stats.push(`점수 ${s.score}%`)
@@ -233,8 +211,8 @@ export default function ClassHomeworkDetailPage() {
             <AssignmentStudentCard
               name={s.studentName}
               stats={stats}
-              statusLabel={s.completedAt ? '입력 완료' : hasAnswerKeyFile ? '미입력' : null}
-              statusTone={s.completedAt ? 'done' : hasAnswerKeyFile ? 'pending' : 'muted'}
+              statusLabel={s.score != null ? '입력 완료' : questionCount > 0 ? '미입력' : null}
+              statusTone={s.score != null ? 'done' : questionCount > 0 ? 'pending' : 'muted'}
               action={
                 canOpen ? (
                   <button
@@ -242,7 +220,7 @@ export default function ClassHomeworkDetailPage() {
                     className="ams-btn ams-btn--ghost ams-btn--sm"
                     onClick={() => setModal({ type: 'result', studentId: s.studentId })}
                   >
-                    {canManage ? (s.completedAt ? '수정' : '결과 입력') : '보기'}
+                    {canManage ? (s.score != null ? '수정' : '결과 입력') : '보기'}
                   </button>
                 ) : null
               }
@@ -265,13 +243,13 @@ export default function ClassHomeworkDetailPage() {
       )}
 
       {modal?.type === 'result' && resultStudent && questionCount > 0 && (
-        <SubmissionResultModal
+        <CorrectCountResultModal
           key={`hw-result-${resultStudent.studentId}`}
           studentName={resultStudent.studentName}
           assignmentTitle={homework.title}
           questionCount={questionCount}
           savedRow={resultStudent}
-          canManage={canManage && hasAnswerKeyFile}
+          canManage={canManage}
           saving={saving}
           onSave={handleSaveResult}
           onClose={() => setModal(null)}

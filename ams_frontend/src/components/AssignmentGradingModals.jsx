@@ -142,6 +142,96 @@ function computeScorePercent(questionCount, correctCount) {
   return Math.ceil(ratio * 10) / 10
 }
 
+export function CorrectCountResultModal({
+  studentName,
+  assignmentTitle,
+  questionCount,
+  savedRow,
+  canManage,
+  saving,
+  onSave,
+  onClose,
+}) {
+  const [correctCount, setCorrectCount] = useState(() =>
+    savedRow?.correctCount != null ? String(savedRow.correctCount) : '',
+  )
+
+  const numericCount = correctCount === '' ? NaN : Number(correctCount)
+  const validCount =
+    Number.isFinite(numericCount) && numericCount >= 0 && numericCount <= questionCount
+  const previewScore = validCount ? computeScorePercent(questionCount, numericCount) : null
+  const dirty =
+    canManage &&
+    validCount &&
+    numericCount !== (savedRow?.correctCount ?? null)
+
+  async function handleSave() {
+    if (!validCount) return
+    await onSave(numericCount)
+  }
+
+  return (
+    <ModalBackdrop label={`${studentName} 결과`} onClose={onClose}>
+      <header className="ams-homework-modal__header">
+        <h4 className="ams-homework-modal__title">{canManage ? '결과 입력' : '내 결과'}</h4>
+        <button type="button" className="ams-homework-modal__close" onClick={onClose} aria-label="닫기">
+          ×
+        </button>
+      </header>
+      <p className="ams-homework-modal__meta">
+        {studentName} · {assignmentTitle} · {questionCount}문항
+      </p>
+
+      <div className="ams-homework-modal__body">
+        {canManage ? (
+          <>
+            <label className="ams-homework-modal__count">
+              맞은 문항 수
+              <input
+                type="number"
+                min={0}
+                max={questionCount}
+                value={correctCount}
+                disabled={saving}
+                onChange={(e) => setCorrectCount(e.target.value)}
+                required
+              />
+            </label>
+            {previewScore != null && (
+              <p className="ams-class-detail__meta">
+                환산 점수 <strong>{previewScore}%</strong>
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="ams-class-detail__meta">
+            맞은 <strong>{savedRow?.correctCount ?? '—'}</strong>/{questionCount}문항
+            {savedRow?.score != null && (
+              <span>{` · 환산 점수 `}<strong>{savedRow.score}%</strong></span>
+            )}
+          </p>
+        )}
+      </div>
+
+      <footer className="ams-homework-modal__footer">
+        <button type="button" className="ams-btn ams-btn--ghost" disabled={saving} onClick={onClose}>
+          {canManage ? '취소' : '닫기'}
+        </button>
+        {canManage && (
+          <button
+            type="button"
+            className="ams-btn ams-btn--primary"
+            disabled={saving || !dirty}
+            onClick={handleSave}
+          >
+            {saving ? '저장 중…' : '저장'}
+          </button>
+        )}
+      </footer>
+    </ModalBackdrop>
+  )
+}
+
 export function SubmissionResultModal({
   studentName,
   assignmentTitle,

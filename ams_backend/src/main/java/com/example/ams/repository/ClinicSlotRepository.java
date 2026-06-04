@@ -194,7 +194,13 @@ public class ClinicSlotRepository {
 	public Long findLessonRecordId(long slotId) {
 		return jdbcTemplate.query(
 				"SELECT lesson_record_id FROM clinic_slot WHERE slot_id = ?",
-				rs -> rs.next() ? rs.getLong("lesson_record_id") : null,
+				rs -> {
+					if (!rs.next()) {
+						return null;
+					}
+					long value = rs.getLong("lesson_record_id");
+					return rs.wasNull() ? null : value;
+				},
 				slotId);
 	}
 

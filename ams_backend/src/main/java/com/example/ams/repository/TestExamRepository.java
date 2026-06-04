@@ -174,7 +174,13 @@ public class TestExamRepository {
 	public Long findLessonRecordId(long testId) {
 		return jdbcTemplate.query(
 				"SELECT lesson_record_id FROM test WHERE test_id = ?",
-				rs -> rs.next() ? rs.getLong("lesson_record_id") : null,
+				rs -> {
+					if (!rs.next()) {
+						return null;
+					}
+					long value = rs.getLong("lesson_record_id");
+					return rs.wasNull() ? null : value;
+				},
 				testId);
 	}
 

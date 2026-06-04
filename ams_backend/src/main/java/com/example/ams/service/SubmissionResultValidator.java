@@ -14,6 +14,18 @@ public final class SubmissionResultValidator {
 	public record Result(int correctCount, List<Integer> wrongQuestionNos) {
 	}
 
+	public static Result fromCorrectCount(int questionCount, int correctCount) {
+		if (questionCount <= 0) {
+			throw new BusinessException(ErrorCode.INVALID_REQUEST, "문항 수가 설정되지 않았습니다.");
+		}
+		if (correctCount < 0 || correctCount > questionCount) {
+			throw new BusinessException(
+					ErrorCode.INVALID_REQUEST,
+					"맞은 문항 수는 0 이상 " + questionCount + " 이하여야 합니다.");
+		}
+		return new Result(correctCount, List.of());
+	}
+
 	public static Result fromWrongQuestions(int questionCount, List<Integer> wrongQuestionNos) {
 		if (questionCount <= 0) {
 			throw new BusinessException(ErrorCode.INVALID_REQUEST, "문항 수가 설정되지 않았습니다.");

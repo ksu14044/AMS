@@ -69,6 +69,9 @@ export default function ReportDetailContent({ detail, captureMode = false, comme
   if (!detail) return null
 
   const period = formatReportPeriod(detail.periodStart, detail.periodEnd)
+  const periodLabel = detail.periodLabel || detail.testTitle
+  const heroMeta =
+    periodLabel && periodLabel !== period ? `${period} · ${periodLabel}` : period
   const subtitle = [detail.studentName, detail.className].filter(Boolean).join(' · ')
 
   return (
@@ -87,15 +90,13 @@ export default function ReportDetailContent({ detail, captureMode = false, comme
       )}
 
       <section className="ams-report-modal__hero">
-        <p className="ams-report-modal__hero-meta">
-          {period}
-          {detail.periodLabel || detail.testTitle
-            ? ` · ${detail.periodLabel || detail.testTitle}`
-            : ''}
-        </p>
+        <p className="ams-report-modal__hero-meta">{heroMeta}</p>
         <p className="ams-report-modal__hero-score">
-          <strong>{detail.totalScore}점</strong>
-          <span>{detail.overallGrade}등급</span>
+          <strong>
+            {detail.totalScore}
+            <span className="ams-report-modal__hero-score-unit">점</span>
+          </strong>
+          <span className="ams-report-modal__hero-grade">{detail.overallGrade}등급</span>
         </p>
         <ul className="ams-report-modal__metrics">
           <MetricBar label="숙제" rate={detail.homeworkRate} />

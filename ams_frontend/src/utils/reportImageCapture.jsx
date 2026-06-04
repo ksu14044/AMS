@@ -5,9 +5,9 @@ import { fetchReportDetail, uploadReportImage } from '../api/reportsApi'
 import { logReportError, logReportInfo } from './reportDebugLog'
 
 const CAPTURE_OPTIONS = {
-  pixelRatio: 1,
+  pixelRatio: 2,
   cacheBust: false,
-  skipFonts: true,
+  skipFonts: false,
   backgroundColor: '#ffffff',
 }
 
@@ -16,8 +16,11 @@ const BATCH_CONCURRENCY = 3
 let captureHost = null
 let captureRoot = null
 
-function waitForPaint() {
-  return new Promise((resolve) => {
+async function waitForCaptureReady() {
+  if (document.fonts?.ready) {
+    await document.fonts.ready
+  }
+  await new Promise((resolve) => {
     requestAnimationFrame(() => requestAnimationFrame(resolve))
   })
 }
@@ -37,7 +40,7 @@ export async function captureReportPngBlob(detail) {
   try {
     const root = ensureCaptureRoot()
     root.render(<ReportDetailContent detail={detail} captureMode />)
-    await waitForPaint()
+    await waitForCaptureReady()
     const node = captureHost.querySelector('.ams-report-modal--capture')
     if (!node) {
       throw new Error('보고서 화면을 렌더링하지 못했습니다.')

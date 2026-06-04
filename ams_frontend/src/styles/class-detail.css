@@ -2827,17 +2827,87 @@
 }
 
 .ams-report-modal--capture {
-  padding: 0;
+  box-sizing: border-box;
+  width: 480px;
   max-width: 480px;
+  padding: var(--ams-space-card);
+  overflow: visible;
+  gap: var(--ams-space-3);
 }
 
 .ams-report-capture-host {
   position: fixed;
-  left: -10000px;
+  left: 0;
   top: 0;
   width: 480px;
+  opacity: 0;
   pointer-events: none;
-  z-index: -1;
+  z-index: -9999;
+  overflow: visible;
+}
+
+/* PNG 캡처 시 html-to-image 레이아웃 안정화 */
+.ams-report-modal--capture .ams-report-modal__hero-meta {
+  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.ams-report-modal--capture .ams-report-modal__hero-score {
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  gap: var(--ams-space-3);
+}
+
+.ams-report-modal--capture .ams-report-modal__hero-score strong {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  white-space: nowrap;
+  line-height: 1.1;
+}
+
+.ams-report-modal--capture .ams-report-modal__hero-score-unit {
+  font-size: var(--ams-font-size-lg);
+  font-weight: var(--ams-font-weight-bold);
+}
+
+.ams-report-modal--capture .ams-report-modal__hero-grade {
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.ams-report-modal--capture .ams-report-modal__metric {
+  grid-template-columns: 72px minmax(80px, 1fr) 56px;
+  min-height: 22px;
+}
+
+.ams-report-modal--capture .ams-report-modal__metric-label,
+.ams-report-modal--capture .ams-report-modal__metric-pct {
+  white-space: nowrap;
+  line-height: 1.3;
+}
+
+.ams-report-modal--capture .ams-report-modal__metric-bar {
+  min-width: 80px;
+  width: 100%;
+}
+
+.ams-report-modal--capture .ams-report-modal__metric-fill {
+  transition: none;
+}
+
+.ams-report-modal--capture .ams-report-modal__stat {
+  min-width: 0;
+}
+
+.ams-report-modal--capture .ams-report-modal__stat strong,
+.ams-report-modal--capture .ams-report-modal__stat span {
+  white-space: nowrap;
+  line-height: 1.3;
+}
+
+.ams-report-modal--capture .ams-report-modal__note {
+  margin-bottom: var(--ams-space-2);
 }
 
 .ams-report-modal__toolbar {
@@ -2923,15 +2993,24 @@
 }
 
 .ams-report-modal__hero-score strong {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
   font-size: var(--ams-font-size-2xl);
   font-weight: var(--ams-font-weight-bold);
   color: var(--ams-color-white);
 }
 
-.ams-report-modal__hero-score span {
+.ams-report-modal__hero-score-unit {
+  font-size: var(--ams-font-size-lg);
+  font-weight: var(--ams-font-weight-bold);
+}
+
+.ams-report-modal__hero-grade {
   font-size: var(--ams-font-size-md);
   color: var(--ams-color-white);
   font-weight: var(--ams-font-weight-semibold);
+  white-space: nowrap;
 }
 
 .ams-report-modal__metrics {

@@ -162,8 +162,7 @@ public class DiligenceReportService {
 		if (file == null || file.isEmpty()) {
 			throw new BusinessException(ErrorCode.INVALID_REQUEST, "PNG 파일을 업로드하세요.");
 		}
-		String contentType = file.getContentType();
-		if (contentType != null && !contentType.equalsIgnoreCase(MediaType.IMAGE_PNG_VALUE)) {
+		if (!isAcceptedPngUpload(file)) {
 			throw new BusinessException(ErrorCode.INVALID_REQUEST, "PNG 형식만 업로드할 수 있습니다.");
 		}
 		java.nio.file.Path path = imageFilePath(reportId);
@@ -199,6 +198,21 @@ public class DiligenceReportService {
 
 	private static String relativeImagePath(long reportId) {
 		return "reports/report-" + reportId + ".png";
+	}
+
+	private static boolean isAcceptedPngUpload(MultipartFile file) {
+		String contentType = file.getContentType();
+		if (contentType == null || contentType.isBlank()) {
+			return true;
+		}
+		if (contentType.equalsIgnoreCase(MediaType.IMAGE_PNG_VALUE)) {
+			return true;
+		}
+		if (contentType.equalsIgnoreCase(MediaType.APPLICATION_OCTET_STREAM_VALUE)) {
+			return true;
+		}
+		String name = file.getOriginalFilename();
+		return name != null && name.toLowerCase().endsWith(".png");
 	}
 
 	private static String sanitizeArchiveFileName(String name) {

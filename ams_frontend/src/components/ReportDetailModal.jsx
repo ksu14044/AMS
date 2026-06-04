@@ -5,6 +5,7 @@ import {
   updateReportComment,
 } from '../api/reportsApi'
 import { refreshReportImage } from '../utils/reportImageCapture'
+import { logReportError, logReportWarn } from '../utils/reportDebugLog'
 import ReportDetailContent from './ReportDetailContent'
 
 export default function ReportDetailModal({ reportId, canManage, onClose, onError }) {
@@ -52,6 +53,11 @@ export default function ReportDetailModal({ reportId, canManage, onClose, onErro
       await refreshReportImage(reportId, { ...updated, teacherComment: comment })
     } catch (err) {
       if (job === pngJobRef.current) {
+        logReportError('comment save: png sync failed', {
+          reportId,
+          error: err?.message,
+          stack: err?.stack,
+        })
         onError(err.message || 'PNG 반영에 실패했습니다.')
       }
     } finally {
@@ -66,6 +72,35 @@ export default function ReportDetailModal({ reportId, canManage, onClose, onErro
     try {
       await downloadReportImage(reportId)
     } catch (err) {
+      const missingFile =
+        err.message?.includes('보고서 파일') || err.message?.includes('보고서 이미지')
+      logReportError('download failed in modal', {
+        reportId,
+        canManage,
+        missingFile,
+        error: err?.message,
+        stack: err?.stack,
+      })
+      if (canManage && detail && missingFile) {
+        logReportWarn('download retry: capture then download', { reportId })
+        try {
+          const forCapture = {
+            ...detail,
+            teacherComment: canManage ? comment : detail.teacherComment,
+          }
+          await refreshReportImage(reportId, forCapture)
+          await downloadReportImage(reportId)
+          return
+        } catch (retryErr) {
+          logReportError('download retry failed', {
+            reportId,
+            error: retryErr?.message,
+            stack: retryErr?.stack,
+          })
+          onError(retryErr.message || 'PNG 생성·다운로드에 실패했습니다.')
+          return
+        }
+      }
       onError(err.message)
     }
   }

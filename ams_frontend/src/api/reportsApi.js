@@ -1,4 +1,5 @@
 import { apiRequest, fetchWithAuth } from './client'
+import { logReportError } from '../utils/reportDebugLog'
 
 const API_BASE = '/api/v1'
 
@@ -49,12 +50,40 @@ export function updateReportComment(reportId, comment) {
   })
 }
 
+async function readErrorBody(response, fallback) {
+  const contentType = response.headers.get('Content-Type') || ''
+  if (!contentType.includes('application/json')) {
+    return { message: fallback, code: null, body: null }
+  }
+  const body = await response.json().catch(() => ({}))
+  return {
+    message: body.message || fallback,
+    code: body.code ?? null,
+    body,
+  }
+}
+
 async function downloadBlob(url, filename, errorMessage, options = {}) {
   const response = await fetchWithAuth(url, options)
   if (!response.ok) {
-    throw new Error(errorMessage)
+    const { message, code, body } = await readErrorBody(response, errorMessage)
+    logReportError('download failed', {
+      url,
+      filename,
+      status: response.status,
+      statusText: response.statusText,
+      contentType: response.headers.get('Content-Type'),
+      code,
+      message,
+      body,
+    })
+    throw new Error(message)
   }
   const blob = await response.blob()
+  if (blob.size === 0) {
+    logReportError('download empty blob', { url, filename, status: response.status })
+    throw new Error('다운로드한 파일이 비어 있습니다.')
+  }
   const objectUrl = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = objectUrl
@@ -84,30 +113,67 @@ export function downloadReportPdf(reportId) {
   )
 }
 
+function asPngBlob(blob) {
+  if (blob.type === 'image/png') {
+    return blob
+  }
+  return new Blob([blob], { type: 'image/png' })
+}
+
 export async function uploadReportImage(reportId, blob) {
+  const pngBlob = asPngBlob(blob)
   const formData = new FormData()
-  formData.append('file', blob, `report-${reportId}.png`)
-  const response = await fetchWithAuth(`${API_BASE}/reports/${reportId}/image`, {
+  formData.append('file', pngBlob, `report-${reportId}.png`)
+  const url = `${API_BASE}/reports/${reportId}/image`
+  const response = await fetchWithAuth(url, {
     method: 'POST',
     body: formData,
   })
   const body = await response.json().catch(() => ({}))
   if (!response.ok || body.success === false) {
+    logReportError('upload failed', {
+      url,
+      reportId,
+      status: response.status,
+      statusText: response.statusText,
+      blobSize: pngBlob.size,
+      blobType: pngBlob.type,
+      code: body.code ?? null,
+      message: body.message,
+      body,
+    })
     throw new Error(body.message || '보고서 이미지 업로드에 실패했습니다.')
   }
   return body.data
 }
 
 export async function downloadPeriodReportsArchive(classId, periodStart, periodEnd, zipFilename) {
-  const response = await fetchWithAuth(`${API_BASE}/classes/${classId}/reports/archive`, {
+  const url = `${API_BASE}/classes/${classId}/reports/archive`
+  const response = await fetchWithAuth(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ periodStart, periodEnd }),
   })
   if (!response.ok) {
-    throw new Error('PNG 일괄 다운로드에 실패했습니다.')
+    const { message, code, body } = await readErrorBody(response, 'PNG 일괄 다운로드에 실패했습니다.')
+    logReportError('archive download failed', {
+      url,
+      classId,
+      periodStart,
+      periodEnd,
+      status: response.status,
+      statusText: response.statusText,
+      code,
+      message,
+      body,
+    })
+    throw new Error(message)
   }
   const blob = await response.blob()
+  if (blob.size === 0) {
+    logReportError('archive empty blob', { url, classId, periodStart, periodEnd })
+    throw new Error('ZIP 파일이 비어 있습니다.')
+  }
   const objectUrl = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = objectUrl

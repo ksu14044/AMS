@@ -27,6 +27,7 @@ import com.example.ams.api.dto.SaveAssignmentTargetRequest;
 import com.example.ams.api.dto.UpdateHomeworkSubmissionRequest;
 import com.example.ams.common.ApiResponse;
 import com.example.ams.domain.clazz.Homework;
+import com.example.ams.service.AnswerKeyPdfStorageService;
 import com.example.ams.service.HomeworkService;
 
 import jakarta.validation.Valid;
@@ -36,9 +37,13 @@ import jakarta.validation.Valid;
 public class ClassHomeworkController {
 
 	private final HomeworkService homeworkService;
+	private final AnswerKeyPdfStorageService answerKeyStorageService;
 
-	public ClassHomeworkController(HomeworkService homeworkService) {
+	public ClassHomeworkController(
+			HomeworkService homeworkService,
+			AnswerKeyPdfStorageService answerKeyStorageService) {
 		this.homeworkService = homeworkService;
+		this.answerKeyStorageService = answerKeyStorageService;
 	}
 
 	@GetMapping
@@ -85,10 +90,13 @@ public class ClassHomeworkController {
 
 	@GetMapping("/{homeworkId}/answer-keys/pdf")
 	public ResponseEntity<Resource> downloadAnswerKeyPdf(@PathVariable long homeworkId) {
+		Homework homework = homeworkService.getHomework(homeworkId);
 		Resource resource = homeworkService.loadAnswerKeyPdf(homeworkId);
+		String path = homework.answerKeyPdfPath();
+		String filename = answerKeyStorageService.downloadFilename(path, "homework-" + homeworkId + "-answer-key");
 		return ResponseEntity.ok()
-				.header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"homework-" + homeworkId + "-answer-key.pdf\"")
-				.contentType(MediaType.APPLICATION_PDF)
+				.header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+				.contentType(answerKeyStorageService.mediaTypeForPath(path))
 				.body(resource);
 	}
 

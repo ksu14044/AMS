@@ -10,7 +10,9 @@ RUN chmod +x mvnw && ./mvnw -B -DskipTests package
 
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
-RUN addgroup -S app && adduser -S app -G app
+RUN addgroup -S app && adduser -S app -G app \
+    && mkdir -p /data/uploads \
+    && chown -R app:app /data/uploads
 USER app
 COPY --from=build /app/target/*.jar /app/app.jar
 ENV SPRING_PROFILES_ACTIVE=prod

@@ -26,6 +26,7 @@ import com.example.ams.api.dto.TestScoreResponse;
 import com.example.ams.api.dto.UpdateTestScoresRequest;
 import com.example.ams.common.ApiResponse;
 import com.example.ams.domain.clazz.TestExam;
+import com.example.ams.service.AnswerKeyPdfStorageService;
 import com.example.ams.service.TestExamService;
 import com.example.ams.service.TestExamService.ScoreUpdate;
 
@@ -36,9 +37,13 @@ import jakarta.validation.Valid;
 public class ClassTestController {
 
 	private final TestExamService testExamService;
+	private final AnswerKeyPdfStorageService answerKeyStorageService;
 
-	public ClassTestController(TestExamService testExamService) {
+	public ClassTestController(
+			TestExamService testExamService,
+			AnswerKeyPdfStorageService answerKeyStorageService) {
 		this.testExamService = testExamService;
+		this.answerKeyStorageService = answerKeyStorageService;
 	}
 
 	@GetMapping
@@ -87,9 +92,11 @@ public class ClassTestController {
 	@GetMapping("/{testId}/answer-keys/pdf")
 	public ResponseEntity<Resource> downloadAnswerKeyPdf(@PathVariable long testId) {
 		Resource resource = testExamService.loadAnswerKeyPdf(testId);
+		String path = testExamService.getAnswerKeyRelativePath(testId);
+		String filename = answerKeyStorageService.downloadFilename(path, "test-" + testId + "-answer-key");
 		return ResponseEntity.ok()
-				.header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"test-" + testId + "-answer-key.pdf\"")
-				.contentType(MediaType.APPLICATION_PDF)
+				.header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+				.contentType(answerKeyStorageService.mediaTypeForPath(path))
 				.body(resource);
 	}
 

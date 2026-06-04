@@ -18,7 +18,7 @@ export function AnswerKeyFileField({ file, onFileChange, disabled, compact }) {
         onChange={(e) => onFileChange(e.target.files?.[0] ?? null)}
       />
       <p className="ams-class-detail__hint-inline">
-        PDF·이미지·워드·한글. 워드·한글은 텍스트 기준 PDF로 저장됩니다.
+        PDF·이미지·워드·한글. 업로드한 파일 그대로 저장됩니다.
       </p>
       {file && (
         <p className="ams-lesson-board__field-hint">
@@ -88,7 +88,7 @@ export function AnswerKeyUploadModal({
         </label>
 
         <label className="ams-homework-modal__field ams-homework-modal__field--file">
-          <span>정답지 파일 (PDF·이미지·워드·한글 → PDF 저장)</span>
+          <span>정답지 파일 (PDF·이미지·워드·한글)</span>
           <input
             type="file"
             accept={ANSWER_KEY_FILE_ACCEPT}
@@ -97,7 +97,7 @@ export function AnswerKeyUploadModal({
           />
         </label>
         <p className="ams-class-detail__hint-inline">
-          워드·한글은 텍스트 기준으로 PDF로 변환됩니다. 표·그림이 많으면 한글/워드에서 PDF로 저장 후 업로드하는 것을 권장합니다.
+          pdf, png, jpg, doc, docx, hwp, hwpx · 업로드한 파일 그대로 저장됩니다.
         </p>
 
         {hasAnswerKeyFile && (

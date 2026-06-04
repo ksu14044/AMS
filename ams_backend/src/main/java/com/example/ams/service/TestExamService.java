@@ -160,6 +160,11 @@ public class TestExamService {
 		return answerKeyPdfStorageService.load(source.answerKeyPdfPath());
 	}
 
+	public String getAnswerKeyRelativePath(long testId) {
+		TestExam test = getTest(testId);
+		return resolveAnswerKeySource(test).answerKeyPdfPath();
+	}
+
 	private TestExam resolveAnswerKeySource(TestExam test) {
 		if (!test.isRetake()) {
 			return test;

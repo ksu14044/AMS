@@ -149,7 +149,7 @@ public class SignupInviteService {
 
 	public String buildSignupPath(SignupInviteKind kind) {
 		return switch (kind) {
-			case ACADEMY -> "/signup/academy";
+			case ACADEMY -> "/signup";
 			case STAFF -> "/signup/staff";
 			case STUDENT -> "/signup/student";
 			case PARENT -> "/signup/parent";

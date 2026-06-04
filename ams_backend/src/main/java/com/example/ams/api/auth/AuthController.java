@@ -61,6 +61,10 @@ public class AuthController {
 				signupInviteService.roleLabel(invite.role())));
 	}
 
+	/**
+	 * @deprecated 12.10-6 — 공개 {@code POST /auth/signup/academy}(inviteToken 없음) 사용
+	 */
+	@Deprecated
 	@PostMapping("/signup-invites/academy")
 	public ApiResponse<SignupInviteResponse> createAcademySignupInvite(
 			@RequestHeader("X-Ams-Bootstrap-Key") String bootstrapKey) {

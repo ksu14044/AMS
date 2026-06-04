@@ -7,7 +7,8 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public record SignupAcademyRequest(
-		@NotBlank String inviteToken,
+		/** 초대 링크 가입 시에만 사용. 공개 학원 개설(`/signup`)은 null·빈 값 */
+		String inviteToken,
 		@NotBlank @Size(max = 100) String academyName,
 		@NotBlank @Size(min = 4, max = 32) @Pattern(regexp = "^[A-Za-z0-9_-]+$", message = "학원 코드는 영문, 숫자, _, - 만 사용할 수 있습니다.") String academyCode,
 		@NotBlank @Size(max = 100) String adminName,

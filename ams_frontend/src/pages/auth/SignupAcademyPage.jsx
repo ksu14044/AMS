@@ -1,14 +1,12 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthContext'
 import PhoneNumberField from '../../components/PhoneNumberField'
 import SignupInviteGate from '../../components/auth/SignupInviteGate'
 import { useSignupInvite } from '../../hooks/useSignupInvite'
 
-export default function SignupAcademyPage() {
+function AcademySignupForm({ inviteToken, onSuccess }) {
   const { signupAcademy } = useAuth()
-  const navigate = useNavigate()
-  const { token, invite, loading, error } = useSignupInvite('ACADEMY')
   const [form, setForm] = useState({
     academyName: '',
     academyCode: '',
@@ -31,8 +29,7 @@ export default function SignupAcademyPage() {
     }
     setSubmitting(true)
     try {
-      await signupAcademy({
-        inviteToken: token,
+      const payload = {
         academyName: form.academyName,
         academyCode: form.academyCode,
         adminName: form.adminName,
@@ -40,8 +37,12 @@ export default function SignupAcademyPage() {
         password: form.password,
         phoneNumber: form.phoneNumber,
         personalInfoConsent: form.personalInfoConsent,
-      })
-      navigate('/admin')
+      }
+      if (inviteToken) {
+        payload.inviteToken = inviteToken
+      }
+      await signupAcademy(payload)
+      onSuccess()
     } catch (err) {
       setSubmitError(err.message)
     } finally {
@@ -50,99 +51,121 @@ export default function SignupAcademyPage() {
   }
 
   return (
+    <div className="ams-card ams-auth__card">
+      <h1 className="ams-card__title">학원 개설</h1>
+      <p className="ams-card__desc">원장 계정과 학원 코드를 등록합니다.</p>
+      <form className="ams-form" onSubmit={handleSubmit}>
+        <label className="ams-field">
+          <span>학원 이름</span>
+          <input
+            value={form.academyName}
+            onChange={(e) => setForm({ ...form, academyName: e.target.value })}
+            required
+          />
+        </label>
+        <label className="ams-field">
+          <span>학원 코드</span>
+          <input
+            value={form.academyCode}
+            onChange={(e) => setForm({ ...form, academyCode: e.target.value })}
+            placeholder="영문·숫자·_ -"
+            required
+          />
+        </label>
+        <label className="ams-field">
+          <span>원장 이름</span>
+          <input
+            value={form.adminName}
+            onChange={(e) => setForm({ ...form, adminName: e.target.value })}
+            required
+          />
+        </label>
+        <label className="ams-field">
+          <span>이메일</span>
+          <input
+            type="email"
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            required
+          />
+        </label>
+        <label className="ams-field">
+          <span>비밀번호</span>
+          <input
+            type="password"
+            value={form.password}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
+            minLength={8}
+            required
+          />
+        </label>
+        <label className="ams-field">
+          <span>비밀번호 확인</span>
+          <input
+            type="password"
+            value={form.confirmPassword}
+            onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+            minLength={8}
+            required
+          />
+        </label>
+        <PhoneNumberField
+          value={form.phoneNumber}
+          onChange={(phoneNumber) => setForm({ ...form, phoneNumber })}
+        />
+        <label className="ams-consent">
+          <input
+            type="checkbox"
+            checked={form.personalInfoConsent}
+            onChange={(e) => setForm({ ...form, personalInfoConsent: e.target.checked })}
+            required
+          />
+          <span>
+            <strong>[필수] 개인정보 수집 및 이용 동의</strong>
+            <br />
+            본인은 AMS 서비스 회원가입과 학원 운영(계정 개설, 학원 관리, 수업 운영, 본인 확인 및 고객 응대)을 위해 이름, 이메일,
+            전화번호를 수집·이용하는 것에 동의합니다. 보유·이용 기간은 회원 탈퇴 후 최대 30일까지(관계 법령에 따라 별도 보관이 필요한
+            경우 해당 기간까지)이며, 동의를 거부할 권리가 있으나 거부 시 회원가입이 제한될 수 있습니다.
+          </span>
+        </label>
+        {submitError && <p className="ams-form__error">{submitError}</p>}
+        <button
+          type="submit"
+          className="ams-btn ams-btn--primary ams-btn--block ams-form__submit"
+          disabled={submitting}
+        >
+          {submitting ? '등록 중…' : '학원 개설'}
+        </button>
+      </form>
+      <div className="ams-card__footer">
+        <Link to="/login">로그인으로 돌아가기</Link>
+      </div>
+    </div>
+  )
+}
+
+function SignupAcademyWithInvite() {
+  const navigate = useNavigate()
+  const { token, invite, loading, error } = useSignupInvite('ACADEMY')
+
+  return (
     <SignupInviteGate loading={loading} error={error} invite={invite}>
-      {() => (
-        <div className="ams-card ams-auth__card">
-          <h1 className="ams-card__title">학원 개설</h1>
-          <p className="ams-card__desc">원장 계정과 학원 코드를 등록합니다.</p>
-          <form className="ams-form" onSubmit={handleSubmit}>
-            <label className="ams-field">
-              <span>학원 이름</span>
-              <input
-                value={form.academyName}
-                onChange={(e) => setForm({ ...form, academyName: e.target.value })}
-                required
-              />
-            </label>
-            <label className="ams-field">
-              <span>학원 코드</span>
-              <input
-                value={form.academyCode}
-                onChange={(e) => setForm({ ...form, academyCode: e.target.value })}
-                placeholder="영문·숫자·_ -"
-                required
-              />
-            </label>
-            <label className="ams-field">
-              <span>원장 이름</span>
-              <input
-                value={form.adminName}
-                onChange={(e) => setForm({ ...form, adminName: e.target.value })}
-                required
-              />
-            </label>
-            <label className="ams-field">
-              <span>이메일</span>
-              <input
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                required
-              />
-            </label>
-            <label className="ams-field">
-              <span>비밀번호</span>
-              <input
-                type="password"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                minLength={8}
-                required
-              />
-            </label>
-            <label className="ams-field">
-              <span>비밀번호 확인</span>
-              <input
-                type="password"
-                value={form.confirmPassword}
-                onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
-                minLength={8}
-                required
-              />
-            </label>
-            <PhoneNumberField
-              value={form.phoneNumber}
-              onChange={(phoneNumber) => setForm({ ...form, phoneNumber })}
-            />
-            <label className="ams-consent">
-              <input
-                type="checkbox"
-                checked={form.personalInfoConsent}
-                onChange={(e) => setForm({ ...form, personalInfoConsent: e.target.checked })}
-                required
-              />
-              <span>
-                <strong>[필수] 개인정보 수집 및 이용 동의</strong>
-                <br />
-                본인은 AMS 서비스 회원가입과 학원 운영(계정 개설, 학원 관리, 수업 운영, 본인 확인 및 고객 응대)을 위해 이름, 이메일,
-                전화번호를 수집·이용하는 것에 동의합니다. 보유·이용 기간은 회원 탈퇴 후 최대 30일까지(관계 법령에 따라 별도 보관이 필요한
-                경우 해당 기간까지)이며, 동의를 거부할 권리가 있으나 거부 시 회원가입이 제한될 수 있습니다.
-              </span>
-            </label>
-            {submitError && <p className="ams-form__error">{submitError}</p>}
-            <button
-              type="submit"
-              className="ams-btn ams-btn--primary ams-btn--block ams-form__submit"
-              disabled={submitting}
-            >
-              {submitting ? '등록 중…' : '학원 개설'}
-            </button>
-          </form>
-          <div className="ams-card__footer">
-            <Link to="/login">로그인으로 돌아가기</Link>
-          </div>
-        </div>
-      )}
+      {() => <AcademySignupForm inviteToken={token} onSuccess={() => navigate('/admin')} />}
     </SignupInviteGate>
   )
+}
+
+function SignupAcademyPublic() {
+  const navigate = useNavigate()
+  return <AcademySignupForm onSuccess={() => navigate('/admin')} />
+}
+
+/** `/signup` 공개 학원 개설 · `/signup/academy?token=` 초대 링크(구 bootstrap) */
+export default function SignupAcademyPage() {
+  const [searchParams] = useSearchParams()
+  const token = searchParams.get('token')
+  if (token) {
+    return <SignupAcademyWithInvite />
+  }
+  return <SignupAcademyPublic />
 }

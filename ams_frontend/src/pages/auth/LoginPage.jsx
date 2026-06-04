@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthContext'
 import { homePathForRole } from '../../auth/roleLabels'
 
@@ -72,8 +72,11 @@ export default function LoginPage() {
         </button>
       </form>
       <p className="ams-card__desc ams-auth__invite-hint">
-        회원가입은 학원에서 발송한 전용 링크로만 가능합니다.
+        학생·교직원·학부모 가입은 학원에서 받은 전용 링크로만 가능합니다.
       </p>
+      <div className="ams-card__footer">
+        <Link to="/signup">새 학원 개설</Link>
+      </div>
     </div>
   )
 }

@@ -54,7 +54,9 @@ public class AuthService {
 			String email,
 			String password,
 			String phoneNumber) {
-		signupInviteService.requireKind(inviteToken, SignupInviteKind.ACADEMY);
+		if (inviteToken != null && !inviteToken.isBlank()) {
+			signupInviteService.requireKind(inviteToken, SignupInviteKind.ACADEMY);
+		}
 		if (academyRepository.existsByCode(academyCode)) {
 			throw new BusinessException(ErrorCode.INVALID_REQUEST, "이미 사용 중인 학원 코드입니다.");
 		}

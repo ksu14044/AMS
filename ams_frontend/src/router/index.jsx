@@ -46,6 +46,7 @@ export default function AppRouter() {
             <Route element={<AuthLayout />}>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/login/select" element={<LoginAcademySelectPage />} />
+              <Route path="/signup" element={<SignupAcademyPage />} />
               <Route path="/signup/academy" element={<SignupAcademyPage />} />
               <Route path="/signup/staff" element={<SignupStaffPage />} />
               <Route path="/signup/student" element={<SignupStudentPage />} />
